@@ -3,6 +3,7 @@
   import { NICKNAME_MAX } from '@guess/rules';
   import { untrack } from 'svelte';
   import Confirm from '../hud/Confirm.svelte';
+  import EffectsSwitch from '../hud/EffectsSwitch.svelte';
   import Kbd from '../hud/Kbd.svelte';
   import LangSwitch from '../hud/LangSwitch.svelte';
   import { t } from '../i18n.svelte';
@@ -35,6 +36,7 @@
     </div>
     <div class="body">
       <div class="gs-line"><span>{t('lang.label')}</span><LangSwitch /></div>
+      <EffectsSwitch />
       <form class="gs-form" onsubmit={rename}>
         <label class="ss-field">
           <span class="lbl">{t('sala.nickname')}</span>

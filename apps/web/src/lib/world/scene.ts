@@ -1,16 +1,23 @@
 /**
- * O telhado em PixiJS v8 (ADR 0006): as plataformas, uma sombra no chão e um sprite por corpo, ordenados pela
- * profundidade a cada quadro, e o balão do emote. Não decide nada: desenha o que o `WorldRuntime` manda, na mesma
- * projeção (`project`) dos post-its em HTML. Não tem teste automático (Pixi e WebGL).
+ * O telhado em PixiJS v8 (ADR 0006): o fundo (céu, cidade em paralaxe, a queda até a rua), os telhados vestidos, uma
+ * sombra no chão e um sprite por corpo, ordenados pela profundidade a cada quadro, a mureta da frente, o balão do emote
+ * e a chuva. Tudo dentro de um contêiner só, o mundo, que leva os filtros de filme (`film.ts`) quando os efeitos de tela
+ * estão ligados; os post-its e painéis são HTML por cima e nunca passam por eles. Não decide nada: desenha o que o
+ * `WorldRuntime` manda, na mesma projeção (`project`) dos post-its em HTML. Não tem teste automático (Pixi e WebGL).
  */
 import { EMOTES, type EmoteName } from '@guess/protocol';
 import { BODY_RX, BODY_RZ, DEPTH_K, depthKey, groundAt, MAP, project, type Anim, type Camera, type Vec3, type View } from '@guess/world';
 import { Application, Assets, Container, Graphics, Rectangle, Sprite, Texture, TextureSource } from 'pixi.js';
+import { effectsOn, onEffects } from '../effects';
 import type { Lang } from '../i18n';
 import emoteAtlas from '../sprites/emotes.json';
 import { frameIndex, HERO, heroSheet } from '../sprites/hero';
-import { drawPlatforms } from './platforms';
+import { loadRooftopArt } from './art';
+import { Backdrop } from './backdrop';
+import { Film } from './film';
+import { Platforms } from './platforms';
 import { emoteAnchor } from './view';
+import { Weather } from './weather';
 
 export interface SceneBody extends Vec3 {
   id: string;
@@ -34,7 +41,16 @@ const BLINK_PERIOD = 90;
 interface Drawn { sprite: Sprite; shadow: Graphics; balloon: Sprite }
 
 export class Scene {
-  private readonly platforms = new Graphics();
+  /** tudo o que o Pixi desenha; os filtros de filme vão aqui */
+  private readonly world = new Container();
+  /** o cenário de trás (fundo e telhados): o brilho do neon vai só aqui, para não estourar os personagens */
+  private readonly scenery = new Container();
+  private backdrop: Backdrop | null = null;
+  private platforms: Platforms | null = null;
+  private weather: Weather | null = null;
+  private readonly film = new Film();
+  private effects = effectsOn();
+  private readonly offEffects: () => void;
   private readonly shadows = new Container();
   private readonly bodies = new Container({ sortableChildren: true });
   private readonly balloons = new Container();
@@ -44,7 +60,15 @@ export class Scene {
   private readonly emotes = new Map<Lang, Record<EmoteName, Texture>>();
 
   private constructor(readonly app: Application) {
-    app.stage.addChild(this.platforms, this.shadows, this.bodies, this.balloons);
+    app.stage.addChild(this.world);
+    this.world.filterArea = app.screen;
+    this.scenery.filterArea = app.screen;
+    this.offEffects = onEffects((on) => { this.effects = on; this.applyEffects(); });
+  }
+
+  private applyEffects() {
+    this.world.filters = this.effects ? this.film.world : [];
+    this.scenery.filters = this.effects ? this.film.scenery : [];
   }
 
   /** Cria o canvas dentro de `host` e carrega as folhas. Rejeita se não houver como desenhar (sem WebGL nem canvas). */
@@ -83,11 +107,21 @@ export class Scene {
       }
       this.emotes.set(lang, map);
     }
+    const art = await loadRooftopArt();
+    this.backdrop = new Backdrop(art);
+    this.platforms = new Platforms(art);
+    this.weather = new Weather(art);
+    this.scenery.addChild(this.backdrop, this.platforms.back);
+    this.world.addChild(this.scenery, this.shadows, this.bodies, this.platforms.front, this.balloons, this.weather);
+    this.applyEffects();
   }
 
   render(list: readonly SceneBody[], cam: Camera, view: View, now: number, lang: Lang) {
     const s = view.scale;
-    drawPlatforms(this.platforms, MAP, cam, view);
+    this.backdrop?.update(cam, view, now);
+    this.platforms?.update(cam, view, now);
+    this.weather?.update(cam, view, now);
+    if (this.effects) this.film.tick(now);
 
     const seen = new Set<string>();
     // quem está mais ao fundo primeiro; empate pelo id, para não piscar a ordem
@@ -147,5 +181,5 @@ export class Scene {
     return d;
   }
 
-  destroy() { this.app.destroy(true, { children: true }); }
+  destroy() { this.offEffects(); this.app.destroy(true, { children: true }); }
 }

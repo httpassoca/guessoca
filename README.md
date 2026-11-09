@@ -66,13 +66,20 @@ apps/web           Vite + Svelte 5 + PixiJS v8 + dssoca
   src/lib/room/view.ts     o snapshot visto por mim: quem sou, para quem escrevo, de quem é a vez, se posso acertar, passar,
                            desistir ou votar, os post-its como posso vê-los, o ranking, a contagem regressiva
   src/lib/image.ts         a imagem do post-it: reduz a 512 px, WebP baixando a qualidade até caber, sobe por POST
-  src/lib/sprites/         os atlas gerados (`hero.json`, `emotes.json`) e `hero.ts`, que diz onde está cada quadro
+  src/lib/effects.ts       "efeitos de tela" (os filtros de filme) ligados ou não, por navegador (localStorage)
+  src/lib/sprites/         os atlas gerados (`hero.json`, `emotes.json`, `rooftop.json`), `hero.ts`, que diz onde está cada
+                           quadro do personagem, e `rooftop.ts`, o mesmo para os objetos do telhado e as faixas da cidade
   src/lib/world/            o telhado no navegador: controls (teclas → `Input`), loop (60 passos por segundo), presence (manda
                            a própria ~15/s e um batimento por segundo parado; interpola a dos outros), crowd (quem desenhar,
                            jogadores falsos parados em lugares fixos), view (escala inteira, onde vão o post-it e o balão),
-                           heads, platforms (o desenho das plataformas, num lugar só), scene (Pixi: corpos por profundidade,
-                           sombras, balões, câmera), runtime (o laço, o empurrão de ida e de volta, os post-its em HTML sobre as
-                           cabeças) e World.svelte
+                           heads, dressing (puro: que objeto veste cada caixa do mapa, onde ficam tampo e fachada de cada
+                           telhado, antenas, letreiros e poças, o neon que falha), parallax (puro: a faixa que rola a uma
+                           fração da câmera), rain (puro: as gotas reaproveitadas), art (as texturas da folha do telhado),
+                           backdrop (céu, lua, a cidade em duas camadas de paralaxe, a queda até a rua com neblina), platforms
+                           (os telhados vestidos, num lugar só: tampo, muretas, fachada, objetos das caixas, enfeites), weather
+                           (chuva e neblina da frente), film (os filtros só no mundo: brilho no cenário, aberração e VHS em
+                           tudo), scene (Pixi: as camadas, corpos por profundidade, sombras, balões, câmera), runtime (o laço,
+                           o empurrão de ida e de volta, os post-its em HTML sobre as cabeças) e World.svelte
   src/lib/keys.ts          Enter = Acertei, Tab = passar, N = bloco, Esc = menu (fora de campo de texto)
   src/lib/panels/          Room (o telhado atrás de tudo, a barra, a coluna da fase que recolhe, teclado), TurnBar (vez e votação
                            no alto), Roster (a tira de post-its embaixo), Lobby (ordem arrastável, autores, personagens, tamanho da vez), Writing
@@ -88,6 +95,10 @@ tools/sprites      `bun run sprites` (@guess/sprites): as receitas que geram as 
   src/grid.ts        pixel art escrita como texto (um caractere por pixel, `.` transparente)
   src/hero.ts        o personagem: fatia as folhas do pacote, tira a espada do golpe, oito cores de cabelo, atlas
   src/emotes.ts      os balões `?`, `!`, `haha`, "eu?"/"me?" com uma fonte 3×5 em texto
+  src/rooftop.ts     o telhado em grades de texto: a paleta, a prancheta (`Sketch`) que carimba grades, tampo, muretas,
+                     fachadas, as três caixas do mapa (ar-condicionado, chaminé, caixa-d'água), antenas, letreiros de neon,
+                     poças, lua e neblina; a folha `rooftop.png` e o atlas
+  src/skyline.ts     a cidade ao fundo: faixas que repetem, geradas por um sorteio semeado (longe e perto)
   test/              as receitas com imagens de mentira (o pacote não é preciso para testar)
 
 Dockerfile         imagem oficial do Bun em duas etapas: builda o cliente, roda o servidor (ver Deploy)
@@ -131,6 +142,18 @@ O que sai:
   golpe do pacote sem a espada: as cores da lâmina e do cabo saem por cor, o rastro branco por ser uma mancha branca
   grande, e o contorno fino da lâmina por estar à frente do corpo.
 - `emotes-pt-BR.png` e `emotes-en-US.png`: os balões das teclas 1–4; só o "eu?"/"me?" muda de uma para a outra.
+- `rooftop.png` (atlas em `rooftop.json`): o telhado neon-noir, todo desenhado em grades de texto em
+  `tools/sprites/src/rooftop.ts`, com uma paleta só (azul e roxo fundos, concreto molhado, neon magenta e ciano, janela
+  amarela). O tampo de concreto, as muretas da frente e do fundo, as três fachadas (tijolo, o hotel de painéis, azulejo,
+  montadas carimbando a parede e as janelas por um plano de texto) e a neblina repetem: a primeira e a última coluna são
+  iguais, uma junta ou um pilar dividido ao meio. Cada caixa do mapa tem o objeto do tamanho dela (ar-condicionado,
+  chaminé, caixa-d'água): a largura da caixa, a frente com a altura dela e o tampo com o fundo dela achatado pela
+  perspectiva, então o topo visível cai no `top` da caixa (os testes conferem contra o `MAP`). Mais antenas, a luz da
+  torre, os letreiros "BAR", "HOTEL" (com uma letra que falha) e "24H", poças e a lua. Não precisam do pacote: saem mesmo
+  sem ele.
+- `skyline-far.png` e `skyline-near.png`: a cidade ao fundo, gerada por `tools/sprites/src/skyline.ts` com uma semente
+  fixa (a mesma semente dá sempre a mesma cidade): prédios, janelas acesas, antenas, caixas-d'água e um pouco de neon, em
+  faixas que repetem. O cliente as rola a frações diferentes da câmera.
 
 ### Pedir um personagem ou objeto novo
 
@@ -139,8 +162,15 @@ O que sai:
 - **Outra peça do personagem** (cachecol, camisa…): o mesmo jeito, trocando as cores dessa peça; diga qual peça e a cor.
   Para achar as cores de uma peça, o pipeline tem `palette()`.
 - **Outro balão**: uma entrada em `EMOTES` e, se tiver letra nova, a letra em `FONT` (3×5) em `tools/sprites/src/emotes.ts`.
-- **Um objeto do telhado** (caixa-d'água, antena, placa…): uma grade de texto com a paleta, como as letras dos balões, num
-  módulo novo ao lado; diga o tamanho em pixels e as cores. Personagens de outro pacote precisam de licença que permita.
+- **Um objeto do telhado** (caixa-d'água, antena, placa…): uma grade de texto com as cores de `PALETTE`, numa receita
+  nova em `RECIPES` em `tools/sprites/src/rooftop.ts` (para repetir pedaços, a `Sketch` carimba grades menores); e onde ele
+  fica no mapa, em `DECOR` em `apps/web/src/lib/world/dressing.ts` (atrás da mureta do fundo, pregado na fachada ou
+  deitado no tampo). Diga o tamanho em pixels, as cores e onde vai. Um letreiro novo é `neonSign('TEXTO', 'x' ou 'z')`,
+  com as letras que faltarem na fonte 5×7 `NEON_FONT`; só textos nossos, nada de marca ou jogo de verdade.
+- **Uma caixa nova no mapa** (`MAP` em `@guess/world`): precisa de um objeto com `fits` do tamanho dela (largura, altura
+  da frente, fundo), senão fica invisível; o teste do pipeline aponta qual falta.
+- **A cidade ao fundo**: outra semente ou outros números em `SKYLINES`/`STYLES` em `tools/sprites/src/skyline.ts`.
+  Personagens de outro pacote precisam de licença que permita.
 
 Depois de mudar uma receita: `bun run sprites`, conferir as folhas e versionar o que mudou em `apps/web/`.
 
