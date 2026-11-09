@@ -15,6 +15,7 @@
     "@guess/world": "workspace:*",
     "dssoca": "^0.19.0",
     "jsfxr": "^1.4.1",
+    "pixi-filters": "^6.1.5",
     "pixi.js": "^8.22.0",
     "svelte": "^5.57.0"
   },

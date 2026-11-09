@@ -1,40 +1,100 @@
 /**
- * Os telhados e as caixas em cima deles, como blocos lisos: o topo e a frente (mais escura). É o único lugar que sabe
- * desenhar plataformas; o visual do telhado (issue #6) troca este módulo inteiro.
+ * Os telhados vestidos (issue #6): é o único lugar que sabe desenhar plataformas. Cada telhado é um tampo de concreto
+ * molhado, uma mureta no fundo e outra na frente, e a fachada do prédio descendo até o fim da tela; cada caixa do mapa
+ * vira o objeto do tamanho dela (ar-condicionado, chaminé, caixa-d'água); e os enfeites (antenas, letreiros de neon,
+ * poças) ficam onde `dressing.ts` manda.
+ *
+ * Ordem: `back` vai atrás dos corpos (as caixas vão até o fundo do telhado, então ninguém fica atrás delas: quem está na
+ * frente cobre, e quem está em cima é desenhado depois, por cima); `front` (a mureta da frente) vai na frente dos
+ * corpos, cobrindo os pés de quem encosta na beirada. Pixi; as contas são puras e testadas em `dressing.ts`.
  */
-import { project, type Camera, type Platform, type View } from '@guess/world';
-import type { Graphics } from 'pixi.js';
+import { MAP, project, type Camera, type Platform, type View } from '@guess/world';
+import { Container, Graphics, Sprite, Texture, TilingSprite } from 'pixi.js';
+import { ROOFTOP } from '../sprites/rooftop';
+import type { RooftopArt } from './art';
+import { beaconOn, boxLooks, DECOR, decorAt, facadeOf, neonFlicker, ROOFS, roofRects, type BoxLook, type Decor } from './dressing';
 
-const COLORS = {
-  roof: { top: 0x3b3654, front: 0x1d1a2b, edge: 0x5a5480 },
-  box: { top: 0x4f4a6e, front: 0x2c2840, edge: 0x76709c },
-} as const;
+const EDGE = 0x0c0a17;
+const TOP_ROWS = ROOFTOP.frames['roof-top'].h;
+const PARAPET = ROOFTOP.frames.parapet;
+const LEDGE = ROOFTOP.frames.ledge;
 
-/** Redesenha as plataformas para a câmera de agora (é barato: meia dúzia de retângulos). */
-export function drawPlatforms(g: Graphics, platforms: readonly Platform[], cam: Camera, view: View) {
-  g.clear();
-  const s = view.scale;
-  // telhados antes das caixas (elas ficam em cima); entre iguais, o mais ao fundo primeiro
-  const order = [...platforms].sort((a, b) => (a.kind === b.kind ? b.z0 - a.z0 : a.kind === 'roof' ? -1 : 1));
-  for (const p of order) {
-    const c = COLORS[p.kind];
-    const back = project({ x: p.x0, y: p.top, z: p.z1 }, cam, view);
-    const front = project({ x: p.x1, y: p.top, z: p.z0 }, cam, view);
-    const x = back.x, w = front.x - back.x;
-    if (x > view.width + view.scale * 100 || x + w < -view.scale * 100) continue;
-    // a frente desce até a rua (telhado) ou até o telhado em que a caixa está
-    const base = p.kind === 'roof' ? null : baseOf(p, platforms);
-    const bottom = base === null ? view.height : project({ x: p.x0, y: base, z: p.z0 }, cam, view).y;
-    g.rect(x, back.y, w, front.y - back.y).fill(c.top);
-    g.rect(x, front.y, w, Math.max(0, bottom - front.y)).fill(c.front);
-    g.rect(x, front.y - s, w, s).fill(c.edge);
+interface DrawnRoof { roof: Platform; top: TilingSprite; ledge: TilingSprite; facade: TilingSprite; parapet: TilingSprite }
+interface DrawnDecor { d: Decor; sprite: Sprite }
+
+export class Platforms {
+  readonly back = new Container();
+  readonly front = new Container();
+  private readonly roofs: DrawnRoof[];
+  private readonly decor: DrawnDecor[] = [];
+  private readonly boxes: { look: BoxLook; sprite: Sprite }[];
+  private readonly edges = new Graphics();
+  private readonly hotel: Texture[];
+
+  constructor(art: RooftopArt) {
+    const tiling = (name: string) => new TilingSprite({ texture: art.tile(name) });
+    const sprite = (name: string) => {
+      const s = new Sprite(art.frame(name));
+      const f = ROOFTOP.frames[name];
+      s.anchor.set(f.anchor.x / f.w, f.anchor.y / f.h);
+      return s;
+    };
+    this.hotel = [art.frame('sign-hotel'), art.frame('sign-hotel-flicker')];
+    this.roofs = ROOFS.map((roof, i) => ({ roof, top: tiling('roof-top'), ledge: tiling('ledge'), facade: tiling(facadeOf(i)), parapet: tiling('parapet') }));
+    for (const d of DECOR) this.decor.push({ d, sprite: sprite(d.frame) });
+    this.boxes = boxLooks(MAP).map((look) => ({ look, sprite: sprite(look.frame) }));
+
+    const layer = (ds: DrawnDecor[]) => ds.map((x) => x.sprite);
+    const of = (l: Decor['layer']) => layer(this.decor.filter((x) => x.d.layer === l));
+    this.back.addChild(
+      ...of('back'),
+      ...this.roofs.flatMap((r) => [r.top, r.ledge, r.facade]),
+      this.edges,
+      ...of('facade'),
+      ...of('floor'),
+      ...this.boxes.map((b) => b.sprite),
+    );
+    this.front.addChild(...this.roofs.map((r) => r.parapet));
   }
-}
 
-/** o topo do telhado debaixo de uma caixa */
-function baseOf(box: Platform, platforms: readonly Platform[]): number {
-  const cx = (box.x0 + box.x1) / 2, cz = (box.z0 + box.z1) / 2;
-  let base = 0;
-  for (const p of platforms) if (p.kind === 'roof' && cx >= p.x0 && cx <= p.x1 && cz >= p.z0 && cz <= p.z1) base = Math.max(base, p.top);
-  return base;
+  update(cam: Camera, view: View, now: number) {
+    const s = view.scale;
+    const onScreen = (x: number, w: number) => x + w > -s * 8 && x < view.width + s * 8;
+    this.edges.clear();
+    for (const r of this.roofs) {
+      const { top, facade } = roofRects(r.roof, cam, view);
+      const visible = onScreen(top.x, top.w);
+      for (const t of [r.top, r.ledge, r.facade, r.parapet]) { t.visible = visible; t.tileScale.set(s); }
+      if (!visible) continue;
+      // o tampo encosta embaixo (a beirada da frente inteira); o que sobra de cima fica sob a mureta do fundo
+      r.top.position.set(top.x, top.y);
+      r.top.width = top.w; r.top.height = top.h;
+      r.top.tilePosition.set(0, top.h - TOP_ROWS * s);
+      r.ledge.position.set(top.x, top.y - LEDGE.anchor.y * s);
+      r.ledge.width = top.w; r.ledge.height = LEDGE.h * s;
+      r.facade.position.set(facade.x, facade.y);
+      r.facade.width = facade.w; r.facade.height = Math.max(0, facade.h);
+      r.parapet.position.set(facade.x, facade.y - PARAPET.anchor.y * s);
+      r.parapet.width = facade.w; r.parapet.height = PARAPET.h * s;
+      // as quinas do prédio: um contorno escuro separa a fachada do fundo
+      const left = facade.x, right = facade.x + facade.w;
+      this.edges.rect(left, top.y - LEDGE.anchor.y * s, s, view.height).rect(right - s, top.y - LEDGE.anchor.y * s, s, view.height).fill(EDGE);
+    }
+
+    const flicker = neonFlicker(now);
+    for (const { d, sprite } of this.decor) {
+      const at = project(decorAt(d), cam, view);
+      sprite.scale.set(s);
+      sprite.position.set(at.x, at.y);
+      sprite.visible = onScreen(at.x - sprite.width / 2, sprite.width);
+      if (d.frame === 'beacon') sprite.visible &&= beaconOn(now + d.x * 7);
+      if (d.frame === 'sign-hotel') sprite.texture = this.hotel[flicker ? 1 : 0];
+    }
+    for (const { look, sprite } of this.boxes) {
+      const at = look.place(cam, view);
+      sprite.scale.set(s);
+      sprite.position.set(at.x, at.y);
+      sprite.visible = onScreen(at.x, sprite.width);
+    }
+  }
 }

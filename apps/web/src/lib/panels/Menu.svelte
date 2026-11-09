@@ -3,6 +3,7 @@
   import { NICKNAME_MAX } from '@guess/rules';
   import { untrack } from 'svelte';
   import Confirm from '../hud/Confirm.svelte';
+  import EffectsSwitch from '../hud/EffectsSwitch.svelte';
   import Kbd from '../hud/Kbd.svelte';
   import LangSwitch from '../hud/LangSwitch.svelte';
   import Switch from '../hud/Switch.svelte';
@@ -49,6 +50,7 @@
           <span class="gs-mute">{t('menu.mute')} <Switch on={sound.muted} label={t('menu.mute')} ontoggle={setMuted} /></span>
         </span>
       </div>
+      <EffectsSwitch />
       <form class="gs-form" onsubmit={rename}>
         <label class="ss-field">
           <span class="lbl">{t('sala.nickname')}</span>
