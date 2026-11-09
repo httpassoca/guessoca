@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { CODE_RE, isWebp, parseClientMessage, TOKEN_RE } from '../src';
+import { CODE_RE, isWebp, parseClientMessage, parsePresence, TOKEN_RE, type Presence } from '../src';
 
 describe('parseClientMessage', () => {
   test('aceita as mensagens válidas', () => {
@@ -91,5 +91,29 @@ describe('isWebp', () => {
     expect(isWebp(ok)).toBe(true);
     expect(isWebp(new TextEncoder().encode('\x89PNG\r\n\x1a\n0000'))).toBe(false);
     expect(isWebp(new Uint8Array(4))).toBe(false);
+  });
+});
+
+describe('presença e empurrão', () => {
+  const ok: Presence = { x: 300, y: 24, z: 20, vx: 80, vy: 0, vz: 0, facing: 1, anim: 'walk', emote: null, blink: false };
+  const p = (v: unknown) => parseClientMessage(JSON.stringify(v));
+
+  test('aceita a presença válida e só leva os campos conhecidos', () => {
+    expect(p({ type: 'presence', presence: { ...ok, extra: 1 } })).toEqual({ type: 'presence', presence: ok });
+    expect(parsePresence({ ...ok, emote: 'haha', facing: -1, anim: 'fall_loop', blink: true })).toEqual({ ...ok, emote: 'haha', facing: -1, anim: 'fall_loop', blink: true });
+  });
+
+  test('descarta presença fora do mundo, com número inválido ou campo errado', () => {
+    for (const bad of [
+      { ...ok, x: 1e9 }, { ...ok, y: NaN }, { ...ok, z: '3' }, { ...ok, vx: 99999 }, { ...ok, facing: 0 },
+      { ...ok, anim: 'dance' }, { ...ok, emote: 'lol' }, { ...ok, blink: 'no' }, null, [],
+    ]) expect(parsePresence(bad)).toBeNull();
+    expect(p({ type: 'presence' })).toBeNull();
+  });
+
+  test('empurrão: um membro e um lado', () => {
+    expect(p({ type: 'shove', target: 'm2', dir: -1 })).toEqual({ type: 'shove', target: 'm2', dir: -1 });
+    expect(p({ type: 'shove', target: 'm2', dir: 2 })).toBeNull();
+    expect(p({ type: 'shove', target: 'zé', dir: 1 })).toBeNull();
   });
 });

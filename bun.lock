@@ -43,6 +43,7 @@
       "version": "0.1.0",
       "dependencies": {
         "@guess/rules": "workspace:*",
+        "@guess/world": "workspace:*",
       },
       "devDependencies": {
         "typescript": "^5.9.0",

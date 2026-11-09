@@ -1,4 +1,5 @@
-import { CLOSE_KICKED, CLOSE_REPLACED, CLOSE_ROOM_ENDED, CLOSE_ROOM_NOT_FOUND, PING_INTERVAL, type ClientMessage, type RoomError, type RoomSnapshot, type ServerMessage } from '@guess/protocol';
+import { CLOSE_KICKED, CLOSE_REPLACED, CLOSE_ROOM_ENDED, CLOSE_ROOM_NOT_FOUND, parsePresence, PING_INTERVAL, type ClientMessage, type Presence, type RoomError, type RoomSnapshot, type ServerMessage } from '@guess/protocol';
+import { pushPresence, type PresenceTrack } from '../world/presence';
 
 export type RemoteStatus = 'idle' | 'connecting' | 'open' | 'reconnecting' | 'closed';
 /** Por que a conexão fechou de vez (códigos 4xxx do servidor); null = ainda não fechou, ou fechou por `dispose`. */
@@ -42,8 +43,14 @@ export type SocketFactory = (url: string) => SocketLike;
 export interface Clock { setTimeout(fn: () => void, ms: number): unknown; clearTimeout(handle: unknown): void }
 export const realClock: Clock = { setTimeout: (fn, ms) => setTimeout(fn, ms), clearTimeout: (h) => clearTimeout(h as ReturnType<typeof setTimeout>) };
 
-/** Os pedidos que a tela faz por `send`: tudo menos entrar/apelido (que têm método próprio) e o ping (da conexão). */
-export type GameRequest = Exclude<ClientMessage, { type: 'join' | 'nickname' | 'ping' }>;
+/**
+ * Os pedidos que a tela faz por `send`: tudo menos entrar/apelido (que têm método próprio), o ping (da conexão) e o
+ * telhado (presença e empurrão, com método próprio e fora do estado).
+ */
+export type GameRequest = Exclude<ClientMessage, { type: 'join' | 'nickname' | 'ping' | 'presence' | 'shove' }>;
+
+/** Alguém (`by`) me empurrou para o lado `dir`. */
+export interface ShovedEvent { by: string; dir: 1 | -1 }
 
 export const BACKOFF_START = 500;
 export const BACKOFF_MAX = 10_000;
@@ -56,6 +63,9 @@ const finalReason = (code: number): ClosedReason => CLOSE_REASONS[code] ?? (code
  * A ponta do cliente no socket da sala (ADR 0002): conecta com o token da aba, aplica os snapshots inteiros que o
  * servidor manda e reconecta sozinha com espera crescente. Os pedidos viram mensagens; o servidor aplica ou recusa
  * (a recusa fica em `state.error`, o snapshot que temos continua valendo).
+ *
+ * O telhado passa por fora do estado (ADR 0005): a presença de cada pessoa (as duas últimas, com a hora em que chegaram)
+ * se lê com `presenceOf`, e os empurrões que recebo com `onShoved`; nenhum dos dois avisa quem observa o estado.
  */
 export class RemoteRoom {
   private st: RemoteState = { status: 'idle', room: null, reason: null, error: null, errorSeq: 0, receivedAt: 0, attempt: 0 };
@@ -68,6 +78,9 @@ export class RemoteRoom {
   /** o servidor mandou algo desde o último ping? um intervalo inteiro sem nada = a conexão morreu sem avisar */
   private heardSincePing = false;
   private readonly watchers = new Set<(state: RemoteState) => void>();
+  /** a presença de cada membro, por id; some com quem sai da turma */
+  private readonly presences = new Map<string, PresenceTrack>();
+  private readonly shovedListeners = new Set<(e: ShovedEvent) => void>();
   private readonly makeSocket: SocketFactory;
   private readonly clock: Clock;
   private readonly now: () => number;
@@ -121,8 +134,21 @@ export class RemoteRoom {
    */
   send(message: GameRequest) { this.ask(message); }
 
+  /** A minha presença no telhado; não é um pedido (não mexe na recusa da tela). */
+  setPresence(presence: Presence) { this.raw({ type: 'presence', presence }); }
+  /** Empurrei `target` para o lado `dir`; a aba dele se joga para trás. */
+  shove(target: string, dir: 1 | -1) { this.raw({ type: 'shove', target, dir }); }
+  /** As duas últimas presenças de um membro, com a hora (de `now`) em que chegaram; undefined = nunca mandou. */
+  presenceOf(id: string): PresenceTrack | undefined { return this.presences.get(id); }
+  /** Avisa a cada empurrão que recebo. Devolve como parar de ouvir. */
+  onShoved(listener: (e: ShovedEvent) => void) {
+    this.shovedListeners.add(listener);
+    return () => { this.shovedListeners.delete(listener); };
+  }
+
   dispose() {
     this.disposed = true;
+    this.shovedListeners.clear();
     this.clearTimer();
     const ws = this.socket; this.socket = null;
     ws?.close(1000, 'saiu');
@@ -135,8 +161,20 @@ export class RemoteRoom {
     try { msg = JSON.parse(raw); } catch { return; }
     this.heardSincePing = true;
     if (msg.type === 'error') { this.set({ error: msg.error, errorSeq: this.st.errorSeq + 1 }); return; }
+    if (msg.type === 'presence') {
+      const presence = parsePresence(msg.presence);
+      if (presence && typeof msg.member === 'string') this.presences.set(msg.member, pushPresence(this.presences.get(msg.member), presence, this.now()));
+      return;
+    }
+    if (msg.type === 'shoved') {
+      if (msg.dir !== 1 && msg.dir !== -1) return;
+      const e: ShovedEvent = { by: msg.by, dir: msg.dir };
+      for (const l of this.shovedListeners) l(e);
+      return;
+    }
     if (msg.type !== 'snapshot') return; // pong: só conta como resposta
     const { snapshot } = msg;
+    for (const id of this.presences.keys()) if (!snapshot.members.some((m) => m.id === id)) this.presences.delete(id);
     const inside = snapshot.you !== null;
     const receivedAt = this.now();
     this.set(inside ? { room: snapshot, receivedAt, error: null } : { room: snapshot, receivedAt });

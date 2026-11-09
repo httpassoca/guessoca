@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { CLOSE_KICKED, CLOSE_REPLACED, CLOSE_ROOM_ENDED, CLOSE_ROOM_NOT_FOUND, PING_INTERVAL, type MemberView, type RoomSnapshot } from '@guess/protocol';
+import { CLOSE_KICKED, CLOSE_REPLACED, CLOSE_ROOM_ENDED, CLOSE_ROOM_NOT_FOUND, PING_INTERVAL, type MemberView, type Presence, type RoomSnapshot } from '@guess/protocol';
 import { BACKOFF_MAX, BACKOFF_START, RemoteRoom, type RemoteState, type SocketLike } from '../src/lib/room/remote';
 import { ManualClock } from './manual-clock';
 
@@ -281,5 +281,70 @@ describe('RemoteRoom: o jogo', () => {
     clock.now = 1234;
     last().receive({ type: 'snapshot', snapshot: snapshot([], null) });
     expect(room.state.receivedAt).toBe(1234);
+  });
+});
+
+describe('RemoteRoom: presença e empurrão (fora do snapshot)', () => {
+  const pres = (x: number): Presence => ({ x, y: 0, z: 10, vx: 0, vy: 0, vz: 0, facing: 1, anim: 'idle', emote: null, blink: false });
+
+  test('a minha presença e o meu empurrão viram mensagens, sem mexer na recusa da tela', () => {
+    const { room, last } = setup();
+    room.connect(); last().open();
+    last().receive({ type: 'error', error: 'refused' });
+    room.setPresence(pres(5));
+    room.shove('m2', -1);
+    expect(last().sent).toEqual([{ type: 'presence', presence: pres(5) }, { type: 'shove', target: 'm2', dir: -1 }]);
+    expect(room.state.error).toBe('refused');
+  });
+
+  test('nada sai com o socket fechado', () => {
+    const { room, last } = setup();
+    room.connect();
+    room.setPresence(pres(5));
+    expect(last().sent).toEqual([]);
+  });
+
+  test('a presença de cada pessoa: as duas últimas, com a hora em que chegaram, sem avisar quem observa o estado', () => {
+    const { room, last, clock, states } = setup();
+    room.connect(); last().open();
+    last().receive({ type: 'snapshot', snapshot: snapshot([member('m1', 'Zé'), member('m2', 'Dita')], 'm1') });
+    const seen = states.length;
+    clock.now = 100;
+    last().receive({ type: 'presence', member: 'm2', presence: pres(1) });
+    clock.now = 166;
+    last().receive({ type: 'presence', member: 'm2', presence: pres(2) });
+    clock.now = 232;
+    last().receive({ type: 'presence', member: 'm2', presence: pres(3) });
+    expect(room.presenceOf('m2')).toEqual({ prev: { presence: pres(2), at: 166 }, last: { presence: pres(3), at: 232 } });
+    expect(room.presenceOf('m1')).toBeUndefined();
+    expect(states.length).toBe(seen);
+    expect(room.state.room?.members).toHaveLength(2);
+  });
+
+  test('presença malformada é descartada', () => {
+    const { room, last } = setup();
+    room.connect(); last().open();
+    last().receive({ type: 'presence', member: 'm2', presence: { x: 'longe' } });
+    expect(room.presenceOf('m2')).toBeUndefined();
+  });
+
+  test('quem sai da turma leva a presença junto', () => {
+    const { room, last } = setup();
+    room.connect(); last().open();
+    last().receive({ type: 'snapshot', snapshot: snapshot([member('m1', 'Zé'), member('m2', 'Dita')], 'm1') });
+    last().receive({ type: 'presence', member: 'm2', presence: pres(1) });
+    last().receive({ type: 'snapshot', snapshot: snapshot([member('m1', 'Zé')], 'm1') });
+    expect(room.presenceOf('m2')).toBeUndefined();
+  });
+
+  test('fui empurrado: quem ouve fica sabendo por quem e para que lado; parar de ouvir funciona', () => {
+    const { room, last } = setup();
+    room.connect(); last().open();
+    const got: unknown[] = [];
+    const off = room.onShoved((e) => got.push(e));
+    last().receive({ type: 'shoved', by: 'm2', dir: 1 });
+    off();
+    last().receive({ type: 'shoved', by: 'm3', dir: -1 });
+    expect(got).toEqual([{ by: 'm2', dir: 1 }]);
   });
 });

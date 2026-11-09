@@ -4,10 +4,37 @@
  * `POST /api/rooms/CODE/images?token=T` e o snapshot leva só o endereço.
  */
 import { CHARACTERS, NICKNAME_MAX, POSTIT_MAX, TURN_MAX, TURN_MIN, TURN_STEP, type Phase } from '@guess/rules';
+import type { Anim } from '@guess/world';
 
 /** O cliente manda `ping` neste intervalo; o servidor derruba quem fica o dobro em silêncio (e o cliente derruba um socket que não responde nada por um intervalo inteiro). */
 export const PING_INTERVAL = 15_000;
 export const SOCKET_IDLE_TIMEOUT = 30_000;
+
+/**
+ * Presença (ADR 0005): cada aba manda o próprio personagem no máximo uma vez por este intervalo (~15 por segundo), e o
+ * servidor repassa a de cada pessoa aos outros no mesmo ritmo, guardando só a mais recente. Não entra na sala e não é
+ * atividade.
+ */
+export const PRESENCE_INTERVAL = 66;
+
+/** Os emotes das teclas 1–4, na ordem; o balão fica uns 2 s sobre a cabeça. */
+export const EMOTES = ['question', 'exclaim', 'haha', 'me'] as const;
+export type EmoteName = (typeof EMOTES)[number];
+export const EMOTE_MS = 2000;
+
+export const ANIMS: readonly Anim[] = ['idle', 'walk', 'run', 'jump', 'fall', 'fall_loop', 'shove'];
+
+/** Onde o personagem de alguém está e o que faz, como a aba dele manda. */
+export interface Presence {
+  x: number; y: number; z: number;
+  vx: number; vy: number; vz: number;
+  facing: 1 | -1;
+  anim: Anim;
+  /** o balão que está mostrando agora; null = nenhum */
+  emote: EmoteName | null;
+  /** caído na rua ou acabando de voltar: pisca e não é sólido para os outros */
+  blink: boolean;
+}
 
 /** Token por aba (ADR 0003): o que identifica a pessoa entre conexões. */
 export const TOKEN_RE = /^[A-Za-z0-9_-]{8,64}$/;
@@ -77,6 +104,10 @@ export type ClientMessage =
   | { type: 'playAgain' }
   /** só em desenvolvimento (o servidor recusa em produção): põe um jogador falso na sala */
   | { type: 'addFake' }
+  /** o próprio personagem; passa por fora da sala, repassado aos outros (não é atividade) */
+  | { type: 'presence'; presence: Presence }
+  /** empurrei `target` para o lado `dir`; a aba dele aplica em si mesma */
+  | { type: 'shove'; target: string; dir: 1 | -1 }
   | { type: 'ping' };
 
 /** Por que um pedido foi recusado: a sala já tem `MAX_MEMBERS`; ou o pedido não vale agora (fora da vez, fase errada, não é moderador…). */
@@ -87,6 +118,10 @@ export type ServerMessage =
   | { type: 'snapshot'; snapshot: RoomSnapshot }
   /** pedido recusado, só para quem pediu; o snapshot que a pessoa tem continua valendo */
   | { type: 'error'; error: RoomError }
+  /** a presença de outra pessoa da sala */
+  | { type: 'presence'; member: string; presence: Presence }
+  /** alguém (`by`) me empurrou para o lado `dir` */
+  | { type: 'shoved'; by: string; dir: 1 | -1 }
   | { type: 'pong' };
 
 /** Uma pessoa da turma como todo mundo a vê. */
@@ -167,6 +202,24 @@ export interface RoomSnapshot {
   gaveUp: string[];
 }
 
+/** Até onde uma presença pode ir em cada eixo, e o máximo de uma velocidade: o que passa disso é lixo e é descartado. */
+const POS_RANGE = { x: [-500, 1500], y: [-1000, 1000], z: [-200, 300] } as const;
+const SPEED_MAX = 2000;
+const inRange = (v: unknown, [lo, hi]: readonly [number, number]): v is number => typeof v === 'number' && Number.isFinite(v) && v >= lo && v <= hi;
+
+export function parsePresence(raw: unknown): Presence | null {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
+  const p = raw as Record<string, unknown>;
+  if (!inRange(p.x, POS_RANGE.x) || !inRange(p.y, POS_RANGE.y) || !inRange(p.z, POS_RANGE.z)) return null;
+  const speed: [number, number] = [-SPEED_MAX, SPEED_MAX];
+  if (!inRange(p.vx, speed) || !inRange(p.vy, speed) || !inRange(p.vz, speed)) return null;
+  if (p.facing !== 1 && p.facing !== -1) return null;
+  if (!ANIMS.includes(p.anim as Anim)) return null;
+  if (p.emote !== null && !EMOTES.includes(p.emote as EmoteName)) return null;
+  if (typeof p.blink !== 'boolean') return null;
+  return { x: p.x, y: p.y, z: p.z, vx: p.vx, vy: p.vy, vz: p.vz, facing: p.facing, anim: p.anim as Anim, emote: p.emote as EmoteName | null, blink: p.blink };
+}
+
 const isId = (v: unknown): v is string => typeof v === 'string' && MEMBER_ID_RE.test(v);
 const isBool = (v: unknown): v is boolean => typeof v === 'boolean';
 
@@ -215,6 +268,12 @@ export function parseClientMessage(raw: unknown): ClientMessage | null {
       return isBool(m.yes) ? { type: 'vote', yes: m.yes } : null;
     case 'mark':
       return isId(m.member) && isBool(m.right) ? { type: 'mark', member: m.member, right: m.right } : null;
+    case 'presence': {
+      const presence = parsePresence(m.presence);
+      return presence ? { type: 'presence', presence } : null;
+    }
+    case 'shove':
+      return isId(m.target) && (m.dir === 1 || m.dir === -1) ? { type: 'shove', target: m.target, dir: m.dir } : null;
     case 'kick':
     case 'handOver':
       return isId(m.member) ? { type: m.type, member: m.member } : null;

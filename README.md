@@ -28,9 +28,13 @@ packages/rules     sala e jogo, puros (@guess/rules)
                      moderador marca acertou/não (desfaz revelação), passa a vez, pausa, reordena, encerra. Fim quando nenhuma
                      pessoa conectada ainda joga; "jogar de novo" volta ao lobby com os fantasmas entrando
   test/              lobby, escrita e jogo com `Sim` e sorteio semeado
-packages/world     o telhado, puro (@guess/world): por enquanto só o sistema de coordenadas x, y, z (ADR 0005)
+packages/world     o telhado, puro (@guess/world, ADR 0005): o mapa (três prédios com vãos, caixas para subir), `stepBody`
+                   (andar, correr, profundidade, pular, gravidade, lados que bloqueiam, degrau, corpos sólidos, ficar na
+                   cabeça de alguém e ser carregado, cair na rua e voltar piscando), `shoveTargets`/`applyShove`, e a
+                   projeção 2.5D (`project`, `depthKey`, `followCamera`) que o Pixi e os post-its em HTML dividem (ADR 0006)
+  test/              movimento, corpos, empurrão, animação, projeção e câmera, a 60 passos por segundo
 packages/protocol  mensagens cliente ↔ servidor (@guess/protocol): todas as ações do jogo e de volta `snapshot`, `error`
-                   (`roomFull`, `refused`), `pong`; `RoomSnapshot` com post-its como cada um os vê (o próprio vem sem texto e
+                   (`roomFull`, `refused`), `pong`; `presence` (posição, velocidade, lado, animação, emote, piscando) e `shove`/`shoved`; `RoomSnapshot` com post-its como cada um os vê (o próprio vem sem texto e
                    sem imagem até ser revelado, só com `written`), vez e votação com o tempo que sobra; `parseClientMessage`;
                    `isWebp`, limites da imagem, `imageUrl`; códigos de fechamento (4404, 4410, 4409, 4403 expulso)
 
@@ -44,14 +48,16 @@ apps/server        Bun.serve: `/health`, `POST /api/rooms` → `{ code }`, `POST
                      papel vai para a pessoa conectada mais antiga. Repassa as ações ao jogo e o põe em dia a cada entrada.
                      Jogadores falsos escrevem uma identidade ao acaso e ficam prontos. `snapshotFor` esconde o post-it do
                      próprio dono
-  src/host.ts        `RoomHost`: sockets por token, timers que a sala pede, silêncio de 30 s, e as imagens da sala em memória
+  src/host.ts        `RoomHost`: sockets por token, timers que a sala pede, silêncio de 30 s, a presença de cada um repassada
+                     aos outros (~15 por segundo, só a mais recente; quem chega recebe a de todos), o empurrão entregue só a
+                     quem foi empurrado, e as imagens da sala em memória
                      (ADR 0003): só de quem é da turma, liberadas quando nenhum post-it as usa (uma subida ainda sem post-it
                      espera 2 min; no máximo 2 por pessoa)
   src/rooms.ts       `Rooms`: as salas vivas num mapa em memória, códigos de 4 letras sem I nem O
   test/              sala, jogo pela sala (visibilidade no fio, expulsar, passar o papel, sucessão, timers, falsos), host
                      (imagens) e um servidor real numa porta livre: três abas jogam um jogo inteiro; subir e baixar imagem
 
-apps/web           Vite + Svelte 5 + dssoca (PixiJS v8 chega com o mundo)
+apps/web           Vite + Svelte 5 + PixiJS v8 + dssoca
   src/lib/route.ts         rotas: `/` início, `/sala/CODE`; `route.svelte.ts` é a rota reativa e `navigate`
   src/lib/identity.ts      token e bloco por aba (sessionStorage); apelido e último personagem por navegador (localStorage)
   src/lib/i18n.ts          a tabela de tradução (pt-BR padrão, en-US), tipada para as duas terem as mesmas chaves
@@ -61,8 +67,15 @@ apps/web           Vite + Svelte 5 + dssoca (PixiJS v8 chega com o mundo)
                            desistir ou votar, os post-its como posso vê-los, o ranking, a contagem regressiva
   src/lib/image.ts         a imagem do post-it: reduz a 512 px, WebP baixando a qualidade até caber, sobe por POST
   src/lib/sprites/         os atlas gerados (`hero.json`, `emotes.json`) e `hero.ts`, que diz onde está cada quadro
+  src/lib/world/            o telhado no navegador: controls (teclas → `Input`), loop (60 passos por segundo), presence (manda
+                           a própria ~15/s e um batimento por segundo parado; interpola a dos outros), crowd (quem desenhar,
+                           jogadores falsos parados em lugares fixos), view (escala inteira, onde vão o post-it e o balão),
+                           heads, platforms (o desenho das plataformas, num lugar só), scene (Pixi: corpos por profundidade,
+                           sombras, balões, câmera), runtime (o laço, o empurrão de ida e de volta, os post-its em HTML sobre as
+                           cabeças) e World.svelte
   src/lib/keys.ts          Enter = Acertei, Tab = passar, N = bloco, Esc = menu (fora de campo de texto)
-  src/lib/panels/          Room (barra, fase, teclado), Lobby (ordem arrastável, autores, personagens, tamanho da vez), Writing
+  src/lib/panels/          Room (o telhado atrás de tudo, a barra, a coluna da fase que recolhe, teclado), TurnBar (vez e votação
+                           no alto), Roster (a tira de post-its embaixo), Lobby (ordem arrastável, autores, personagens, tamanho da vez), Writing
                            e PostitEditor (ao vivo, imagem, Pronto, moderador escreve os vazios), Playing (vez, votação, ranking),
                            ModPanel, Ended, Notepad, Menu
   src/lib/screens/         Home (abrir sala, entrar com código, crédito) e Sala (apelido, depois o jogo; sala inexistente,

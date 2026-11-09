@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { CLOSE_KICKED, CLOSE_REPLACED, CLOSE_ROOM_ENDED, IMAGE_BYTES_MAX, IMAGE_ID_RE, type ServerMessage } from '@guess/protocol';
+import { CLOSE_KICKED, CLOSE_REPLACED, CLOSE_ROOM_ENDED, IMAGE_BYTES_MAX, IMAGE_ID_RE, type Presence, type ServerMessage } from '@guess/protocol';
 import { IMAGE_GRACE, IMAGES_PER_UPLOADER, RoomHost, type Socket } from '../src/host';
 import { silentLog } from '../src/log';
 import { webp } from './sim';
@@ -229,6 +229,77 @@ describe('host: imagens', () => {
     await sleep(60);
     expect(host.image(id)).toBeUndefined();
     expect(host.addImage('token-a', webp())).toEqual({ ok: false, error: 'notMember' });
+    host.dispose();
+  });
+});
+
+describe('host: presença e empurrão (por fora da sala, ADR 0005)', () => {
+  const at = (x: number): Presence => ({ x, y: 0, z: 10, vx: 0, vy: 0, vz: 0, facing: 1, anim: 'idle', emote: null, blink: false });
+  const presences = (ws: { sent: string[] }): ServerMessage[] => received(ws).filter((m) => m.type === 'presence');
+
+  test('a presença de um vai aos outros, com o id de quem é, e não volta para quem mandou', () => {
+    const { host, a, b } = hostWithTwo();
+    a.sent.length = 0; b.sent.length = 0;
+    say(host, a, { type: 'presence', presence: at(100) });
+    expect(presences(b)).toEqual([{ type: 'presence', member: 'm1', presence: at(100) } as ServerMessage]);
+    expect(presences(a)).toEqual([]);
+    host.dispose();
+  });
+
+  test('no máximo uma por intervalo por pessoa, e a que sai depois é a mais recente', async () => {
+    const host = new RoomHost('ABCD', silentLog, () => {}, { presenceInterval: 30 });
+    const a = fakeSocket('token-a'), b = fakeSocket('token-b');
+    host.connect(a); say(host, a, { type: 'join', nickname: 'Zé' });
+    host.connect(b); say(host, b, { type: 'join', nickname: 'Dita' });
+    b.sent.length = 0;
+    for (const x of [1, 2, 3, 4]) say(host, a, { type: 'presence', presence: at(x) });
+    expect(presences(b).map((m) => m.type === 'presence' && m.presence.x)).toEqual([1]);
+    await sleep(45);
+    expect(presences(b).map((m) => m.type === 'presence' && m.presence.x)).toEqual([1, 4]);
+    host.dispose();
+  });
+
+  test('presença não é atividade e não muda a sala; visitante não tem presença', () => {
+    const { host, a, clock } = hostWithTwo();
+    const before = host.state;
+    clock.advance(5_000);
+    say(host, a, { type: 'presence', presence: at(5) });
+    expect(host.state).toBe(before);
+    const v = fakeSocket('token-v');
+    host.connect(v);
+    a.sent.length = 0;
+    say(host, v, { type: 'presence', presence: at(9) });
+    expect(presences(a)).toEqual([]);
+    host.dispose();
+  });
+
+  test('quem conecta recebe a última presença de cada um, sem esperar a próxima', () => {
+    const { host, a } = hostWithTwo();
+    say(host, a, { type: 'presence', presence: at(42) });
+    const c = fakeSocket('token-c');
+    host.connect(c);
+    expect(presences(c)).toEqual([{ type: 'presence', member: 'm1', presence: at(42) } as ServerMessage]);
+    host.dispose();
+  });
+
+  test('o empurrão vai só para quem foi empurrado, com quem empurrou e o lado', () => {
+    const { host, a, b } = hostWithTwo();
+    a.sent.length = 0; b.sent.length = 0;
+    say(host, a, { type: 'shove', target: 'm2', dir: -1 });
+    expect(received(b).filter((m) => m.type === 'shoved')).toEqual([{ type: 'shoved', by: 'm1', dir: -1 }]);
+    expect(received(a).filter((m) => m.type === 'shoved')).toEqual([]);
+    host.dispose();
+  });
+
+  test('empurrar a si mesmo, alguém que não existe ou estando fora da turma não faz nada', () => {
+    const { host, a, b } = hostWithTwo();
+    a.sent.length = 0; b.sent.length = 0;
+    say(host, a, { type: 'shove', target: 'm1', dir: 1 });
+    say(host, a, { type: 'shove', target: 'm9', dir: 1 });
+    const v = fakeSocket('token-v');
+    host.connect(v);
+    say(host, v, { type: 'shove', target: 'm2', dir: 1 });
+    expect([...received(a), ...received(b)].filter((m) => m.type === 'shoved')).toEqual([]);
     host.dispose();
   });
 });

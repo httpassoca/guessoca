@@ -1,4 +1,4 @@
-import { CLOSE_KICKED, CLOSE_REPLACED, CLOSE_ROOM_ENDED, IMAGE_BYTES_MAX, isWebp, parseClientMessage, SOCKET_IDLE_TIMEOUT } from '@guess/protocol';
+import { CLOSE_KICKED, CLOSE_REPLACED, CLOSE_ROOM_ENDED, IMAGE_BYTES_MAX, isWebp, parseClientMessage, PRESENCE_INTERVAL, SOCKET_IDLE_TIMEOUT, type Presence } from '@guess/protocol';
 import type { ServerWebSocket } from 'bun';
 import type { Log } from './log';
 import { createRoom, referencedImages, ROOM_TTL, step, timerKey, type RoomInput, type RoomState } from './room';
@@ -11,9 +11,10 @@ export const IMAGES_PER_UPLOADER = 2;
 /**
  * `now`: hora de nascimento; `ttl`: quanto a sala vive sem atividade; `silence`: quanto um socket pode ficar sem
  * mandar nada antes de ser derrubado (os testes apressam os dois). `clock`: a hora (os testes fixam); `dev`: a sala
- * aceita jogadores falsos; `rng`: o sorteio da sala.
+ * aceita jogadores falsos; `rng`: o sorteio da sala; `presenceInterval`: o mínimo entre duas presenças repassadas da mesma
+ * pessoa.
  */
-export interface HostOptions { now?: number; ttl?: number; silence?: number; clock?: () => number; dev?: boolean; rng?: () => number }
+export interface HostOptions { now?: number; ttl?: number; silence?: number; clock?: () => number; dev?: boolean; rng?: () => number; presenceInterval?: number }
 
 interface StoredImage {
   bytes: Uint8Array<ArrayBuffer>;
@@ -35,6 +36,8 @@ export type Socket = ServerWebSocket<SocketData>;
  * O único timer próprio é o de silêncio: um socket que não manda nada (nem `ping`) por `silence` ms é
  * derrubado como se tivesse caído, e a sala fica sabendo desde quando a pessoa está muda. A rede que morre
  * sem fechar o socket não chega de outro jeito; o `idleTimeout` do Bun é a rede de segurança abaixo deste.
+ * Presença e empurrão (ADR 0005) não entram na sala: o host repassa a presença de cada membro aos outros no máximo uma
+ * vez por `presenceInterval`, guardando só a mais recente, e entrega o empurrão só a quem foi empurrado.
  */
 export class RoomHost {
   state: RoomState;
@@ -47,12 +50,16 @@ export class RoomHost {
   private readonly rng: () => number;
   /** as imagens dos post-its, em bytes; nunca entram no estado puro da sala (ADR 0003) */
   private readonly images = new Map<string, StoredImage>();
+  private readonly presenceInterval: number;
+  /** por token: a última presença recebida, quando a última foi repassada e o timer da próxima, se a janela ainda não abriu */
+  private readonly presences = new Map<string, { latest: Presence; sentAt: number; handle?: ReturnType<typeof setTimeout> }>();
 
   constructor(code: string, private readonly log: Log, private readonly onDead: (code: string) => void, opts: HostOptions = {}) {
     this.clock = opts.clock ?? Date.now;
     this.rng = opts.rng ?? Math.random;
     const now = opts.now ?? this.clock();
     this.silence = opts.silence ?? SOCKET_IDLE_TIMEOUT;
+    this.presenceInterval = opts.presenceInterval ?? PRESENCE_INTERVAL;
     this.state = createRoom(code, now, { ttl: opts.ttl ?? ROOM_TTL, dev: opts.dev ?? false });
     this.syncTimers(now);
     log('room.created', { room: code });
@@ -68,6 +75,12 @@ export class RoomHost {
     if (prev && prev !== ws) { this.clearSilence(prev); prev.close(CLOSE_REPLACED, 'outra aba assumiu'); }
     this.resetSilence(ws);
     this.apply({ kind: 'connect', token: ws.data.token }); // para quem já está conectado, a sala só reenvia o snapshot
+    // quem chega vê os outros onde estão agora, sem esperar a próxima presença de cada um
+    if (this.sockets.get(ws.data.token) !== ws) return; // expulso: já fechado
+    for (const [token, p] of this.presences) {
+      const member = this.memberByToken(token);
+      if (member && token !== ws.data.token) ws.send(JSON.stringify({ type: 'presence', member: member.id, presence: p.latest }));
+    }
   }
 
   /** O socket fechou (o Bun avisou). */
@@ -77,6 +90,8 @@ export class RoomHost {
     this.resetSilence(ws);
     const message = parseClientMessage(typeof raw === 'string' ? raw : raw.toString());
     if (!message) { this.log('room.badMessage', { room: this.code, token: ws.data.token.slice(0, 8) }); return; }
+    if (message.type === 'presence') { this.relayPresence(ws.data.token, message.presence); return; }
+    if (message.type === 'shove') { this.routeShove(ws.data.token, message.target, message.dir); return; }
     // a imagem de um post-it tem de ter subido antes: a sala só guarda o id, e um id sem bytes seria um buraco na tela
     if (message.type === 'write' && message.image !== null && !this.images.has(message.image)) {
       ws.send(JSON.stringify({ type: 'error', error: 'refused' }));
@@ -103,6 +118,46 @@ export class RoomHost {
     return { ok: true, id };
   }
 
+  private memberByToken(token: string) {
+    return this.state.phase === 'dead' ? undefined : this.state.members.find((m) => m.token === token);
+  }
+
+  /** Guarda a presença mais recente deste token e a repassa agora, se a janela abriu, ou quando abrir. */
+  private relayPresence(token: string, presence: Presence) {
+    if (!this.memberByToken(token)) return; // visitante (ainda sem apelido) não está no telhado
+    let p = this.presences.get(token);
+    if (!p) { p = { latest: presence, sentAt: -Infinity }; this.presences.set(token, p); }
+    p.latest = presence;
+    if (p.handle) return; // a mais recente sai quando o timer vencer
+    const wait = p.sentAt + this.presenceInterval - this.clock();
+    if (wait <= 0) { this.flushPresence(token); return; }
+    const entry = p;
+    p.handle = setTimeout(() => { entry.handle = undefined; this.flushPresence(token); }, wait);
+  }
+
+  private flushPresence(token: string) {
+    const p = this.presences.get(token);
+    const member = this.memberByToken(token);
+    if (!p || !member) return;
+    p.sentAt = this.clock();
+    const raw = JSON.stringify({ type: 'presence', member: member.id, presence: p.latest });
+    for (const [t, ws] of this.sockets) if (t !== token) ws.send(raw);
+  }
+
+  private forgetPresence(token: string) {
+    const p = this.presences.get(token);
+    if (p?.handle) clearTimeout(p.handle);
+    this.presences.delete(token);
+  }
+
+  /** Entrega o empurrão à aba de quem foi empurrado; é ela que se joga para trás (ADR 0005). */
+  private routeShove(token: string, target: string, dir: 1 | -1) {
+    const from = this.memberByToken(token);
+    const to = this.state.members.find((m) => m.id === target);
+    if (!from || !to || to === from || to.token === null) return;
+    this.sockets.get(to.token)?.send(JSON.stringify({ type: 'shoved', by: from.id, dir }));
+  }
+
   /** Os bytes de uma imagem da sala, se existe. */
   image(id: string): Uint8Array<ArrayBuffer> | undefined { return this.images.get(id)?.bytes; }
 
@@ -116,6 +171,7 @@ export class RoomHost {
       if ('message' in o) { ws.send(JSON.stringify(o.message)); continue; }
       // expulso: o socket sai daqui antes de fechar, e o aviso de fechamento do Bun não chega à sala
       this.sockets.delete(o.to);
+      this.forgetPresence(o.to);
       this.clearSilence(ws);
       ws.close(o.close, o.close === CLOSE_KICKED ? 'expulso da sala' : undefined);
     }
@@ -127,6 +183,7 @@ export class RoomHost {
       for (const ws of this.sockets.values()) { this.clearSilence(ws); ws.close(CLOSE_ROOM_ENDED, 'sala encerrada por inatividade'); }
       this.sockets.clear();
       this.images.clear();
+      for (const token of [...this.presences.keys()]) this.forgetPresence(token);
     } else {
       this.collectImages();
     }
@@ -160,6 +217,7 @@ export class RoomHost {
     for (const h of this.handles.values()) clearTimeout(h);
     this.handles.clear();
     for (const ws of this.sockets.values()) this.clearSilence(ws);
+    for (const token of [...this.presences.keys()]) this.forgetPresence(token);
   }
 
   /** Tira o socket da sala; `since` = desde quando ele estava mudo, quando foi o silêncio que o derrubou. */
@@ -167,6 +225,7 @@ export class RoomHost {
     this.clearSilence(ws);
     if (this.sockets.get(ws.data.token) !== ws) return; // já substituído por outra aba, ou já derrubado pelo silêncio
     this.sockets.delete(ws.data.token);
+    this.forgetPresence(ws.data.token);
     this.apply(since === undefined ? { kind: 'disconnect', token: ws.data.token } : { kind: 'disconnect', token: ws.data.token, since });
   }
 
