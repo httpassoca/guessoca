@@ -8,6 +8,7 @@
    * jogo. Fica ao lado do formulário; os quadradinhos pequenos continuam sendo a escolha. `n` null: só o telhado.
    */
   let { n, nickname }: { n: number | null; nickname: string } = $props();
+  /** grande para ver o pixel art de perto ao lado do formulário (o mundo, a 1080p, é 3); a faixa `Ledge` também é 4 */
   const SCALE = 4;
   /** o pé do personagem (a âncora) fica no meio da faixa, não o meio da janela */
   const shift = (PORTRAIT.w / 2 - PORTRAIT.anchorX) * SCALE;

@@ -14,6 +14,7 @@
     "test": "bun test",
     "preview": "bun run --filter @guess/web preview",
     "sprites": "bun tools/sprites/src/index.ts",
+    "sprites:preview": "bun tools/sprites/src/preview.ts",
     "docker:build": "docker build --tag guessoca .",
     "docker:load": "gunzip -c guessoca.tar.gz | docker load",
     "docker:start": "docker run --name guessoca -d --restart unless-stopped -p 127.0.0.1:3003:3000 guessoca",

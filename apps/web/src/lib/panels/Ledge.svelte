@@ -5,9 +5,12 @@
   /**
    * Uma faixa fina de telhado, da folha do telhado (o tampo e a beirada), ampliada sem borrar: o chão onde o personagem
    * escolhido fica no pré-lobby. `w` em pixels da folha; `scale`, quantas vezes ampliar.
+   * Lê `rooftop.png` (`/sprites/`) pelo atlas `ROOFTOP`: as primeiras linhas do ladrilho `roof-top` e, embaixo, a mureta
+   * `ledge`, repetidos lado a lado num canvas sem suavizar; o CSS amplia o canvas inteiro.
    */
   let { w = 72, scale = 4 }: { w?: number; scale?: number } = $props();
-  const TOP = 10; // quantas linhas do tampo aparecem atrás da beirada
+  /** quantas linhas do tampo (de 34) aparecem atrás da beirada: o bastante para ler como chão, sem ocupar a tela */
+  const TOP = 10;
   const roof = ROOFTOP.frames['roof-top'];
   const lip = ROOFTOP.frames.ledge;
   let canvas = $state<HTMLCanvasElement>();

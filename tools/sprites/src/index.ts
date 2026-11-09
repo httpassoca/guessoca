@@ -4,6 +4,12 @@
  * `apps/web/src/lib/sprites/` (`hero.json`, `skeleton.json` e `characters.json`, que liga cada personagem ao seu).
  * Só a saída vai para o git; o CI e o Docker nunca precisam dos pacotes.
  * O telhado (objetos em grade de texto e a cidade ao fundo) não usa o pacote e sai primeiro, mesmo sem ele.
+ *
+ * Ordem: `rooftop.png` + `skyline-*.png` + `rooftop.json` (de `rooftop.ts` e `skyline.ts`); depois cada modelo de
+ * `models` (`hero.ts`, `skeleton.ts`), com as folhas nos lugares que `characters.ts` dá a ele; `characters.json`;
+ * `emotes-<língua>.png` e `emotes.json` (`emotes.ts`); e por fim apaga nomes antigos que não existem mais. É o único
+ * arquivo que toca o disco (com `png.ts`); as receitas são puras. `bun run sprites:preview` (`preview.ts`) lê o que
+ * sai daqui e amplia para conferir.
  */
 import { existsSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
@@ -36,6 +42,11 @@ console.log(`telhado: ${Object.keys(rooftop.atlas.frames).length} objetos em ${r
 /**
  * Os dois modelos de personagem, cada um do seu pacote (fora do git). Sem um pacote, aquele modelo fica como está (as
  * folhas e o atlas já no git) e o outro sai assim mesmo; no fim, o comando diz o que faltou e sai com erro.
+ *
+ * Como mudar: um modelo novo é mais uma entrada aqui — `model` (o nome em `Model` de `characters.ts`, e do atlas
+ * `<model>.json`), `pack` (a pasta em `assets-src/`), `how` (o que dizer quando falta), `files` (nome lógico → arquivo,
+ * o que a receita recebe em `sheets[nome]`) e `build` (a receita: uma folha por variante, na ordem dos lugares do modelo
+ * em `characters()`, e um atlas).
  */
 const models = [
   {
@@ -79,6 +90,7 @@ for (const lang of langs) {
   console.log(`emotes ${lang}: ${sheet.width}×${sheet.height}`);
 }
 writeFileSync(join(atlasOut, 'emotes.json'), JSON.stringify(emoteAtlas, null, 2) + '\n');
+// nomes de antes do esqueleto (os atlas moravam no `public`, as folhas eram `hero-N.png`): se ainda estão lá, saem
 for (const stale of ['hero.json', 'emotes.json', ...Array.from({ length: 8 }, (_, n) => `hero-${n}.png`)]) rmSync(join(out, stale), { force: true });
 if (missing.length) {
   console.error(`faltou o pacote de: ${missing.join(', ')}`);

@@ -1,32 +1,45 @@
 /**
  * Imagens RGBA em memória e as operações puras que as receitas usam: recortar, colar, trocar cores, apagar cores e
- * jogar fora pedaços soltos. Nada aqui lê ou escreve arquivo (ver `png.ts`), então tudo é testado sem disco.
+ * jogar fora pedaços soltos, e as transformações para desenhar quadros novos a partir dos que existem (mover, inclinar,
+ * achatar, esticar, girar, colar por baixo; `skeleton.ts` usa para correr, pular e cair). Nada aqui lê ou escreve arquivo
+ * (ver `png.ts`), então tudo é testado sem disco (`test/image.test.ts`).
+ *
+ * Coordenadas: sempre pixels da própria imagem, `(0, 0)` no canto de cima à esquerda, `y` para baixo (ao contrário do
+ * mundo, onde `y` sobe). As cores são comparadas exatas, por `rrggbb`: pixel art não tem meio-tom, e é por isso que as
+ * receitas chamam `solidify` antes de procurar cores.
  */
+
+/** RGBA de 8 bits, linha por linha, 4 bytes por pixel; alfa 0 é transparente. */
 export interface Image { width: number; height: number; data: Uint8Array }
 
 /** Cor como `rrggbb` minúsculo, sem `#`. */
 export type Hex = string;
 
+/** Uma imagem toda transparente, `width × height` pixels. */
 export function blank(width: number, height: number): Image {
   return { width, height, data: new Uint8Array(width * height * 4) };
 }
 
 const at = (img: Image, x: number, y: number) => (y * img.width + x) * 4;
 
+/** O pixel `(x, y)` como `[r, g, b, a]`, 0–255. Sem checar borda: fora da imagem dá lixo ou `undefined`. */
 export function getPixel(img: Image, x: number, y: number): [number, number, number, number] {
   const i = at(img, x, y);
   return [img.data[i], img.data[i + 1], img.data[i + 2], img.data[i + 3]];
 }
 
+/** Escreve `[r, g, b, a]` no pixel `(x, y)`, sem misturar com o que havia e sem checar borda. */
 export function setPixel(img: Image, x: number, y: number, [r, g, b, a]: readonly number[]) {
   const i = at(img, x, y);
   img.data[i] = r; img.data[i + 1] = g; img.data[i + 2] = b; img.data[i + 3] = a;
 }
 
+/** `r, g, b` (0–255) como `rrggbb`. */
 export function hexOf(r: number, g: number, b: number): Hex {
   return [r, g, b].map((v) => v.toString(16).padStart(2, '0')).join('');
 }
 
+/** `rrggbb` (com ou sem `#`, qualquer caixa) como `[r, g, b]`; erro se não for uma cor de 6 dígitos. */
 export function rgbOf(hex: Hex): [number, number, number] {
   const h = hex.replace(/^#/, '').toLowerCase();
   if (!/^[0-9a-f]{6}$/.test(h)) throw new Error(`cor inválida: ${hex}`);

@@ -1,13 +1,16 @@
 /**
  * Os post-its sobre as cabeças não se cobrem: quando dois se encostam na tela, o de quem está mais à frente fica onde está
  * e o de trás sobe até ficar acima dele. Puro: recebe onde cada um quer ficar (o ponto de baixo, no meio) e o tamanho, e
- * devolve quanto cada um sobe.
+ * devolve quanto cada um sobe. Tudo em pixels da tela (o `y` cresce para baixo); `runtime.ts` usa a cada quadro.
+ * Testado em `apps/web/test/world-declutter.test.ts`.
  */
+/** Um post-it: `x, y` o meio da base, `w, h` o tamanho, em pixels da tela. */
 export interface Tag { id: string; x: number; y: number; w: number; h: number; /** profundidade: maior = mais ao fundo */ z: number }
 
-/** espaço entre dois post-its empilhados, px */
+/** espaço entre dois post-its empilhados, px da tela (no olho: separa sem parecer solto) */
 export const TAG_GAP = 4;
 
+/** Quanto (px da tela, ≥ 0) cada post-it sobe, por id; o mais à frente (`z` menor) nunca sobe. */
 export function declutter(tags: readonly Tag[], gap = TAG_GAP): Map<string, number> {
   const placed: { left: number; right: number; top: number; bottom: number }[] = [];
   const lift = new Map<string, number>();

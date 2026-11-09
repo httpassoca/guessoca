@@ -6,3 +6,4 @@ dist
 .env
 guessoca.tar.gz
 assets-src
+.preview

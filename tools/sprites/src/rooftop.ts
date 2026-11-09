@@ -9,6 +9,27 @@
  *
  * Estilo: noite chuvosa, concreto molhado, azul e roxo fundos, neon magenta e ciano, janela amarela quente. Inspirado
  * no clima dos jogos neon-noir; nada copiado de nenhum.
+ *
+ * Sai, por `index.ts`: `apps/web/public/sprites/rooftop.png` e `apps/web/src/lib/sprites/rooftop.json` (este atlas mais
+ * as faixas de `skyline.ts`). Quem lê: `apps/web/src/lib/sprites/rooftop.ts` (o tipo), `world/art.ts` (as texturas),
+ * `world/platforms.ts` e `world/dressing.ts` (telhados, caixas e enfeites), `world/backdrop.ts` (lua, neblina da rua),
+ * `world/weather.ts` (neblina da frente) e `panels/Ledge.svelte` (a faixa do pré-lobby). Pixels: tudo em pixels da
+ * grade, `y` para baixo; 1 pixel = 1 unidade do mundo, e a profundidade (`z`) aparece achatada por `DEPTH_K` = 0,6
+ * (1 unidade de `z` sobe 0,6 pixel na tela, `project` em `@guess/world`).
+ *
+ * Como mudar:
+ * - **Um enfeite** (antena, placa, poça): uma grade com as letras de `PALETTE` (a `Sketch` ajuda a carimbar e repetir),
+ *   uma entrada em `RECIPES` com a âncora (sem ela, o meio de baixo), e onde fica em `DECOR`
+ *   (`apps/web/src/lib/world/dressing.ts`): atrás da mureta do fundo, pregado na fachada ou deitado no tampo.
+ * - **Um letreiro**: `neonSign('TEXTO', 'x' | 'z')`, com as letras que faltarem em `NEON_FONT` (5×7). Só textos nossos.
+ * - **O objeto de uma caixa do `MAP`** (`@guess/world`): o topo visível tem que cair no `top` da caixa, senão quem pisa
+ *   nela flutua ou afunda. Então: largura = `x1 − x0`; as linhas de baixo (a frente) = `top` da caixa − `top` do telhado
+ *   embaixo; as de cima (o tampo, visto achatado) = `round((z1 − z0) · DEPTH_K)`; âncora no canto de baixo à esquerda
+ *   (`box()`), e `fits` com esses três números. `dressing.ts` acha o quadro pelo tamanho; `test/rooftop.test.ts` confere
+ *   cada caixa do `MAP` contra as receitas e diz qual falta. Mudar uma caixa no `MAP` pede redesenhar o objeto.
+ * - **Uma arte em PNG** em vez de grade: não há caminho pronto. Seria ler o PNG em `index.ts` (`readPng`, de uma pasta em
+ *   `assets-src/` se a licença pedir, ou versionada se for nossa), e `rooftopSheet` aceitar `Image` além de grade nas
+ *   receitas; o resto (atlas, âncora, `fits`) é igual.
  */
 import { gridLines, parseGrid, type Palette } from './grid';
 import { blank, blit, type Image } from './image';
@@ -66,6 +87,7 @@ export const PALETTE = {
   f: '6a5a9a',
 } as const satisfies Palette;
 
+/** Uma letra da paleta. */
 export type Ink = keyof typeof PALETTE;
 
 /**
@@ -136,7 +158,11 @@ function fit(text: string, w: number, pad = 'c', edge = 'd'): string[] {
   });
 }
 
-/** O tampo do telhado: duas placas, a segunda espelhada, 34 linhas (a profundidade do telhado, 56 · 0,6, arredondada para cima). */
+/**
+ * O tampo do telhado: duas placas, a segunda espelhada, 34 linhas (a profundidade do telhado, `DEPTH` 56 · `DEPTH_K` 0,6
+ * = 33,6, arredondada para cima) por 32 de largura, repetindo em x. A âncora é o canto de cima: `platforms.ts` encosta
+ * a última linha na beirada da frente e o que sobra em cima fica sob a mureta do fundo.
+ */
 export function roofTop(): string {
   const slab = fit(SLAB, 32);
   slab[0] = 'd'.repeat(32);
@@ -144,7 +170,10 @@ export function roofTop(): string {
   return [...slab, ...mirrored].join('\n');
 }
 
-/** A mureta da beirada da frente: 4 linhas acima da linha do telhado (a âncora) e a cornija na fachada, 4 abaixo. */
+/**
+ * A mureta da beirada da frente, 16 de largura repetindo: 4 linhas acima da linha do telhado (a âncora, `y` 4) e a
+ * cornija na fachada, 4 abaixo. Vai na frente dos corpos (`Platforms.front`) e cobre os pés de quem encosta na beirada.
+ */
 export const PARAPET = `
   wwwwwwwwwwwwwwww
   CCCCCCCCCCCCCCCC
@@ -155,7 +184,7 @@ export const PARAPET = `
   dddddddddddddddd
   kkkkkkkkkkkkkkkk`;
 
-/** A mureta do fundo, vista por dentro: 5 linhas acima da beirada de trás. */
+/** A mureta do fundo, vista por dentro, 16 de largura repetindo: as 5 linhas ficam acima da beirada de trás (âncora `y` 5). */
 export const LEDGE = `
   CCCCCCCCCCCCCCCC
   cccccccccccccccc
@@ -163,7 +192,11 @@ export const LEDGE = `
   dcccccccdccccccd
   kkkkkkkkkkkkkkkk`;
 
-/** A neblina: um pontilhado (Bayer 4×4) cada vez mais denso para baixo, 129 de largura para repetir sem emenda. */
+/**
+ * A neblina: um pontilhado (Bayer 4×4) cada vez mais denso para baixo, de quase nada em cima a 90% na última linha
+ * (`((y + 1) / h)^1,6 · 0,9`: a curva concentra a neblina embaixo). 129 = 128 + 1: o padrão repete a cada 4 colunas,
+ * então a coluna 0 e a 128 são iguais e o ladrilho emenda. O cliente a desenha tingida e translúcida (rua e frente).
+ */
 export function fog(w = 129, h = 24): string {
   const bayer = [[0, 8, 2, 10], [12, 4, 14, 6], [3, 11, 1, 9], [15, 7, 13, 5]];
   const rows: string[] = [];
@@ -178,6 +211,7 @@ export function fog(w = 129, h = 24): string {
 
 // --- fachadas -----------------------------------------------------------------------------------------------------------
 
+/** As janelas, 8×11 (10 de caixilho e o peitoril), pela letra do plano da fachada. */
 const WINDOWS: Record<string, string> = {
   // apagada: vidro escuro com o céu refletido
   d: `
@@ -233,6 +267,7 @@ const WINDOWS: Record<string, string> = {
     CCCCCCCC`,
 };
 
+/** Tijolo, 8×6, repete na fachada da esquerda e na chaminé. */
 const BRICK = `
   BBBBBBBm
   bbbbbbbm
@@ -241,6 +276,7 @@ const BRICK = `
   bbbmbbbb
   mmmmmmmm`;
 
+/** Painel de concreto, 15×11, repete na fachada do hotel. */
 const PANEL = `
   ddddddddddddddd
   PPppppppppppppp
@@ -254,13 +290,17 @@ const PANEL = `
   ppppppppppppppp
   pppPppppppppppp`;
 
+/** Azulejo, 4×4, repete na fachada da direita. */
 const TILE = `
   dddd
   dSss
   dsss
   dsss`;
 
-/** um andar da fachada, em linhas; uma baia (uma janela) em colunas */
+/**
+ * um andar da fachada, em linhas: a laje (1 + 1), 3 de parede, o lintel, a janela de 11 e 5 de parede. Uma baia (uma
+ * janela) em colunas: 4 de parede, a janela de 8, 4 de parede. Com 8 baias e 3 andares, a fachada tem 130×66.
+ */
 const FLOOR = 22;
 const BAY = 16;
 
@@ -310,7 +350,10 @@ const FAN = `
   ...MMknknknMM...
   .....MMMMMM.....`;
 
-/** O ar-condicionado da caixa x 120–160: 40 de largura, frente de 28, tampo de 16 (26 de fundo · 0,6). */
+/**
+ * O ar-condicionado da caixa x 120–160 do `MAP` (topo 28, no telhado de topo 0): 40 de largura, frente de 28, tampo de
+ * 16 (26 de fundo · 0,6 = 15,6), 44 linhas.
+ */
 export function airCon(): string {
   const s = new Sketch(40, 44, 'N');
   // tampo
@@ -352,7 +395,10 @@ const FLUE = `
   .kkkkkkkk.
   ..nnnnnn..`;
 
-/** A chaminé da caixa x 400–440: 40 de largura, frente de 32, tampo de 13 (22 de fundo · 0,6). Tijolo com tampa de concreto e uma grelha de ventilação. */
+/**
+ * A chaminé da caixa x 400–440 do `MAP` (topo 56, no telhado de topo 24): 40 de largura, frente de 32, tampo de 13
+ * (22 de fundo · 0,6 = 13,2), 45 linhas. Tijolo com tampa de concreto e uma grelha de ventilação.
+ */
 export function chimney(): string {
   const s = new Sketch(40, 45);
   // tampa vista de cima
@@ -388,7 +434,10 @@ export function chimney(): string {
   return s.text();
 }
 
-/** A caixa-d'água da caixa x 700–744: 44 de largura, frente de 52, tampo de 12 (20 de fundo · 0,6). Madeira com cintas, sobre pernas de ferro. */
+/**
+ * A caixa-d'água da caixa x 700–744 do `MAP` (topo 60, no telhado de topo 8): 44 de largura, frente de 52, tampo de 12
+ * (20 de fundo · 0,6), 64 linhas. Madeira com cintas, sobre pernas de ferro; a tampa é uma elipse de 12 linhas.
+ */
 export function waterTank(): string {
   const w = 44, h = 64;
   const s = new Sketch(w, h);
@@ -449,7 +498,7 @@ export function waterTank(): string {
 
 // --- enfeites -----------------------------------------------------------------------------------------------------------
 
-/** Antena de TV, de pé atrás da mureta do fundo. */
+/** Antena de TV, 15×29, de pé atrás da mureta do fundo (âncora no meio de baixo). */
 export const ANTENNA = [
   '.N.N.N.N.N.N.N.',
   'NNNNNNNNNNNNNNN',
@@ -467,7 +516,7 @@ export const ANTENNA = [
   '.....kkkkk.....',
 ].join('\n');
 
-/** Torre de rádio em treliça; a luz vermelha (`beacon`) pisca em cima, desenhada à parte. */
+/** Torre de rádio em treliça, 7×38; a luz vermelha (`beacon`) pisca em cima, desenhada à parte (`DECOR` a põe `dy` = altura da torre acima). */
 export const MAST = [
   '...n...',
   '...N...',
@@ -482,11 +531,13 @@ export const MAST = [
   'kkkkkkk',
 ].join('\n');
 
+/** A luz da torre, 3×3, âncora no meio; acende e apaga no cliente (`beaconOn` em `dressing.ts`). */
 export const BEACON = `
   .R.
   RRR
   .R.`;
 
+/** Poças deitadas no tampo, achatadas pela perspectiva, refletindo o céu e o neon. */
 export const PUDDLES = {
   'puddle-a': `
     ...hhhhhhhh...
@@ -502,7 +553,7 @@ export const PUDDLES = {
     ...hhhhhhhhhhhhh....`,
 };
 
-/** A lua, cheia e um pouco apagada à direita. */
+/** A lua, 24×24, cheia e um pouco apagada embaixo à direita, com crateras; âncora no centro (`backdrop.ts` a põe no céu). */
 export function moon(): string {
   const n = 24, c = (n - 1) / 2;
   const s = new Sketch(n, n);
@@ -548,6 +599,9 @@ const NEON_FONT: Record<string, string> = {
  * Um letreiro de neon: o texto na fonte acima em tubo (`x` magenta ou `z` ciano) com um halo escuro da mesma cor, numa
  * placa preta com moldura. `vertical` empilha as letras; `off` são as letras com o tubo apagado (para o pisca-pisca);
  * `legs` põe a placa em pernas, para ficar de pé no telhado.
+ *
+ * Medidas: letra 5×7 (`LW`, `LH`), 2 entre letras (`GAP`), 3 de margem (`M`) até a moldura; o halo é 1 pixel em volta do
+ * tubo. "HOTEL" na horizontal dá uma placa de 39×13 (mais as pernas: 39×23).
  */
 export function neonSign(text: string, tube: 'x' | 'z', o: { vertical?: boolean; off?: number[]; legs?: number } = {}): string {
   const glow = tube === 'x' ? 'v' : 'u';
@@ -582,19 +636,26 @@ export function neonSign(text: string, tube: 'x' | 'z', o: { vertical?: boolean;
 
 // --- receitas e folha ------------------------------------------------------------------------------------------------
 
+/** Um objeto da folha do telhado: o nome no atlas, a grade (letras de `PALETTE`) e como o cliente o põe no mundo. */
 export interface Recipe {
   name: string;
   grid: string;
   /** textura que repete (o ladrilho é o quadro inteiro) */
   tile?: boolean;
-  /** o ponto do quadro que vai no lugar do objeto no mundo; sem isto, o meio de baixo */
+  /** o ponto do quadro, em pixels da grade, que vai no lugar do objeto no mundo; sem isto, o meio de baixo */
   anchor?: { x: number; y: number };
-  /** objeto de uma caixa do mapa: largura, altura da frente e fundo (z) da caixa */
+  /** objeto de uma caixa do mapa: largura (`x1 − x0`), altura da frente (`top` − topo do telhado) e fundo (`z1 − z0`) da caixa, em unidades do mundo */
   fits?: { w: number; h: number; depth: number };
 }
 
+/** Uma receita de caixa: âncora no canto de baixo à esquerda (o pé da frente da caixa, em `x0, z0`). */
 const box = (name: string, grid: string, fits: Recipe['fits'] & {}): Recipe => ({ name, grid, fits, anchor: { x: 0, y: gridLines(grid).length } });
 
+/**
+ * Todos os objetos, pelo nome que o cliente usa. As âncoras: as texturas que repetem ancoram no canto de cima (ou na
+ * linha do telhado, as muretas); os letreiros de fachada no canto de cima, pregados `dy` abaixo da beirada; o resto no
+ * meio de baixo.
+ */
 export const RECIPES: readonly Recipe[] = [
   { name: 'roof-top', grid: roofTop(), tile: true, anchor: { x: 0, y: 0 } },
   { name: 'parapet', grid: PARAPET, tile: true, anchor: { x: 0, y: 4 } },
@@ -627,6 +688,7 @@ export const RECIPES: readonly Recipe[] = [
   { name: 'moon', grid: moon(), anchor: { x: 12, y: 12 } },
 ];
 
+/** Um objeto no atlas (`rooftop.json`): posição e tamanho na folha, em pixels; a âncora relativa ao canto do objeto. */
 export interface RooftopFrame {
   x: number; y: number; w: number; h: number;
   anchor: { x: number; y: number };
@@ -635,11 +697,16 @@ export interface RooftopFrame {
   face?: number;
 }
 
+/** O atlas da folha do telhado (sem as faixas da cidade, que `index.ts` junta). */
 export interface RooftopAtlas {
   frames: Record<string, RooftopFrame>;
 }
 
-/** Todos os objetos numa folha (prateleiras de até `width`, 1 pixel entre eles) e onde cada um ficou. */
+/**
+ * Todos os objetos numa folha (prateleiras de até `width`, 1 pixel entre eles) e onde cada um ficou. Os mais altos
+ * primeiro, em prateleiras da esquerda para a direita; 256 de largura cabe as fachadas (130) duas a duas e dá uma folha
+ * quase quadrada. A posição na folha muda quando uma receita muda de tamanho; o cliente sempre lê pelo atlas.
+ */
 export function rooftopSheet(width = 256): { sheet: Image; atlas: RooftopAtlas } {
   const imgs = RECIPES.map((r) => ({ r, img: parseGrid(r.grid, PALETTE) }));
   const order = [...imgs].sort((a, b) => b.img.height - a.img.height || b.img.width - a.img.width);
