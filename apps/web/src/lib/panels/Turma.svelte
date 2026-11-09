@@ -19,8 +19,9 @@
   /** a ordem e as marcas só valem no lobby e no jogo; no fim, só passar a moderação e expulsar */
   const ended = $derived(room.phase === 'ended');
   const ids = $derived(v.players.map((p) => p.id));
-  const PROGRESS: Record<Progress, ['neutral' | 'info' | 'positive', 'progress.empty' | 'progress.writing' | 'progress.ready']> = {
-    empty: ['neutral', 'progress.empty'], writing: ['info', 'progress.writing'], ready: ['positive', 'progress.ready'],
+  /** em que pé está quem escreve: texto mono baixo; só "pronto" sobe um tom */
+  const PROGRESS: Record<Progress, 'progress.empty' | 'progress.writing' | 'progress.ready'> = {
+    empty: 'progress.empty', writing: 'progress.writing', ready: 'progress.ready',
   };
   const move = (id: string, d: -1 | 1) => send({ type: 'order', order: moveBy(ids, id, d) });
 </script>
@@ -33,15 +34,16 @@
 {/snippet}
 
 {#snippet postitChip(r: TurmaRow)}
-  {#if r.card && (r.card.hidden || r.card.text || r.card.image)}
-    <span class="gs-chip" class:hidden={r.card.hidden} class:turn={r.card.turn}>
-      {#if r.card.hidden}
-        <span class="q" title={t('postit.hidden')}>?</span>
-      {:else}
-        {#if r.card.image}<img src={r.card.image} alt="" />{/if}
-        {#if r.card.text}<span class="text">{r.card.text}</span>{/if}
-      {/if}
+  {@const c = r.card}
+  {#if c?.hidden}
+    <span class="gs-chip hidden" title={t('postit.hidden')}><span class="q">?</span></span>
+  {:else if c && (c.text || c.image)}
+    <span class="gs-chip" title={c.text ?? undefined}>
+      {#if c.image}<img src={c.image} alt="" />{/if}
+      {#if c.text}<span class="text">{c.text}</span>{/if}
     </span>
+  {:else}
+    <span class="gs-chip blank" aria-hidden="true">…</span>
   {/if}
 {/snippet}
 
@@ -53,7 +55,7 @@
         <div class="top">
           <Who m={r.member} {room} />
           {#if v.isModerator}
-            <span class="act" data-size-variant="sm">
+            <span class="act">
               {#if !ended}
               <button class="ss-btn ghost gs-icon-btn" type="button" disabled={i === 0} aria-label={t('order.up', { name: r.member.nickname })} title={t('order.up', { name: r.member.nickname })} onclick={() => move(r.member.id, -1)}><Icon name="up" /></button>
               <button class="ss-btn ghost gs-icon-btn" type="button" disabled={i === v.turma.length - 1} aria-label={t('order.down', { name: r.member.nickname })} title={t('order.down', { name: r.member.nickname })} onclick={() => move(r.member.id, 1)}><Icon name="down" /></button>
@@ -62,26 +64,22 @@
             </span>
           {/if}
         </div>
-        {#if lobby}
-          {@const [tone, key] = PROGRESS[r.writing]}
-          <div class="sub">
-            <span class="writes">{r.writesFor ? t('turma.writesFor', { owner: r.writesFor.id === room.you ? t('turma.you') : r.writesFor.nickname }) : t('turma.writesNobody')}</span>
-            {#if r.writesFor}<span class="ss-badge {tone}">{t(key)}</span>{/if}
-          </div>
+        <div class="sub">
           {@render postitChip(r)}
-        {:else}
-          <div class="sub">
-            {@render postitChip(r)}
-            {#if r.card?.turn}<span class="ss-badge brand">{t('play.turnBadge')}</span>{/if}
-            {#if r.status === 'got'}<span class="ss-badge positive">{t('play.gotBadge', { place: r.place ?? '' })}</span>{/if}
-            {#if r.status === 'gaveUp'}<span class="ss-badge neutral">{t('rank.gaveUp')}</span>{/if}
+          <span class="state">
+            {#if lobby}
+              <span class="writes">{r.writesFor ? t('turma.writesFor', { owner: r.writesFor.id === room.you ? t('turma.you') : r.writesFor.nickname }) : t('turma.writesNobody')}</span>
+              {#if r.writesFor}<span class="gs-tag" class:on={r.writing === 'ready'}>{t(PROGRESS[r.writing])}</span>{/if}
+            {:else if r.card?.turn}<span class="gs-tag turn">{t('play.turnBadge')}</span>
+            {:else if r.status === 'got'}<span class="gs-tag good">{t('play.gotBadge', { place: r.place ?? '' })}</span>
+            {:else if r.status === 'gaveUp'}<span class="gs-tag">{t('rank.gaveUp')}</span>{/if}
+          </span>
+        </div>
+        {#if !lobby && v.isModerator && !ended}
+          <div class="marks">
+            <button class="ss-btn ghost gs-sm" type="button" disabled={r.status === 'got'} onclick={() => send({ type: 'mark', member: r.member.id, right: true })}><Icon name="check" />{t('mod.markRight')}</button>
+            <button class="ss-btn ghost gs-sm" type="button" disabled={r.status === 'playing'} onclick={() => send({ type: 'mark', member: r.member.id, right: false })}><Icon name="undo" />{t('mod.markWrong')}</button>
           </div>
-          {#if v.isModerator && !ended}
-            <div class="act mark" data-size-variant="sm">
-              <button class="ss-btn ghost" type="button" disabled={r.status === 'got'} onclick={() => send({ type: 'mark', member: r.member.id, right: true })}><Icon name="check" size={14} />{t('mod.markRight')}</button>
-              <button class="ss-btn ghost" type="button" disabled={r.status === 'playing'} onclick={() => send({ type: 'mark', member: r.member.id, right: false })}><Icon name="undo" size={14} />{t('mod.markWrong')}</button>
-            </div>
-          {/if}
         {/if}
       </div>
     </li>
@@ -91,10 +89,10 @@
 
 {#if v.ghosts.length}
   <div class="gs-section gs-ghosts">
-    <h4>{t('lobby.ghosts')}</h4>
+    <h4>{t('lobby.ghosts')}<span class="gs-n">{v.ghosts.length}</span></h4>
     <ul class="gs-members">
       {#each v.ghosts as g (g.id)}
-        <li><Who m={g} {room} />{#if v.isModerator}<span class="act" data-size-variant="sm">{@render modActions(g.id, g.nickname)}</span>{/if}</li>
+        <li><Who m={g} {room} />{#if v.isModerator}<span class="act">{@render modActions(g.id, g.nickname)}</span>{/if}</li>
       {/each}
     </ul>
   </div>

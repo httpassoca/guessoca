@@ -1,5 +1,5 @@
 <script lang="ts" module>
-  /** Os ícones que a sala usa, no traço do dssoca (24×24, linha quadrada); o dssoca não tem estes. */
+  /** Os ícones que a sala usa, no traço do dssoca (24×24, linha quadrada); o dssoca não tem estes. Um tamanho só, 16. */
   const PATHS = {
     menu: '<path d="M4 6h16M4 12h16M4 18h16"/>',
     sideHide: '<rect x="3" y="4" width="18" height="16"/><path d="M9 4v16M16 9l-3 3 3 3"/>',
@@ -11,12 +11,15 @@
     crown: '<path d="M4 18h16M4 18l-1-10 5 4 4-6 4 6 5-4-1 10"/>',
     kick: '<path d="M6 6l12 12M18 6L6 18"/>',
     undo: '<path d="M9 7L5 11l4 4"/><path d="M5 11h9a5 5 0 0 1 0 10h-3"/>',
+    minus: '<path d="M6 12h12"/>',
+    plus: '<path d="M6 12h12M12 6v12"/>',
   } as const;
   export type IconName = keyof typeof PATHS;
 </script>
 
 <script lang="ts">
-  let { name, size = 16 }: { name: IconName; size?: number } = $props();
+  let { name }: { name: IconName } = $props();
+  const size = 16;
 </script>
 
 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square" stroke-linejoin="miter" class="ss-icon" style:width="{size}px" style:height="{size}px" aria-hidden="true" focusable="false">

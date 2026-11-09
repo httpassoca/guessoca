@@ -155,7 +155,8 @@ export function roomView(s: RoomSnapshot): RoomView {
   const authorOf = (owner: string): string | null => s.postits[owner]?.author ?? s.authors[owner] ?? null;
   let writeFor: RoomView['writeFor'] = null;
   if (me && lobby) {
-    const ownerId = s.order.find((o) => authorOf(o) === me.id && s.postits[o]);
+    // sozinho na turma, o círculo faz a pessoa autora de si mesma: ninguém escreve o próprio post-it
+    const ownerId = s.order.find((o) => o !== me.id && authorOf(o) === me.id && s.postits[o]);
     const owner = ownerId ? byId.get(ownerId) : undefined;
     if (ownerId && owner) writeFor = { owner, postit: s.postits[ownerId], progress: progressOf(s.postits[ownerId]) };
   }

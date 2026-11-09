@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { RoomSnapshot } from '@guess/protocol';
   import Confirm from '../hud/Confirm.svelte';
+  import Icon from '../hud/Icon.svelte';
   import Kbd from '../hud/Kbd.svelte';
   import { t } from '../i18n.svelte';
   import type { GameRequest } from '../room/remote';
@@ -14,49 +15,46 @@
 </script>
 
 <div class="gs-turnbar">
-  <section class="ss-card gs-block gs-turn" class:mine={v.turn?.mine}>
-    <div class="body">
-      {#if v.turn}
-        <div class="gs-turn-line">
-          <span class="who">{v.turn.mine ? t('play.yourTurn') : t('play.turnOf', { name: v.turn.owner.nickname })}</span>
-          <span class="gs-clock big" class:gs-warn={v.turn.running && turnLeft < 10_000}>{clockText(turnLeft)}</span>
-          {#if room.paused}<span class="ss-badge caution">{t('play.paused')}</span>{/if}
-        </div>
-      {:else}
-        <p class="gs-hint">{t('play.noTurn')}</p>
-      {/if}
-      {#if v.isPlayer && !v.done}
-        <div class="gs-row">
-          <button class="ss-btn primary" type="button" disabled={!v.canClaim} onclick={() => send({ type: 'claim' })}>{t('play.claim')} <Kbd keys={['↵']} /></button>
-          <button class="ss-btn" type="button" disabled={!v.canSkip} onclick={() => send({ type: 'skip' })}>{t('play.skip')} <Kbd keys={['Tab']} /></button>
-          <Confirm label={t('play.giveUp')} disabled={!v.canGiveUp} onconfirm={() => send({ type: 'giveUp' })} />
-        </div>
-      {:else if v.done}
-        <p class="gs-hint">{t('play.youAreDone')}</p>
-      {/if}
-    </div>
+  <section class="gs-float gs-turn" class:live={!!v.turn} class:mine={v.turn?.mine}>
+    {#if v.turn}
+      <span class="gs-clock big" class:gs-warn={v.turn.running && turnLeft < 10_000} class:paused={room.paused}>{clockText(turnLeft)}</span>
+      <span class="who">{v.turn.mine ? t('play.yourTurn') : t('play.turnOf', { name: v.turn.owner.nickname })}</span>
+      {#if room.paused}<span class="gs-tag">{t('play.paused')}</span>{/if}
+    {:else}
+      <span class="gs-hint">{t('play.noTurn')}</span>
+    {/if}
+    {#if v.isPlayer && !v.done}
+      <span class="acts">
+        <button class="ss-btn primary" type="button" disabled={!v.canClaim} onclick={() => send({ type: 'claim' })}>{t('play.claim')} <Kbd keys={['↵']} /></button>
+        <button class="ss-btn" type="button" disabled={!v.canSkip} onclick={() => send({ type: 'skip' })}>{t('play.skip')} <Kbd keys={['Tab']} /></button>
+        <Confirm label={t('play.giveUp')} disabled={!v.canGiveUp} onconfirm={() => send({ type: 'giveUp' })} />
+      </span>
+    {:else if v.done}
+      <span class="gs-hint">{t('play.youAreDone')}</span>
+    {/if}
   </section>
 
   {#if v.vote}
-    <section class="ss-card elevated gs-block gs-vote">
-      <div class="head">
-        <div class="heading"><span class="title">{v.vote.mine ? t('vote.youClaimed') : t('vote.question', { name: v.vote.claimer.nickname })}</span><span class="desc">{t('vote.hint')}</span></div>
+    <section class="gs-float gs-vote">
+      <div class="gs-vote-head">
+        <span class="title">{v.vote.mine ? t('vote.youClaimed') : t('vote.question', { name: v.vote.claimer.nickname })}</span>
         <span class="gs-clock">{clockText(voteLeft)}</span>
       </div>
-      <div class="body">
+      <p class="gs-hint">{t('vote.hint')}</p>
+      <div class="gs-vote-foot">
         {#if v.vote.canVote}
-          <div class="gs-row">
+          <span class="acts">
             <button class="ss-btn primary" type="button" onclick={() => send({ type: 'vote', yes: true })}>{t('vote.yes')}</button>
             <button class="ss-btn" type="button" onclick={() => send({ type: 'vote', yes: false })}>{t('vote.no')}</button>
-          </div>
+          </span>
         {:else if v.vote.voted}
-          <p class="gs-hint">{v.vote.yours === false ? t('vote.youVotedNo') : t('vote.youVotedYes')}</p>
+          <span class="gs-hint">{v.vote.yours === false ? t('vote.youVotedNo') : t('vote.youVotedYes')}</span>
         {:else}
-          <p class="gs-hint">{v.vote.mine ? t('vote.waitingClaimer') : t('vote.waiting')}</p>
+          <span class="gs-hint">{v.vote.mine ? t('vote.waitingClaimer') : t('vote.waiting')}</span>
         {/if}
         <ul class="gs-voters">
           {#each v.vote.voters as x (x.member.id)}
-            <li class:done={x.voted}>{x.voted ? '✓' : '…'} {x.member.nickname}</li>
+            <li class:done={x.voted}>{#if x.voted}<Icon name="check" />{:else}<span class="dot" aria-hidden="true"></span>{/if}{x.member.nickname}</li>
           {/each}
         </ul>
       </div>

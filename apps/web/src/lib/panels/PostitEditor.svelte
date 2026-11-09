@@ -2,6 +2,7 @@
   import { imageUrl, type PostitView } from '@guess/protocol';
   import { POSTIT_MAX } from '@guess/rules';
   import { onDestroy, untrack } from 'svelte';
+  import Icon from '../hud/Icon.svelte';
   import { t } from '../i18n.svelte';
   import { imageIdFromUrl, sendImage } from '../image';
   import type { GameRequest } from '../room/remote';
@@ -54,17 +55,17 @@
       <span class="control"><textarea class="field gs-postit-input" bind:value={text} oninput={typed} maxlength={POSTIT_MAX} rows="2" disabled={locked} placeholder={t('editor.placeholder')} aria-label={t('editor.text')} spellcheck="false"></textarea></span>
     </label>
   </div>
-  <div class="gs-row" data-size-variant="sm">
-    <span class="gs-hint gs-count" class:gs-warn={text.length >= POSTIT_MAX}>{t('editor.count', { n: text.length, max: POSTIT_MAX })}</span>
+  <div class="gs-row gs-editor-foot">
+    <span class="gs-n" class:gs-warn={text.length >= POSTIT_MAX}>{t('editor.count', { n: text.length, max: POSTIT_MAX })}</span>
     {#if !locked}
       <input class="gs-file" type="file" accept="image/*" bind:this={picker} onchange={picked} hidden />
-      <button class="ss-btn ghost" type="button" disabled={uploading} onclick={() => picker?.click()}>{uploading ? t('editor.uploading') : image ? t('editor.imageChange') : t('editor.imageAdd')}</button>
-      {#if image}<button class="ss-btn ghost" type="button" disabled={uploading} onclick={removeImage}>{t('editor.imageRemove')}</button>{/if}
+      <button class="ss-btn ghost gs-sm" type="button" disabled={uploading} onclick={() => picker?.click()}>{uploading ? t('editor.uploading') : image ? t('editor.imageChange') : t('editor.imageAdd')}</button>
+      {#if image}<button class="ss-btn ghost gs-sm" type="button" disabled={uploading} onclick={removeImage}>{t('editor.imageRemove')}</button>{/if}
       <span class="gs-spacer"></span>
-      {#if canReady}<button class="ss-btn primary" type="button" disabled={!text.trim() || uploading} onclick={ready}>{t('editor.ready')}</button>{/if}
+      {#if canReady}<button class="ss-btn gs-sm" type="button" disabled={!text.trim() || uploading} onclick={ready}>{t('editor.ready')}</button>{/if}
     {:else}
       <span class="gs-spacer"></span>
-      <span class="ss-badge positive">{t('editor.isReady')}</span>
+      <span class="gs-tag on"><Icon name="check" />{t('editor.isReady')}</span>
     {/if}
   </div>
   {#if imageFailed}<p class="gs-error">{t('editor.imageFailed')}</p>{/if}

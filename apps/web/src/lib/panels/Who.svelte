@@ -3,18 +3,22 @@
   import { t } from '../i18n.svelte';
   import Swatch from './Swatch.svelte';
 
-  /** Uma pessoa da turma numa linha: personagem, apelido e as marcas (você, moderador, caiu, fantasma, falso). `compact`: só "você". */
+  /**
+   * Uma pessoa da turma numa linha: personagem, apelido e as marcas (você, moderador, caiu, fantasma, falso), em texto
+   * mono baixo, sem pílula. `compact`: só "você".
+   */
   let { m, room, compact = false }: { m: MemberView; room: RoomSnapshot; compact?: boolean } = $props();
+  const tags = $derived([
+    m.id === room.you && t('badge.you'),
+    !compact && m.id === room.moderator && t('badge.moderator'),
+    !compact && m.ghost && t('badge.ghost'),
+    !compact && m.fake && t('badge.fake'),
+    !compact && !m.connected && t('badge.offline'),
+  ].filter((x): x is string => !!x));
 </script>
 
 <span class="gs-who" class:off={!m.connected}>
   <Swatch n={m.character} />
   <span class="name">{m.nickname}</span>
-  {#if m.id === room.you}<span class="ss-badge brand">{t('badge.you')}</span>{/if}
-  {#if !compact}
-    {#if m.id === room.moderator}<span class="ss-badge caution">{t('badge.moderator')}</span>{/if}
-    {#if m.ghost}<span class="ss-badge info">{t('badge.ghost')}</span>{/if}
-    {#if m.fake}<span class="ss-badge neutral">{t('badge.fake')}</span>{/if}
-    {#if !m.connected}<span class="ss-badge neutral">{t('badge.offline')}</span>{/if}
-  {/if}
+  {#if tags.length}<span class="gs-tags">{#each tags as tag (tag)}<span class="gs-tag">{tag}</span>{/each}</span>{/if}
 </span>

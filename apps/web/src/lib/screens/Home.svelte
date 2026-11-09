@@ -8,6 +8,7 @@
   import { t } from '../i18n.svelte';
   import { local, rememberAutoJoin, rememberCharacter, rememberedCharacter, rememberedNickname, rememberNickname } from '../identity';
   import CharacterPicker from '../panels/CharacterPicker.svelte';
+  import Stage from '../panels/Stage.svelte';
   import { clockText, turnOptions } from '../room/view';
   import { openRoom } from '../rooms';
   import { navigate, roomPath } from '../route.svelte';
@@ -60,7 +61,8 @@
 </script>
 
 <div class="gs-screen">
-  <div class="ss-card elevated gs-panel gs-pre">
+  <div class="gs-pre-wrap">
+  <div class="ss-card gs-panel gs-pre">
     <div class="head">
       <div class="gs-title">
         <h1 class="gs-brand">{t('home.brand')}</h1>
@@ -82,7 +84,7 @@
           {#if problems.includes('character')}<p class="gs-error">{t('pre.needCharacter')}</p>{/if}
         </div>
 
-        <div class="gs-settings">
+        <div class="gs-rows">
           <div class="gs-line">
             <span>{t('lobby.turnMs')}</span>
             <Stepper value={clockText(turnMs)} lessLabel={t('lobby.turnLess')} moreLabel={t('lobby.turnMore')} canLess={turnIdx > 0} canMore={turnIdx >= 0 && turnIdx < turns.length - 1}
@@ -115,5 +117,7 @@
       {#if invalid}<p class="gs-error">{t('home.codeInvalid')}</p>{/if}
     </div>
     <div class="foot"><LangSwitch /><span class="gs-credit">{t('credit.character')}</span></div>
+  </div>
+  <Stage n={character} {nickname} />
   </div>
 </div>

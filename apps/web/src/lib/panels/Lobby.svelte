@@ -33,8 +33,8 @@
 
 <section class="gs-block gs-sec">
   <div class="gs-sec-head">
-    <h3>{t('sala.turma', { count: room.members.length, max: room.maxPlayers })}</h3>
-    {#if v.isModerator}<button class="ss-btn" type="button" data-size-variant="sm" disabled={v.players.length < 2} title={t('lobby.shuffleHint')} onclick={() => send({ type: 'shuffleAuthors' })}>{t('lobby.shuffle')}</button>{/if}
+    <h3>{t('sala.turma')}<span class="gs-n">{room.members.length}/{room.maxPlayers}</span></h3>
+    {#if v.isModerator}<button class="ss-btn gs-sm" type="button" disabled={v.players.length < 2} title={t('lobby.shuffleHint')} onclick={() => send({ type: 'shuffleAuthors' })}>{t('lobby.shuffle')}</button>{/if}
   </div>
   <Turma {v} {room} {send} />
 </section>
@@ -51,18 +51,18 @@
 
 {#if v.isModerator && (v.missing.length || editing.length || v.ownPostitEmpty)}
   <section class="gs-block gs-sec">
-    <div class="gs-sec-head"><h3>{t('lobby.missing', { n: v.missing.length })}</h3></div>
+    <div class="gs-sec-head"><h3>{t('lobby.missing')}<span class="gs-n">{v.missing.length}</span></h3></div>
     <p class="gs-hint">{t('lobby.missingHint')}</p>
     {#if v.ownPostitEmpty}<p class="gs-banner">{t('writing.ownEmpty')}</p>{/if}
     {#each v.missing.filter((c) => !editing.includes(c.owner.id)) as c (c.owner.id)}
       <div class="gs-line">
         <span>{c.author ? t('writing.missingFor', { owner: c.owner.nickname, author: c.author.nickname }) : t('writing.orphanFor', { owner: c.owner.nickname })}</span>
-        <button class="ss-btn" type="button" data-size-variant="sm" onclick={() => open(c.owner.id)}>{t('lobby.writeIt')}</button>
+        <button class="ss-btn gs-sm" type="button" onclick={() => open(c.owner.id)}>{t('lobby.writeIt')}</button>
       </div>
     {/each}
     {#each editing as id (id)}
       <div class="gs-section">
-        <div class="gs-line"><h4>{t('lobby.writingFor', { owner: nameOf(id) })}</h4><button class="ss-btn ghost" type="button" data-size-variant="sm" onclick={() => close(id)}>{t('lobby.closeEditor')}</button></div>
+        <div class="gs-line"><h4>{t('lobby.writingFor', { owner: nameOf(id) })}</h4><button class="ss-btn ghost gs-sm" type="button" onclick={() => close(id)}>{t('lobby.closeEditor')}</button></div>
         <PostitEditor owner={id} postit={room.postits[id]} code={room.code} {token} {send} canReady={false} />
       </div>
     {/each}
@@ -71,6 +71,7 @@
 
 <section class="gs-block gs-sec">
   <div class="gs-sec-head"><h3>{t('lobby.settings')}</h3>{#if !v.isModerator}<span class="gs-hint">{t('lobby.settingsReadOnly')}</span>{/if}</div>
+  <div class="gs-rows">
   <div class="gs-line">
     <span>{t('lobby.turnMs')}</span>
     <Stepper value={clockText(room.turnMs)} lessLabel={t('lobby.turnLess')} moreLabel={t('lobby.turnMore')} canLess={turnIdx > 0} canMore={turnIdx >= 0 && turnIdx < turns.length - 1}
@@ -87,5 +88,6 @@
       <Switch label={t('lobby.onlyModerate')} on={onlyModerating} ontoggle={(on) => send({ type: 'onlyModerate', on })} />
     </div>
   {/if}
+  </div>
   {#if v.players.length < MIN_PLAYERS}<p class="gs-hint">{t('lobby.needPlayers', { min: MIN_PLAYERS })}</p>{/if}
 </section>

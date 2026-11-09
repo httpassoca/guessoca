@@ -34,10 +34,10 @@
   <section class="gs-block gs-sec">
     <div class="gs-sec-head"><h3>{t('mod.title')}</h3></div>
     <p class="gs-hint">{t('mod.hint')}</p>
-    <div class="gs-row" data-size-variant="sm">
-      <button class="ss-btn" type="button" disabled={!v.moderatorCanSkip} onclick={() => send({ type: 'skip' })}>{t('mod.skip')}</button>
-      <button class="ss-btn" type="button" onclick={() => send({ type: 'pause', on: !room.paused })}>{room.paused ? t('mod.resume') : t('mod.pause')}</button>
-      <Confirm label={t('mod.endGame')} kind="" onconfirm={() => send({ type: 'endGame' })} />
+    <div class="gs-row">
+      <button class="ss-btn gs-sm" type="button" disabled={!v.moderatorCanSkip} onclick={() => send({ type: 'skip' })}>{t('mod.skip')}</button>
+      <button class="ss-btn gs-sm" type="button" onclick={() => send({ type: 'pause', on: !room.paused })}>{room.paused ? t('mod.resume') : t('mod.pause')}</button>
+      <Confirm label={t('mod.endGame')} kind="" small onconfirm={() => send({ type: 'endGame' })} />
     </div>
   </section>
 {/if}
