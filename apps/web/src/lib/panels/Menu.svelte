@@ -5,17 +5,22 @@
   import Confirm from '../hud/Confirm.svelte';
   import Kbd from '../hud/Kbd.svelte';
   import LangSwitch from '../hud/LangSwitch.svelte';
+  import Switch from '../hud/Switch.svelte';
   import { t } from '../i18n.svelte';
   import { rememberNickname } from '../identity';
   import type { GameRequest } from '../room/remote';
   import type { RoomView } from '../room/view';
   import { navigate } from '../route.svelte';
+  import { setSoundSettings, soundSettings } from '../sound/player';
   import MemberActions from './MemberActions.svelte';
   import Who from './Who.svelte';
 
-  /** O menu (Esc): idioma, apelido, atalhos, as ferramentas do moderador, o crédito e sair para o início. */
+  /** O menu (Esc): idioma, som (volume e mudo, lembrados pelo navegador), apelido, atalhos, as ferramentas do moderador, o crédito e sair para o início. */
   let { v, room, send, onrename, onclose }: { v: RoomView; room: RoomSnapshot; send: (r: GameRequest) => void; onrename: (nickname: string) => void; onclose: () => void } = $props();
   let nickname = $state(untrack(() => v.me?.nickname ?? ''));
+  let sound = $state(soundSettings());
+  function setVolume(volume: number) { sound.volume = volume; setSoundSettings({ volume }); }
+  function setMuted(muted: boolean) { sound.muted = muted; setSoundSettings({ muted }); }
 
   function rename(e: SubmitEvent) {
     e.preventDefault();
@@ -35,6 +40,15 @@
     </div>
     <div class="body">
       <div class="gs-line"><span>{t('lang.label')}</span><LangSwitch /></div>
+      <div class="gs-line">
+        <span>{t('menu.sound')}</span>
+        <span class="gs-sound">
+          <input class="gs-range" type="range" min="0" max="100" step="1" aria-label={t('menu.volume')} value={sound.volume} disabled={sound.muted}
+            oninput={(e) => setVolume(Number(e.currentTarget.value))} />
+          <span class="gs-volume">{sound.volume}</span>
+          <span class="gs-mute">{t('menu.mute')} <Switch on={sound.muted} label={t('menu.mute')} ontoggle={setMuted} /></span>
+        </span>
+      </div>
       <form class="gs-form" onsubmit={rename}>
         <label class="ss-field">
           <span class="lbl">{t('sala.nickname')}</span>
