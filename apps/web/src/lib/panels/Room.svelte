@@ -12,6 +12,7 @@
   import { roomPath } from '../route.svelte';
   import { playSfx } from '../sound/player';
   import { roomSoundsTracker } from '../sound/room';
+  import Icon from '../hud/Icon.svelte';
   import World from '../world/World.svelte';
   import Corner from './Corner.svelte';
   import Game from './Game.svelte';
@@ -112,8 +113,7 @@
   <aside id="gs-side" class="gs-side" hidden={!sideOpen} bind:offsetWidth={sideWidth} aria-label={t('side.label')}>
     <header class="gs-side-head">
       <span class="gs-code small" title={t('sala.title', { code: room.code })}>{room.code}</span>
-      <span class="ss-badge brand">{t(PHASE[room.phase])}</span>
-      {#if v.isGhost}<span class="ss-badge info">{t('badge.ghost')}</span>{/if}
+      <span class="gs-tags"><span class="gs-tag">{t(PHASE[room.phase])}</span>{#if v.isGhost}<span class="gs-tag">{t('badge.ghost')}</span>{/if}</span>
       <span class="gs-spacer"></span>
       <span class="meta" class:gs-warn={st.status === 'reconnecting'}>{status}</span>
     </header>
@@ -130,7 +130,7 @@
           <button class="ss-btn primary full-width" type="button" disabled={!v.canStart} onclick={() => send({ type: 'start' })}>{t('lobby.start')}</button>
           <p class="gs-hint">
             {#if v.startBlock === 'players'}{t('lobby.needPlayers', { min: MIN_PLAYERS })}
-            {:else if v.startBlock === 'empty'}{t('lobby.startEmpty', { n: v.players.length - v.writtenCount })}
+            {:else if v.startBlock === 'empty'}{@const n = v.players.length - v.writtenCount}{n === 1 ? t('lobby.startEmptyOne') : t('lobby.startEmpty', { n })}
             {:else if v.allReady}{t('lobby.allReady')}
             {:else}{t('lobby.startAnyway', { n: v.readyCount, total: v.players.length })}{/if}
           </p>
@@ -140,7 +140,7 @@
       {:else if room.phase === 'ended' && v.isModerator}
         <button class="ss-btn primary full-width" type="button" onclick={() => send({ type: 'playAgain' })}>{t('end.playAgain')}</button>
       {/if}
-      {#if dev}<button class="ss-btn ghost" type="button" data-size-variant="sm" onclick={() => send({ type: 'addFake' })}>{t('dev.addFake')}</button>{/if}
+      {#if dev}<button class="ss-btn ghost gs-sm gs-dev" type="button" onclick={() => send({ type: 'addFake' })}><Icon name="plus" />{t('dev.addFake')}</button>{/if}
     </footer>
   </aside>
 

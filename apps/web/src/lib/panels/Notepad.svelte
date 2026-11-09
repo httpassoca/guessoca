@@ -19,15 +19,13 @@
     <span>{t('notepad.title')}</span>{#if text.trim()}<span class="dot" aria-hidden="true"></span>{/if}<Kbd keys={['N']} />
   </button>
 {:else}
-  <aside class="ss-card elevated gs-notepad" style:left="{left}px" style:width="{width}px" aria-label={t('notepad.title')}>
-    <div class="head">
-      <div class="heading"><span class="title">{t('notepad.title')}</span><span class="desc">{t('notepad.hint')}</span></div>
-      <button class="ss-btn ghost" type="button" data-size-variant="sm" aria-expanded="true" onclick={() => onminimize(true)}>{t('notepad.minimize')} <Kbd keys={['N']} /></button>
+  <aside class="gs-float gs-notepad" style:left="{left}px" style:width="{width}px" aria-label={t('notepad.title')}>
+    <div class="gs-float-head">
+      <div class="heading"><h3 class="gs-float-title">{t('notepad.title')}</h3><span class="gs-hint">{t('notepad.hint')}</span></div>
+      <button class="ss-btn ghost gs-sm" type="button" aria-expanded="true" onclick={() => onminimize(true)}>{t('notepad.minimize')} <Kbd keys={['N']} /></button>
     </div>
-    <div class="body">
-      <label class="ss-textarea">
-        <span class="control"><textarea class="field" rows="6" bind:this={field} bind:value={text} oninput={() => rememberNotepad(code, text)} placeholder={t('notepad.placeholder')} aria-label={t('notepad.title')}></textarea></span>
-      </label>
-    </div>
+    <label class="ss-textarea">
+      <span class="control"><textarea class="field" rows="6" bind:this={field} bind:value={text} oninput={() => rememberNotepad(code, text)} placeholder={t('notepad.placeholder')} aria-label={t('notepad.title')}></textarea></span>
+    </label>
   </aside>
 {/if}

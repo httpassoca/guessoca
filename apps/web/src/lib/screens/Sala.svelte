@@ -8,6 +8,7 @@
   import { autoJoinIn, rememberCharacter, rememberedCharacter, rememberedNickname, rememberNickname, session, takeAutoJoin, token } from '../identity';
   import CharacterPicker from '../panels/CharacterPicker.svelte';
   import Room from '../panels/Room.svelte';
+  import Stage from '../panels/Stage.svelte';
   import Who from '../panels/Who.svelte';
   import { RemoteRoom, type ClosedReason, type RemoteState } from '../room/remote';
   import { roomView } from '../room/view';
@@ -80,9 +81,9 @@
 {#if st.status === 'closed' && st.reason}
   {@const [title, msg] = GONE[st.reason]}
   <div class="gs-screen">
-    <div class="ss-card elevated gs-panel">
+    <div class="ss-card gs-panel">
       <div class="body">
-        <div class="ss-empty error">
+        <div class="ss-empty gs-gone">
           <div class="title">{t(title)}</div>
           <p class="msg">{t(msg)}</p>
           <div class="act">
@@ -96,10 +97,11 @@
   <Room {remote} {st} {room} token={myToken} {status} />
 {:else}
   <div class="gs-screen">
-    <div class="ss-card elevated gs-panel gs-pre">
+    <div class="gs-pre-wrap">
+    <div class="ss-card gs-panel gs-pre">
       <div class="head">
-        <div class="heading"><span class="title">{t('sala.title', { code })}</span><span class="desc">{t('pre.joinHint')}</span></div>
-        <span class="meta" class:gs-warn={st.status === 'reconnecting'}>{status}</span>
+        <div class="heading"><h1 class="gs-h">{t('sala.label')} <span class="gs-code">{code}</span></h1><span class="gs-hint">{t('pre.joinHint')}</span></div>
+        <span class="gs-tag" class:gs-warn={st.status === 'reconnecting'}>{status}</span>
       </div>
       <div class="body">
         {#if auto}
@@ -123,7 +125,7 @@
         {#if st.error === 'refused'}<p class="gs-error">{t('error.refused')}</p>{/if}
 
         <div class="gs-section">
-          <h4>{t('sala.turma', { count: room?.members.length ?? 0, max: room?.maxPlayers ?? 8 })}</h4>
+          <h4>{t('sala.turma')}<span class="gs-n">{room?.members.length ?? 0}/{room?.maxPlayers ?? 8}</span></h4>
           {#if !room || room.members.length === 0}
             <p class="gs-hint">{t('sala.empty')}</p>
           {:else}
@@ -137,6 +139,8 @@
         <button class="ss-btn ghost" type="button" onclick={() => navigate('/')}>{t('nav.home')}</button>
         <LangSwitch />
       </div>
+    </div>
+    <Stage n={character} {nickname} />
     </div>
   </div>
 {/if}

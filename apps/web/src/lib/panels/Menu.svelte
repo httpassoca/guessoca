@@ -17,12 +17,12 @@
 </script>
 
 <div class="gs-backdrop" role="presentation" onclick={(e) => { if (e.target === e.currentTarget) onclose(); }}>
-  <div class="ss-card elevated gs-menu" role="dialog" aria-modal="true" aria-label={t('menu.title')}>
-    <div class="head">
-      <div class="heading"><span class="title">{t('menu.title')}</span><span class="desc">{t('sala.title', { code })}</span></div>
-      <Kbd keys={['Esc']} />
+  <div class="gs-float gs-menu" role="dialog" aria-modal="true" aria-label={t('menu.title')}>
+    <div class="gs-float-head">
+      <div class="heading"><h2 class="gs-float-title">{t('menu.title')}</h2><span class="gs-hint">{t('sala.label')} <span class="gs-code tiny">{code}</span></span></div>
     </div>
-    <div class="body">
+    <div class="gs-menu-body">
+      <div class="gs-rows">
       <div class="gs-line"><span>{t('lang.label')}</span><LangSwitch /></div>
       <div class="gs-line">
         <span>{t('menu.sound')}</span>
@@ -34,9 +34,10 @@
         </span>
       </div>
       <EffectsSwitch />
+      </div>
 
       <div class="gs-section">
-        <h4>{t('menu.keys')}</h4>
+        <h3 class="gs-sub">{t('menu.keys')}</h3>
         <ul class="gs-keys">
           <li><span>{t('play.claim')}</span><Kbd keys={['↵']} /></li>
           <li><span>{t('keys.skip')}</span><Kbd keys={['Tab']} /></li>
@@ -52,9 +53,9 @@
       </div>
       <p class="gs-credit">{t('credit.character')}</p>
     </div>
-    <div class="foot">
+    <div class="gs-float-foot">
       <button class="ss-btn ghost" type="button" onclick={() => navigate('/')}>{t('menu.leave')}</button>
-      <button class="ss-btn primary" type="button" bind:this={back} onclick={onclose}>{t('menu.back')} <Kbd keys={['Esc']} /></button>
+      <button class="ss-btn" type="button" bind:this={back} onclick={onclose}>{t('menu.back')} <Kbd keys={['Esc']} /></button>
     </div>
   </div>
 </div>

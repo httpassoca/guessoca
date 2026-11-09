@@ -8,12 +8,8 @@
 </script>
 
 <div class="gs-line gs-effects">
-  <span class="gs-effects-text"><span>{t('world.effects')}</span><span class="gs-hint">{t('world.effectsHint')}</span></span>
+  <span class="gs-two"><span>{t('world.effects')}</span><span class="gs-hint">{t('world.effectsHint')}</span></span>
   <span class="ss-switch">
     <button type="button" class="track" class:on role="switch" aria-checked={on} aria-label={t('world.effects')} onclick={toggle}><span class="thumb"></span></button>
   </span>
 </div>
-
-<style>
-  .gs-effects-text { display: flex; flex-direction: column; gap: 2px; }
-</style>

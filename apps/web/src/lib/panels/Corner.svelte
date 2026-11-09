@@ -19,13 +19,13 @@
 </script>
 
 <nav class="gs-corner" aria-label={t('corner.label')}>
-  <button class="ss-btn gs-corner-btn" type="button" aria-haspopup="dialog" aria-label={t('menu.title')} title={t('menu.title')} onclick={onmenu}>
-    <Icon name="menu" size={18} /><Kbd keys={['Esc']} />
+  <button class="ss-btn gs-corner-btn wide" type="button" aria-haspopup="dialog" aria-label={t('menu.title')} title={t('menu.title')} onclick={onmenu}>
+    <Icon name="menu" /><Kbd keys={['Esc']} />
   </button>
   <button class="ss-btn gs-corner-btn" type="button" aria-controls="gs-side" aria-expanded={sideOpen} aria-label={sideOpen ? t('side.hide') : t('side.show')} title={sideOpen ? t('side.hide') : t('side.show')} onclick={ontoggle}>
-    <Icon name={sideOpen ? 'sideHide' : 'sideShow'} size={18} />
+    <Icon name={sideOpen ? 'sideHide' : 'sideShow'} />
   </button>
   <button class="ss-btn gs-corner-btn" class:copied type="button" aria-label={copied ? t('sala.copied') : t('sala.copy')} title={copied ? t('sala.copied') : t('sala.copy')} onclick={copy}>
-    <Icon name={copied ? 'check' : 'link'} size={18} />{#if copied}<span class="gs-corner-msg" role="status">{t('sala.copied')}</span>{/if}
+    <Icon name={copied ? 'check' : 'link'} />{#if copied}<span class="gs-corner-msg" role="status">{t('sala.copied')}</span>{/if}
   </button>
 </nav>
