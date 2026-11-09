@@ -31,6 +31,18 @@ export function notepadBox(side: Side, viewportW: number): { left: number; width
   return { left: EDGE, width: Math.min(NOTEPAD_W, viewportW - 2 * EDGE) };
 }
 
+export type Phase = 'lobby' | 'playing' | 'ended';
+
+/**
+ * A coluna depois de uma troca de fase: o jogo começando recolhe (o telhado e a vez são o que importa); o fim e a volta
+ * ao lobby abrem (o "Jogar de novo" e a escrita estão nela). Sem troca (ou ao chegar, sem fase anterior), fica como a
+ * pessoa deixou: dentro de uma fase ela recolhe e abre à vontade.
+ */
+export function sideCollapsedAfter(prev: Phase | null, next: Phase, collapsed: boolean): boolean {
+  if (prev === null || prev === next) return collapsed;
+  return next === 'playing';
+}
+
 /** Quanto da esquerda da tela a coluna cobre: a câmera do telhado centra no resto. */
 export function sideInset(side: Side): number {
   return side.open && side.width > 0 ? EDGE + side.width : 0;

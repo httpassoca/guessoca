@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { Tooltip } from 'dssoca';
   import Icon from './Icon.svelte';
 
   /** Um valor com − e + dos lados (tamanho da vez, limite de pessoas). Sem `onstep`, só mostra o valor. */
@@ -9,9 +10,9 @@
 
 {#if onstep}
   <span class="gs-stepper">
-    <button class="ss-btn gs-icon-btn" type="button" disabled={!canLess} aria-label={lessLabel} title={lessLabel} onclick={() => onstep(-1)}><Icon name="minus" /></button>
+    <Tooltip text={lessLabel}><button class="ss-btn gs-icon-btn" type="button" disabled={!canLess} aria-label={lessLabel} onclick={() => onstep(-1)}><Icon name="minus" /></button></Tooltip>
     <span class="gs-step-value" aria-live="polite">{value}</span>
-    <button class="ss-btn gs-icon-btn" type="button" disabled={!canMore} aria-label={moreLabel} title={moreLabel} onclick={() => onstep(1)}><Icon name="plus" /></button>
+    <Tooltip text={moreLabel}><button class="ss-btn gs-icon-btn" type="button" disabled={!canMore} aria-label={moreLabel} onclick={() => onstep(1)}><Icon name="plus" /></button></Tooltip>
   </span>
 {:else}
   <span class="gs-step-value">{value}</span>

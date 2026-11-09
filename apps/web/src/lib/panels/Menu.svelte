@@ -42,6 +42,7 @@
           <li><span>{t('play.claim')}</span><Kbd keys={['↵']} /></li>
           <li><span>{t('keys.skip')}</span><Kbd keys={['Tab']} /></li>
           <li><span>{t('keys.notepad')}</span><Kbd keys={['N']} /></li>
+          <li><span>{t('keys.panel')}</span><Kbd keys={['P']} /></li>
           <li><span>{t('menu.title')}</span><Kbd keys={['Esc']} /></li>
           <li><span>{t('keys.walk')}</span><span><Kbd keys={['A', 'D']} /> <Kbd keys={['←', '→']} /></span></li>
           <li><span>{t('keys.depth')}</span><span><Kbd keys={['W', 'S']} /> <Kbd keys={['↑', '↓']} /></span></li>

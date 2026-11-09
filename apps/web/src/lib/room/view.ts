@@ -108,6 +108,11 @@ export interface RoomView {
   allReady: boolean;
   /** moderador, lobby: Começar vale (gente bastante e todo post-it com texto; não precisa estarem prontos) */
   canStart: boolean;
+  /**
+   * Começar é a ação principal (verde): vale e o meu Pronto não está esperando. Enquanto o post-it que eu escrevo não
+   * está pronto, a principal é o Pronto, e Começar fica neutro (mas vale): uma principal por vez na coluna.
+   */
+  startPrimary: boolean;
   /** por que ainda não dá para começar; null = dá (ou não é comigo) */
   startBlock: StartBlock | null;
   /** todos os post-its, na ordem das vezes */
@@ -217,6 +222,7 @@ export function roomView(s: RoomSnapshot): RoomView {
     writtenCount,
     allReady: postits.length > 0 && postits.length === players.length && postits.every((p) => p.ready),
     canStart: hostLobby && startBlock === null,
+    startPrimary: hostLobby && startBlock === null && (!writeFor || writeFor.progress === 'ready'),
     startBlock,
     postits,
     turn,
