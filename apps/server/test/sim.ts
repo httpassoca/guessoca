@@ -1,4 +1,4 @@
-import type { ClientMessage, RoomSnapshot, ServerMessage } from '@guess/protocol';
+import type { ClientMessage, RoomInit, RoomSnapshot, ServerMessage } from '@guess/protocol';
 import { createRoom, step, type Outgoing, type RoomEvent, type RoomInput, type RoomState, type RoomTimer } from '../src/room';
 
 export const T0 = 1_000_000;
@@ -18,7 +18,8 @@ export class Sim {
   out: Outgoing[] = [];
   events: RoomEvent[] = [];
   rng = lcg(42);
-  constructor(public now = T0, opts: { dev?: boolean } = {}) { this.state = createRoom('ABCD', now, opts); }
+  /** `init`: o que o pré-lobby escolheu ao criar a sala */
+  constructor(public now = T0, opts: { dev?: boolean; init?: RoomInit } = {}) { this.state = createRoom('ABCD', now, opts); }
   feed(input: RoomInput, at = this.now) {
     this.now = at;
     const r = step(this.state, input, at, { rng: this.rng });

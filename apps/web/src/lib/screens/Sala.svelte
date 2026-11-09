@@ -1,15 +1,23 @@
 <script lang="ts">
-  import { MAX_MEMBERS, NICKNAME_MAX } from '@guess/rules';
+  import { NICKNAME_MAX } from '@guess/rules';
   import { onMount, untrack } from 'svelte';
   import LangSwitch from '../hud/LangSwitch.svelte';
+  import { checkJoin, type FormProblem } from '../create';
   import type { MsgKey } from '../i18n';
   import { t } from '../i18n.svelte';
-  import { rememberNickname, rememberedNickname, token } from '../identity';
+  import { autoJoinIn, rememberCharacter, rememberedCharacter, rememberedNickname, rememberNickname, session, takeAutoJoin, token } from '../identity';
+  import CharacterPicker from '../panels/CharacterPicker.svelte';
   import Room from '../panels/Room.svelte';
+  import Who from '../panels/Who.svelte';
   import { RemoteRoom, type ClosedReason, type RemoteState } from '../room/remote';
-  import { openRoom, wsUrl } from '../rooms';
-  import { navigate, roomPath } from '../route.svelte';
+  import { roomView } from '../room/view';
+  import { navigate } from '../route.svelte';
+  import { wsUrl } from '../rooms';
 
+  /**
+   * `/sala/CODE`: conecta como visitante e, antes de entrar na turma, pede apelido e um personagem livre. Quem acabou de
+   * criar a sala no pré-lobby entra sozinho, com o que escolheu lá. Já na turma (ou voltando com o mesmo token), a sala.
+   */
   let { code }: { code: string } = $props();
 
   // a rota recria esta tela a cada código novo (App faz {#key}); o código inicial basta
@@ -17,9 +25,12 @@
   const remote = new RemoteRoom({ url: wsUrl(), room: untrack(() => code), token: myToken });
   let st = $state.raw<RemoteState>(remote.state);
   let nickname = $state(rememberedNickname());
-  let copied = $state(false);
-  let openFailed = $state(false);
+  let character = $state<number | null>(rememberedCharacter());
+  let problems = $state<FormProblem[]>([]);
   let field = $state<HTMLInputElement>();
+  /** quem criou a sala entra sozinho (uma vez); se a sala recusar (cheia), cai no formulário */
+  let auto = $state(autoJoinIn(session(), untrack(() => code)));
+  let asked = false;
 
   onMount(() => {
     const off = remote.watch((s) => (st = s));
@@ -29,30 +40,40 @@
     window.addEventListener('online', online);
     window.addEventListener('offline', offline);
     remote.connect();
-    field?.focus();
+    if (!auto) field?.focus();
     return () => { window.removeEventListener('online', online); window.removeEventListener('offline', offline); off(); remote.dispose(); };
   });
 
   const room = $derived(st.room);
-  const me = $derived(room?.members.find((m) => m.id === room.you) ?? null);
+  const v = $derived(room ? roomView(room) : null);
+  const me = $derived(v?.me ?? null);
   const live = $derived(st.status === 'open');
-  const link = $derived(location.origin + roomPath(code));
+  const free = $derived(v?.freeCharacters ?? []);
+  const taken = $derived((v?.characters ?? []).map((m) => m?.nickname ?? null));
   const STATUS: Record<RemoteState['status'], MsgKey | null> = { idle: null, connecting: 'status.connecting', open: 'status.open', reconnecting: 'status.reconnecting', closed: null };
   const status = $derived.by(() => { const k = STATUS[st.status]; return k ? t(k) : ''; });
   const GONE = { notFound: ['gone.notFound.title', 'gone.notFound.msg'], ended: ['gone.ended.title', 'gone.ended.msg'], replaced: ['gone.replaced.title', 'gone.replaced.msg'], kicked: ['gone.kicked.title', 'gone.kicked.msg'] } as const satisfies Record<NonNullable<ClosedReason>, [MsgKey, MsgKey]>;
 
+  // o personagem lembrado já foi pego: escolhe o primeiro livre
+  $effect(() => { if (room && !me && (character === null || !free.includes(character))) character = free[0] ?? null; });
+
+  // entrada automática de quem criou a sala
+  $effect(() => {
+    if (!auto || !live || !room || me || asked) return;
+    asked = true;
+    remote.join(untrack(() => nickname).trim() || rememberedNickname());
+  });
+  $effect(() => { if (me && auto) { takeAutoJoin(code); auto = false; } });
+  $effect(() => { if (auto && st.error) { auto = false; takeAutoJoin(code); } });
+
   function submit(e: SubmitEvent) {
     e.preventDefault();
-    const n = nickname.trim(); if (!n) return;
-    rememberNickname(n);
-    if (me) remote.rename(n); else remote.join(n);
-  }
-  async function copy() {
-    try { await navigator.clipboard.writeText(link); copied = true; setTimeout(() => (copied = false), 1500); } catch { /* sem clipboard: o link está na barra do navegador */ }
-  }
-  async function openNew() {
-    openFailed = false;
-    try { navigate(roomPath(await openRoom())); } catch { openFailed = true; }
+    const c = checkJoin(nickname, character, free);
+    if (!c.ok) { problems = c.problems; return; }
+    problems = [];
+    rememberNickname(c.nickname);
+    rememberCharacter(c.character); // a sala pede este personagem ao abrir (`characterToClaim`)
+    remote.join(c.nickname);
   }
 </script>
 
@@ -65,11 +86,9 @@
           <div class="title">{t(title)}</div>
           <p class="msg">{t(msg)}</p>
           <div class="act">
-            <button class="ss-btn primary" type="button" onclick={openNew}>{t('gone.openNew')}</button>
-            <button class="ss-btn ghost" type="button" onclick={() => navigate('/')}>{t('nav.home')}</button>
+            <button class="ss-btn primary" type="button" onclick={() => navigate('/')}>{t('gone.openNew')}</button>
           </div>
         </div>
-        {#if openFailed}<p class="gs-error">{t('home.openFailed')}</p>{/if}
       </div>
     </div>
   </div>
@@ -77,45 +96,39 @@
   <Room {remote} {st} {room} token={myToken} {status} />
 {:else}
   <div class="gs-screen">
-    <div class="ss-card elevated gs-panel">
+    <div class="ss-card elevated gs-panel gs-pre">
       <div class="head">
-        <div class="heading"><span class="title">{t('sala.title', { code })}</span><span class="desc">{t('sala.share')}</span></div>
+        <div class="heading"><span class="title">{t('sala.title', { code })}</span><span class="desc">{t('pre.joinHint')}</span></div>
         <span class="meta" class:gs-warn={st.status === 'reconnecting'}>{status}</span>
       </div>
       <div class="body">
-        <div class="gs-share">
-          <span class="gs-code">{code}</span>
-          <button class="ss-btn" type="button" onclick={copy}>{copied ? t('sala.copied') : t('sala.copy')}</button>
-        </div>
-
-        <form class="gs-form" onsubmit={submit}>
-          <label class="ss-field">
-            <span class="lbl">{t('sala.nickname')}</span>
-            <span class="control"><input class="ss-input" bind:this={field} bind:value={nickname} maxlength={NICKNAME_MAX} placeholder={t('sala.nicknamePlaceholder')} spellcheck="false" /></span>
-          </label>
-          {#if me}
-            <button class="ss-btn" type="submit" disabled={!live || !nickname.trim() || nickname.trim() === me.nickname}>{t('sala.rename')}</button>
-          {:else}
-            <button class="ss-btn primary" type="submit" disabled={!live || !nickname.trim()}>{t('sala.join')}</button>
-          {/if}
-        </form>
-        {#if st.error === 'roomFull'}<p class="gs-error">{t('sala.full', { max: MAX_MEMBERS })}</p>{/if}
+        {#if auto}
+          <p class="gs-hint">{t('pre.entering')}</p>
+        {:else}
+          <form class="gs-create" onsubmit={submit} novalidate>
+            <label class="ss-field">
+              <span class="lbl">{t('sala.nickname')}</span>
+              <span class="control"><input class="ss-input" bind:this={field} bind:value={nickname} maxlength={NICKNAME_MAX} placeholder={t('sala.nicknamePlaceholder')} spellcheck="false" autocomplete="nickname" aria-invalid={problems.includes('nickname')} /></span>
+            </label>
+            {#if problems.includes('nickname')}<p class="gs-error">{t('pre.needNickname')}</p>{/if}
+            <div class="gs-field">
+              <span class="gs-lbl">{t('pre.character')}</span>
+              <CharacterPicker value={character} {taken} onpick={(n) => (character = n)} />
+              {#if problems.includes('character')}<p class="gs-error">{t('pre.needCharacter')}</p>{/if}
+            </div>
+            <button class="ss-btn primary full-width" type="submit" disabled={!live || !room}>{t('sala.join')}</button>
+          </form>
+        {/if}
+        {#if st.error === 'roomFull'}<p class="gs-error">{t('sala.full', { max: room?.maxPlayers ?? 8 })}</p>{/if}
         {#if st.error === 'refused'}<p class="gs-error">{t('error.refused')}</p>{/if}
 
         <div class="gs-section">
-          <h4>{t('sala.turma', { count: room?.members.length ?? 0, max: MAX_MEMBERS })}</h4>
+          <h4>{t('sala.turma', { count: room?.members.length ?? 0, max: room?.maxPlayers ?? 8 })}</h4>
           {#if !room || room.members.length === 0}
             <p class="gs-hint">{t('sala.empty')}</p>
           {:else}
             <ul class="gs-members">
-              {#each room.members as m (m.id)}
-                <li class:off={!m.connected}>
-                  <span>{m.nickname}</span>
-                  {#if m.id === room.you}<span class="ss-badge brand">{t('badge.you')}</span>{/if}
-                  {#if m.id === room.moderator}<span class="ss-badge caution">{t('badge.moderator')}</span>{/if}
-                  {#if !m.connected}<span class="ss-badge neutral">{t('badge.offline')}</span>{/if}
-                </li>
-              {/each}
+              {#each room.members as m (m.id)}<li><Who {m} {room} /></li>{/each}
             </ul>
           {/if}
         </div>

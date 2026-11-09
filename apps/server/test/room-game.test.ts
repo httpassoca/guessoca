@@ -13,25 +13,23 @@ function lobby(n: number, opts: { dev?: boolean } = {}) {
 const tokenOf = (s: Sim, id: string) => s.state.members.find((m) => m.id === id)!.token!;
 const isFake = (s: Sim, id: string) => s.state.members.find((m) => m.id === id)!.fake;
 
-/** cada autor de verdade escreve o post-it do seu dono e aperta "Pronto" */
+/** no lobby, cada autor de verdade escreve o post-it do seu dono (se ainda vazio) e aperta "Pronto"; os falsos já escreveram */
 function writeAll(s: Sim) {
   for (const owner of s.game.order) {
     const author = s.game.authors[owner];
-    if (isFake(s, author) || s.game.postits[owner].text !== '') continue;
-    s.say(tokenOf(s, author), { type: 'write', owner, text: `quem é ${owner}`, image: null });
-  }
-  for (const owner of [...s.game.order]) {
-    const author = s.game.authors[owner];
-    if (s.game.phase !== 'writing' || isFake(s, author)) continue;
+    if (isFake(s, author) || s.game.postits[owner].ready) continue;
+    if (s.game.postits[owner].text === '') s.say(tokenOf(s, author), { type: 'write', owner, text: `quem é ${owner}`, image: null });
     s.say(tokenOf(s, author), { type: 'ready' });
   }
+  expect(Object.values(s.game.postits).every((p) => p.ready)).toBe(true);
+  expect(s.game.phase).toBe('lobby'); // ninguém começa sozinho
 }
 
-/** do lobby até a primeira vez, que é de m1 */
+/** do lobby até a primeira vez, que é de m1: todos escrevem e o moderador começa */
 function playing(n: number) {
   const s = lobby(n);
-  s.say('t1', { type: 'startWriting' });
   writeAll(s);
+  s.say('t1', { type: 'start' });
   expect(s.game.phase).toBe('playing');
   expect(s.game.turn?.owner).toBe('m1');
   return s;
@@ -68,7 +66,7 @@ describe('sala: mensagens de jogo', () => {
     const s = lobby(2);
     s.connect('t9');
     expectRefused(s, 't9', { type: 'character', character: 7 });
-    expectRefused(s, 't9', { type: 'startWriting' });
+    expectRefused(s, 't9', { type: 'start' });
   });
 
   test('mensagens de jogo são atividade: adiam a morte', () => {
@@ -110,7 +108,6 @@ describe('sala: o próprio post-it nunca passa pelo fio antes da revelação', (
   test('nem texto nem imagem chegam ao dono; chegam a todo o resto; e chegam ao dono quando ele desiste', () => {
     const s = lobby(3);
     s.connect('t9'); // visitante
-    s.say('t1', { type: 'startWriting' });
     const owner = 'm3', author = s.game.authors[owner];
     const image = 'abcdef0123456789';
     // escrito tecla a tecla, como o cliente manda
@@ -118,6 +115,7 @@ describe('sala: o próprio post-it nunca passa pelo fio antes da revelação', (
     expect(s.snapshotFor('t1')!.postits[owner]).toMatchObject({ text: 'Mona Lisa', image: imageUrl('ABCD', image) });
     expect(s.snapshotFor('t9')!.postits[owner]).toMatchObject({ text: 'Mona Lisa', image: imageUrl('ABCD', image) });
     writeAll(s);
+    s.say('t1', { type: 'start' });
     s.say('t1', { type: 'mark', member: 'm1', right: true }); // m1 acerta; o jogo segue
     expect(s.snapshotFor('t3')!.postits[owner]).toEqual({ text: null, image: null, ready: true, written: true, revealed: false, author });
     const wire = s.wire('t3');
@@ -181,12 +179,13 @@ describe('sala: expulsar', () => {
 describe('sala: passar o moderador', () => {
   test('o moderador passa o papel para outra pessoa, e perde os poderes', () => {
     const s = lobby(3);
+    writeAll(s);
     s.say('t1', { type: 'handOver', member: 'm2' });
     expect(s.snapshotFor('t3')!.moderator).toBe('m2');
     expect(s.events).toContainEqual({ type: 'handedOver', from: 'm1', to: 'm2' });
-    expectRefused(s, 't1', { type: 'startWriting' });
-    s.say('t2', { type: 'startWriting' });
-    expect(s.game.phase).toBe('writing');
+    expectRefused(s, 't1', { type: 'start' });
+    s.say('t2', { type: 'start' });
+    expect(s.game.phase).toBe('playing');
   });
 
   test('quem só moderava e passa o papel volta a jogar: no lobby já, durante o jogo no próximo', () => {
@@ -199,7 +198,8 @@ describe('sala: passar o moderador', () => {
 
     const p = lobby(3);
     p.say('t1', { type: 'onlyModerate', on: true });
-    p.say('t1', { type: 'startWriting' });
+    writeAll(p);
+    p.say('t1', { type: 'start' });
     p.say('t1', { type: 'handOver', member: 'm2' });
     expect(p.game.order).not.toContain('m1');
     expect(p.game.onlyModerate).toEqual([]);
@@ -339,23 +339,52 @@ describe('sala: jogadores falsos', () => {
     expect(s.state.members).toHaveLength(MAX_MEMBERS);
   });
 
-  test('na escrita, o falso escreve uma identidade da lista e fica pronto na hora', () => {
+  /** todo post-it que um falso escreve está pronto, com uma identidade da lista */
+  const expectFakesWrote = (s: Sim) => {
+    const owners = Object.keys(s.game.postits).filter((o) => isFake(s, s.game.authors[o]));
+    expect(owners.length).toBeGreaterThan(0);
+    for (const o of owners) {
+      expect(s.game.postits[o].ready).toBe(true);
+      expect(FAKE_IDENTITIES).toContain(s.game.postits[o].text);
+    }
+  };
+
+  test('no lobby, o falso escreve uma identidade da lista e fica pronto na hora; o jogo não começa', () => {
     const s = lobby(2, { dev: true });
     s.say('t1', { type: 'addFake' });
-    s.say('t1', { type: 'startWriting' });
-    const fakeOwner = Object.keys(s.game.authors).find((o) => s.game.authors[o] === 'm3')!;
-    const postit = s.game.postits[fakeOwner];
-    expect(postit.ready).toBe(true);
-    expect(FAKE_IDENTITIES).toContain(postit.text);
-    expect(s.game.phase).toBe('writing');
+    expect(s.game.authors.m1).toBe('m3');
+    expectFakesWrote(s);
+    expect(s.game.phase).toBe('lobby');
+  });
+
+  test('o post-it do falso apagado (alguém entrou, sorteio, ordem) é escrito de novo na hora', () => {
+    const s = lobby(2, { dev: true });
+    s.say('t1', { type: 'addFake' });
+    s.enter('t4', 'P4'); // m1 passa a ser escrito por m4; o falso m3 passa a escrever o de m4
+    expect(s.game.authors.m4).toBe('m3');
+    expect(s.game.postits.m1).toEqual({ text: '', image: null, ready: false });
+    expectFakesWrote(s);
+    s.say('t1', { type: 'shuffleAuthors' });
+    expectFakesWrote(s);
+    s.say('t1', { type: 'order', order: ['m4', 'm3', 'm2', 'm1'] });
+    expectFakesWrote(s);
+  });
+
+  test('o falso respeita o limite de pessoas da sala', () => {
+    const s = new Sim(T0, { dev: true, init: { maxPlayers: 2 } });
+    s.enter('t1', 'P1');
+    s.say('t1', { type: 'addFake' });
+    s.out = [];
+    s.say('t1', { type: 'addFake' });
+    expect(s.out).toEqual([{ to: 't1', message: { type: 'error', error: 'roomFull' } }]);
   });
 
   test('uma pessoa e dois falsos jogam até o fim: o acertei sem votantes vale sim', () => {
     const s = lobby(1, { dev: true });
     s.say('t1', { type: 'addFake' });
     s.say('t1', { type: 'addFake' });
-    s.say('t1', { type: 'startWriting' });
     writeAll(s);
+    s.say('t1', { type: 'start' });
     expect(s.game.phase).toBe('playing');
     expect(s.snapshotFor('t1')!.postits.m1.text).toBeNull();
     expect(s.game.turn?.owner).toBe('m1');
@@ -365,6 +394,8 @@ describe('sala: jogadores falsos', () => {
     expect(FAKE_IDENTITIES).toContain(s.snapshotFor('t1')!.postits.m1.text!);
     s.say('t1', { type: 'playAgain' });
     expect(s.snapshotFor('t1')!.phase).toBe('lobby');
+    expectFakesWrote(s); // os post-its novos dos falsos já vêm escritos
+    expect(s.game.postits.m2.text).toBe(''); // o de m2 é de m1, que ainda não escreveu
   });
 
   test('expulsar um falso não fecha socket nenhum', () => {

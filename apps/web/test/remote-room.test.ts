@@ -237,9 +237,9 @@ describe('RemoteRoom: o jogo', () => {
     const { room, last } = setup();
     room.connect(); last().open();
     const asks = [
-      { type: 'character', character: 3 }, { type: 'order', order: ['m2', 'm1'] }, { type: 'swapAuthors', a: 'm1', b: 'm2' }, { type: 'shuffleAuthors' },
-      { type: 'turnMs', ms: 45_000 }, { type: 'onlyModerate', on: true }, { type: 'startWriting' },
-      { type: 'write', owner: 'm2', text: 'Pelé', image: null }, { type: 'ready' }, { type: 'forceStart' },
+      { type: 'character', character: 3 }, { type: 'order', order: ['m2', 'm1'] }, { type: 'shuffleAuthors' },
+      { type: 'turnMs', ms: 45_000 }, { type: 'onlyModerate', on: true }, { type: 'maxPlayers', n: 5 },
+      { type: 'write', owner: 'm2', text: 'Pelé', image: null }, { type: 'ready' }, { type: 'start' },
       { type: 'claim' }, { type: 'vote', yes: true }, { type: 'skip' }, { type: 'giveUp' },
       { type: 'mark', member: 'm2', right: false }, { type: 'pause', on: true }, { type: 'kick', member: 'm3' }, { type: 'handOver', member: 'm2' },
       { type: 'endGame' }, { type: 'playAgain' }, { type: 'addFake' },

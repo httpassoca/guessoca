@@ -20,14 +20,17 @@ bun run sprites  # gera as folhas de sprites a partir do pacote em assets-src/ (
 packages/rules     sala e jogo, puros (@guess/rules)
   src/index.ts       apelido limpo e com sufixo; MAX_MEMBERS (8)
   src/game.ts        o jogo (ADR 0008): `act(game, actor, moderador?, ação, ctx)`, `settle` (põe em dia com a hora e com quem
-                     está online), `nextDeadline`, `addMember`/`removeMember`. Lobby: ordem das vezes, autores em círculo
-                     (trocar, sortear sem ninguém escrever para si), personagens únicos, tamanho da vez, só moderar. Escrita:
-                     autor (ou moderador) escreve ao vivo até "Pronto"; todos prontos → jogo; "Começar já" sem post-it vazio.
+                     está online), `nextDeadline`, `addMember`/`removeMember`, `createGame({ turnMs })`. Lobby, com a escrita:
+                     ordem das vezes, autores em círculo (ou sorteados sem ninguém escrever para si), personagens únicos,
+                     tamanho da vez, só moderar; cada dono da ordem tem um post-it já no lobby, que o autor (ou o moderador)
+                     escreve ao vivo até "Pronto"; o post-it cujo autor muda é apagado (`cleared`). "Começar" é do moderador:
+                     pelo menos duas pessoas e todo post-it com texto, pronto ou não; dali em diante os autores congelam.
                      Jogo: vezes na ordem pulando quem caiu, jogador falso e quem já terminou; Acertei → votação de 15 s
                      (maioria dos votos dados, empate e zero votos = sim; não = a vez volta com o que sobrava); desistir;
                      moderador marca acertou/não (desfaz revelação), passa a vez, pausa, reordena, encerra. Fim quando nenhuma
-                     pessoa conectada ainda joga; "jogar de novo" volta ao lobby com os fantasmas entrando
-  test/              lobby, escrita e jogo com `Sim` e sorteio semeado
+                     pessoa conectada ainda joga; "jogar de novo" (moderador) volta ao lobby com os fantasmas entrando e
+                     post-its vazios
+  test/              lobby, escrita no lobby, apagar, começar e jogo com `Sim` e sorteio semeado
 packages/world     o telhado, puro (@guess/world, ADR 0005): o mapa (três prédios com vãos, caixas para subir), `stepBody`
                    (andar, correr, profundidade, pular, gravidade, lados que bloqueiam, degrau, corpos sólidos, ficar na
                    cabeça de alguém e ser carregado, cair na rua e voltar piscando), `shoveTargets`/`applyShove`, e a
@@ -38,15 +41,18 @@ packages/protocol  mensagens cliente ↔ servidor (@guess/protocol): todas as a�
                    sem imagem até ser revelado, só com `written`), vez e votação com o tempo que sobra; `parseClientMessage`;
                    `isWebp`, limites da imagem, `imageUrl`; códigos de fechamento (4404, 4410, 4409, 4403 expulso)
 
-apps/server        Bun.serve: `/health`, `POST /api/rooms` → `{ code }`, `POST /api/rooms/CODE/images?token=T` (WebP até
+apps/server        Bun.serve: `/health`, `POST /api/rooms` (corpo JSON do pré-lobby, `{ turnMs, maxPlayers, onlyModerate }`, até
+                   1 KB; o que falta ou não vale fica no padrão) → `{ code }`, `POST /api/rooms/CODE/images?token=T` (WebP até
                    300 KB → `{ id }`; 404/403/413/415), `GET /api/rooms/CODE/images/ID`, cliente estático com fallback SPA,
                    WebSocket em `/ws?room=CODE&token=T`. `dev` (fora de produção) aceita jogadores falsos
   src/room.ts        máquina de estado da sala, pura: `step(state, input, now, { rng })` → estado novo, mensagens e
                      fechamentos por token, eventos para o log; timers como dado (morte em 10 min sem ação de alguém da
-                     turma, tolerância do moderador, prazo do jogo). Turma: entrar, apelido, sala cheia, quem cai continua
+                     turma, tolerância do moderador, prazo do jogo). Nasce com as escolhas do pré-lobby (vez, limite de
+                     pessoas, criador só moderando). Turma: entrar, apelido, sala cheia (`maxPlayers`, que o moderador
+                     muda no lobby, nunca abaixo da turma), quem cai continua
                      até a sala morrer; o moderador expulsa (4403, o token não volta) e passa o papel; offline por 20 s, o
                      papel vai para a pessoa conectada mais antiga. Repassa as ações ao jogo e o põe em dia a cada entrada.
-                     Jogadores falsos escrevem uma identidade ao acaso e ficam prontos. `snapshotFor` esconde o post-it do
+                     Jogadores falsos, no lobby, escrevem uma identidade ao acaso e ficam prontos (de novo, depois de apagado). `snapshotFor` esconde o post-it do
                      próprio dono
   src/host.ts        `RoomHost`: sockets por token, timers que a sala pede, silêncio de 30 s, a presença de cada um repassada
                      aos outros (~15 por segundo, só a mais recente; quem chega recebe a de todos), o empurrão entregue só a

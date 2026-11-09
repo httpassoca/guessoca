@@ -25,7 +25,11 @@ function nextMessage(ws: WebSocket): Promise<ServerMessage> {
 function closed(ws: WebSocket): Promise<CloseEvent> {
   return new Promise((res) => ws.addEventListener('close', (e) => res(e as CloseEvent), { once: true }));
 }
-const openRoom = async () => ((await (await fetch(`${base}/api/rooms`, { method: 'POST' })).json()) as { code: string }).code;
+/** abre uma sala; `body`: o que o pré-lobby escolheu (objeto vira JSON; texto vai cru) */
+const openRoom = async (body?: object | string) => {
+  const init = body === undefined ? {} : { body: typeof body === 'string' ? body : JSON.stringify(body), headers: { 'content-type': 'application/json' } };
+  return ((await (await fetch(`${base}/api/rooms`, { method: 'POST', ...init })).json()) as { code: string }).code;
+};
 
 describe('servidor', () => {
   test('/health responde', async () => {
@@ -45,6 +49,37 @@ describe('servidor', () => {
     expect(code).toMatch(CODE_RE);
     expect(app.rooms.get(code)).toBeDefined();
     expect((await fetch(`${base}/api/rooms`)).status).toBe(405);
+  });
+
+  test('POST /api/rooms lê o que o pré-lobby escolheu: a vez, o limite de pessoas e só moderar', async () => {
+    const code = await openRoom({ turnMs: 45_000, maxPlayers: 3, onlyModerate: true });
+    const state = app.rooms.get(code)!.state;
+    expect(state.game.turnMs).toBe(45_000);
+    expect(state.maxPlayers).toBe(3);
+    const tab = await Tab.open(code, 'token-criador-1');
+    expect(tab.snap).toMatchObject({ turnMs: 45_000, maxPlayers: 3 });
+    tab.send({ type: 'join', nickname: 'Zé' });
+    const snap = await tab.until((s) => s.you === 'm1');
+    expect(snap.order).toEqual([]);
+    expect(snap.members[0]).toMatchObject({ id: 'm1', ghost: true });
+    tab.ws.close();
+  });
+
+  test('POST /api/rooms: campo inválido, corpo que não é JSON ou vazio ficam no padrão; corpo grande demais é recusado', async () => {
+    const defaults = { turnMs: 60_000, maxPlayers: 8 };
+    const seen = async (body?: object | string) => {
+      const { game, maxPlayers } = app.rooms.get(await openRoom(body))!.state;
+      return { turnMs: game.turnMs, maxPlayers };
+    };
+    expect(await seen({ turnMs: 50_000, maxPlayers: 9, onlyModerate: 'sim' })).toEqual(defaults);
+    expect(await seen({ maxPlayers: 2 })).toEqual({ ...defaults, maxPlayers: 2 });
+    expect(await seen('isto não é json')).toEqual(defaults);
+    expect(await seen('[1, 2]')).toEqual(defaults);
+    expect(await seen()).toEqual(defaults);
+    const before = app.rooms.size;
+    const big = await fetch(`${base}/api/rooms`, { method: 'POST', body: JSON.stringify({ turnMs: 45_000, pad: 'x'.repeat(4096) }) });
+    expect(big.status).toBe(413);
+    expect(app.rooms.size).toBe(before);
   });
 
   test('token inválido ou sala ausente no WebSocket: 400 antes do upgrade', async () => {
@@ -141,8 +176,8 @@ const upload = (code: string, token: string, body: Uint8Array<ArrayBuffer>) =>
   fetch(`${base}/api/rooms/${code}/images?token=${token}`, { method: 'POST', body, headers: { 'content-type': 'image/webp' } });
 
 describe('servidor: um jogo inteiro com três abas', () => {
-  test('lobby, escrita, vezes, acertei que falha e que passa, desistir, fim e jogar de novo', async () => {
-    const code = await openRoom();
+  test('criar com as escolhas, lobby com a escrita, começar, vezes, acertei que falha e que passa, desistir, fim e jogar de novo', async () => {
+    const code = await openRoom({ turnMs: 90_000, maxPlayers: 3 });
     const [a, b, c] = await Promise.all(['token-jogo-a', 'token-jogo-b', 'token-jogo-c'].map((t) => Tab.open(code, t)));
     a.send({ type: 'join', nickname: 'Ana' });
     await a.until((s) => s.you === 'm1');
@@ -153,23 +188,38 @@ describe('servidor: um jogo inteiro com três abas', () => {
     const tabs = [a, b, c];
     const all = (pred: (s: RoomSnapshot) => boolean) => Promise.all(tabs.map((t) => t.until(pred)));
 
-    // lobby: o moderador sorteia e muda o tempo da vez
+    // a sala nasceu com a vez de 90 s e lugar para três: a quarta aba é recusada
+    expect(c.snap).toMatchObject({ turnMs: 90_000, maxPlayers: 3 });
+    const d = await Tab.open(code, 'token-jogo-d');
+    d.send({ type: 'join', nickname: 'Davi' });
+    await d.until(() => d.raw.some((r) => r.includes('"roomFull"')));
+    expect(d.snap!.you).toBeNull();
+    d.ws.close();
+
+    // lobby: o moderador sorteia; quem não é moderador não muda nada
     a.send({ type: 'shuffleAuthors' });
-    a.send({ type: 'turnMs', ms: 90_000 });
-    const [lobby] = await all((s) => s.turnMs === 90_000);
+    a.send({ type: 'character', character: 5 }); // chega depois do sorteio: esperar por ele é esperar pelos dois
+    const [lobby] = await all((s) => s.members[0].character === 5);
     expect(lobby.order).toEqual(['m1', 'm2', 'm3']);
     for (const [owner, author] of Object.entries(lobby.authors)) expect(owner).not.toBe(author);
     b.send({ type: 'turnMs', ms: 30_000 });
     await b.until(() => b.raw.some((r) => r.includes('"refused"')));
 
-    // escrita: cada um escreve o seu, Ana com imagem, e aperta Pronto
-    a.send({ type: 'startWriting' });
-    await all((s) => s.phase === 'writing');
+    // ainda no lobby, cada um escreve o seu, Ana com imagem; Bia e Caio apertam Pronto, Ana não
     const res = await upload(code, 'token-jogo-a', webp(200));
     expect(res.status).toBe(200);
     const { id } = (await res.json()) as { id: string };
     for (const t of tabs) t.send({ type: 'write', owner: t.writesFor, text: `segredo de ${t.writesFor}`, image: t === a ? id : null });
-    for (const t of tabs) t.send({ type: 'ready' });
+    b.send({ type: 'ready' });
+    c.send({ type: 'ready' });
+    const [written] = await all((s) => Object.values(s.postits).filter((p) => p.ready).length === 2);
+    expect(written.phase).toBe('lobby');
+    expect(written.postits[a.writesFor]).toMatchObject({ text: `segredo de ${a.writesFor}`, ready: false });
+
+    // só o moderador começa; não precisa de todos prontos, só de todo post-it com texto
+    b.send({ type: 'start' });
+    await b.until(() => b.raw.filter((r) => r.includes('"refused"')).length === 2);
+    a.send({ type: 'start' });
     await all((s) => s.phase === 'playing');
 
     // ninguém vê o próprio; todo mundo vê o dos outros; a imagem de Ana chega ao dono pelo endereço
@@ -222,10 +272,13 @@ describe('servidor: um jogo inteiro com três abas', () => {
     expect(end.gaveUp).toEqual(['m2']);
     for (const owner of ['m1', 'm2', 'm3']) expect(end.postits[owner]).toMatchObject({ text: `segredo de ${owner}`, revealed: true });
 
-    // jogar de novo com a mesma turma
+    // jogar de novo com a mesma turma: só o moderador
     b.send({ type: 'playAgain' });
+    await b.until(() => b.raw.filter((r) => r.includes('"refused"')).length === 3);
+    a.send({ type: 'playAgain' });
     const [again] = await all((s) => s.phase === 'lobby');
-    expect(again.postits).toEqual({});
+    expect(Object.values(again.postits).every((p) => !p.written && !p.ready)).toBe(true);
+    expect(Object.keys(again.postits).sort()).toEqual(['m1', 'm2', 'm3']);
     expect(again.order).toEqual(['m1', 'm2', 'm3']);
     expect((await fetch(`${base}${url}`)).status).toBe(404); // nenhum post-it usa mais a imagem
     for (const t of tabs) t.ws.close();

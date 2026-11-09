@@ -1,9 +1,9 @@
 import { describe, expect, test } from 'bun:test';
 import { CHARACTERS, TURN_MAX, TURN_MIN, TURN_STEP } from '@guess/rules';
-import { characterToClaim, clockText, countdown, devTools, moveBefore, roomView, turnOptions } from '../src/lib/room/view';
+import { characterToClaim, clockText, countdown, devTools, moveBy, roomView, turnOptions } from '../src/lib/room/view';
 import { member, postit, snapshot } from './snapshots';
 
-/** Escrita com o círculo Zé → Ana → Bia → Zé (dono → autor: Ana é escrita por Zé, e assim por diante). */
+/** O círculo Zé → Ana → Bia → Zé (dono → autor: Ana é escrita por Zé, e assim por diante). */
 const circle = { m2: 'm1', m3: 'm2', m1: 'm3' };
 
 describe('quem sou eu na sala', () => {
@@ -43,90 +43,153 @@ describe('quem sou eu na sala', () => {
   });
 });
 
-describe('lobby', () => {
-  test('o círculo aparece como "X escreve para Y", na ordem das vezes', () => {
-    const v = roomView(snapshot({ authors: circle }));
-    expect(v.assignments.map((a) => [a.author?.nickname, a.owner.nickname])).toEqual([['Bia', 'Zé'], ['Zé', 'Ana'], ['Ana', 'Bia']]);
+describe('lobby: a turma', () => {
+  test('cada linha: a vez, a pessoa e para quem ela escreve, na ordem das vezes', () => {
+    const v = roomView(snapshot({ authors: circle, order: ['m2', 'm1', 'm3'] }));
+    expect(v.turma.map((r) => [r.pos, r.member.nickname, r.writesFor?.nickname])).toEqual([[1, 'Ana', 'Bia'], [2, 'Zé', 'Ana'], [3, 'Bia', 'Zé']]);
   });
 
-  test('os oito personagens, com quem pegou cada um', () => {
+  test('o post-it de cada um na linha, como eu posso vê-lo: o meu é "?"', () => {
+    const v = roomView(snapshot({ authors: circle, postits: { m1: postit('m3', { text: null, written: true }), m2: postit('m1', { text: 'Pelé' }), m3: postit('m2') } }));
+    expect(v.turma.map((r) => [r.member.id, r.card?.hidden, r.card?.text])).toEqual([['m1', true, null], ['m2', false, 'Pelé'], ['m3', false, '']]);
+  });
+
+  test('cada linha diz em que pé está o post-it que a pessoa escreve', () => {
+    const v = roomView(snapshot({ authors: circle, postits: { m1: postit('m3', { text: null, written: true, ready: true }), m2: postit('m1', { text: 'Pelé' }), m3: postit('m2') } }));
+    // Zé escreve para Ana (escrevendo), Ana para Bia (vazio), Bia para Zé (pronto)
+    expect(v.turma.map((r) => [r.member.nickname, r.writing])).toEqual([['Zé', 'writing'], ['Ana', 'empty'], ['Bia', 'ready']]);
+  });
+
+  test('antes de os autores chegarem, ninguém escreve para ninguém', () => {
+    const v = roomView(snapshot());
+    expect(v.turma.every((r) => r.writesFor === null && r.writing === 'empty')).toBe(true);
+  });
+
+  test('os oito personagens, com quem pegou cada um, e os livres', () => {
     const members = [member('m1', 'Zé', { character: 0 }), member('m2', 'Ana', { character: 5 }), member('m3', 'Bia')];
     const v = roomView(snapshot({ members }));
     expect(v.characters).toHaveLength(CHARACTERS);
     expect(v.characters[0]?.id).toBe('m1');
     expect(v.characters[5]?.id).toBe('m2');
     expect(v.characters.filter(Boolean)).toHaveLength(2);
+    expect(v.freeCharacters).toEqual([1, 2, 3, 4, 6, 7]);
   });
 
-  test('o moderador começa a escrita com pelo menos dois jogadores', () => {
-    expect(roomView(snapshot()).canStartWriting).toBe(true);
-    expect(roomView(snapshot({ order: ['m1'] })).canStartWriting).toBe(false);
-    expect(roomView(snapshot({ you: 'm2' })).canStartWriting).toBe(false);
-    expect(roomView(snapshot({ phase: 'writing' })).canStartWriting).toBe(false);
+  test('o visitante (ainda sem entrar) também sabe quais personagens estão livres', () => {
+    const members = [member('m1', 'Zé', { character: 2 })];
+    expect(roomView(snapshot({ members, you: null })).freeCharacters).toEqual([0, 1, 3, 4, 5, 6, 7]);
+  });
+
+  test('o limite de pessoas nunca fica abaixo da turma de agora, nem de dois', () => {
+    expect(roomView(snapshot()).maxPlayersMin).toBe(3);
+    expect(roomView(snapshot({ members: [member('m1', 'Zé')] })).maxPlayersMin).toBe(2);
+    const members = [member('m1', 'Zé'), member('m2', 'Ana'), member('m3', 'Bia'), member('m4', 'Edu', { ghost: true })];
+    expect(roomView(snapshot({ members })).maxPlayersMin).toBe(4); // fantasma também ocupa lugar
   });
 });
 
-describe('escrita', () => {
-  const writing = (extra = {}) => snapshot({
-    phase: 'writing', authors: circle,
+describe('lobby: a escrita', () => {
+  const lobby = (extra = {}) => snapshot({
+    authors: circle,
     postits: { m1: postit('m3', { text: null }), m2: postit('m1', { text: 'Pelé' }), m3: postit('m2', { text: 'Xuxa', ready: true }) },
     ...extra,
   });
 
-  test('moderador sabe quando o próprio post-it, que não vê, ainda está vazio', () => {
-    const empty = roomView(writing({ moderator: 'm1' }));
-    expect(empty.postits.find((p) => p.mine)?.progress).toBe('empty');
-    expect(empty.ownPostitEmpty).toBe(true);
-    const written = roomView(writing({ moderator: 'm1', postits: { m1: postit('m3', { text: null, written: true }), m2: postit('m1', { text: 'Pelé' }), m3: postit('m2', { text: 'Xuxa', ready: true }) } }));
-    expect(written.postits.find((p) => p.mine)?.progress).toBe('writing');
-    expect(written.ownPostitEmpty).toBe(false);
-    expect(roomView(writing({ moderator: 'm2' })).ownPostitEmpty).toBe(false);
-  });
-
   test('escrevo para o dono de quem sou autor, e vejo o post-it como está', () => {
-    const v = roomView(writing());
+    const v = roomView(lobby());
     expect(v.writeFor?.owner.nickname).toBe('Ana');
     expect(v.writeFor?.postit.text).toBe('Pelé');
     expect(v.writeFor?.progress).toBe('writing');
   });
 
   test('o estado do post-it que escrevo: vazio, escrevendo, pronto', () => {
-    expect(roomView(writing({ postits: { m2: postit('m1') } })).writeFor?.progress).toBe('empty');
-    expect(roomView(writing({ postits: { m2: postit('m1', { text: '', image: '/api/rooms/ABCD/images/abcdefabcdefabcd' }) } })).writeFor?.progress).toBe('writing');
-    expect(roomView(writing({ postits: { m2: postit('m1', { text: 'Pelé', ready: true }) } })).writeFor?.progress).toBe('ready');
+    expect(roomView(lobby({ postits: { m2: postit('m1') } })).writeFor?.progress).toBe('empty');
+    expect(roomView(lobby({ postits: { m2: postit('m1', { text: '', image: '/api/rooms/ABCD/images/abcdefabcdefabcd' }) } })).writeFor?.progress).toBe('writing');
+    expect(roomView(lobby({ postits: { m2: postit('m1', { text: 'Pelé', ready: true }) } })).writeFor?.progress).toBe('ready');
+  });
+
+  test('fora do lobby não se escreve', () => {
+    expect(roomView(lobby({ phase: 'playing' })).writeFor).toBeNull();
   });
 
   test('fantasma não escreve para ninguém', () => {
     const members = [member('m1', 'Zé'), member('m2', 'Ana'), member('m3', 'Bia'), member('m4', 'Edu', { ghost: true })];
-    expect(roomView(writing({ members, you: 'm4' })).writeFor).toBeNull();
+    expect(roomView(lobby({ members, you: 'm4' })).writeFor).toBeNull();
   });
 
-  test('o meu post-it fica escondido até ser revelado; o dos outros aparece ao vivo', () => {
-    const v = roomView(writing());
+  test('o meu post-it fica escondido; o dos outros aparece ao vivo', () => {
+    const v = roomView(lobby());
     const mine = v.postits.find((p) => p.owner.id === 'm1')!;
-    expect(mine.mine).toBe(true);
     expect(mine.hidden).toBe(true);
     expect(mine.text).toBeNull();
     expect(v.postits.find((p) => p.owner.id === 'm2')!.text).toBe('Pelé');
-    expect(v.postits.map((p) => p.owner.id)).toEqual(['m1', 'm2', 'm3']);
     expect(v.postits.find((p) => p.owner.id === 'm3')!.author?.nickname).toBe('Ana');
   });
 
-  test('quem está pronto', () => {
-    const v = roomView(writing());
+  test('quantos estão prontos e quantos já têm texto', () => {
+    const v = roomView(lobby());
     expect(v.readyCount).toBe(1);
-    expect(v.postits.filter((p) => p.ready).map((p) => p.owner.id)).toEqual(['m3']);
+    expect(v.writtenCount).toBe(2); // o meu (m1) está vazio
+    expect(v.allReady).toBe(false);
   });
 
-  test('o moderador ganha um editor para post-it sem autor ou sem texto, menos o próprio e o que já escreve', () => {
+  test('o moderador sabe quando o próprio post-it, que não vê, ainda está vazio', () => {
+    expect(roomView(lobby()).ownPostitEmpty).toBe(true);
+    expect(roomView(lobby({ postits: { m1: postit('m3', { text: null, written: true }), m2: postit('m1', { text: 'Pelé' }), m3: postit('m2', { text: 'Xuxa' }) } })).ownPostitEmpty).toBe(false);
+    expect(roomView(lobby({ moderator: 'm2' })).ownPostitEmpty).toBe(false);
+  });
+
+  test('o moderador vê os post-its que faltam e pode escrevê-los, menos o próprio e o que já escreve', () => {
     const members = [member('m1', 'Zé'), member('m2', 'Ana'), member('m3', 'Bia'), member('m4', 'Edu')];
-    const v = roomView(writing({
+    const v = roomView(lobby({
       members,
       authors: { m2: 'm1', m3: 'm2', m4: 'm3', m1: 'm4' },
-      postits: { m1: postit('m4', { text: null }), m2: postit('m1'), m3: postit(null, { text: 'Xuxa' }), m4: postit('m3') },
+      postits: { m1: postit('m4', { text: null }), m2: postit('m1'), m3: postit('m2', { text: 'Xuxa' }), m4: postit('m3') },
     }));
-    expect(v.moderatorEditors.map((p) => p.owner.id)).toEqual(['m3', 'm4']);
-    expect(roomView(writing({ you: 'm2' })).moderatorEditors).toEqual([]);
+    expect(v.missing.map((p) => p.owner.id)).toEqual(['m4']);
+    // pode escrever qualquer um que não esteja pronto, menos o próprio e o que já escreve (Ana)
+    expect(v.hostCanWrite).toEqual(['m3', 'm4']);
+    expect(roomView(lobby({ you: 'm2' })).missing).toEqual([]);
+    expect(roomView(lobby({ you: 'm2' })).hostCanWrite).toEqual([]);
+  });
+
+  test('post-it pronto o moderador não escreve mais', () => {
+    const v = roomView(lobby({ postits: { m1: postit('m3', { text: null }), m2: postit('m1'), m3: postit('m2', { text: 'Xuxa', ready: true }) } }));
+    expect(v.hostCanWrite).toEqual([]);
+  });
+});
+
+describe('lobby: Começar', () => {
+  const all = (extra = {}) => ({ m1: postit('m3', { text: null, written: true, ...extra }), m2: postit('m1', { text: 'Pelé', written: true, ...extra }), m3: postit('m2', { text: 'Xuxa', written: true, ...extra }) });
+
+  test('com todo mundo pronto, o moderador começa', () => {
+    const v = roomView(snapshot({ authors: circle, postits: all({ ready: true }) }));
+    expect(v.allReady).toBe(true);
+    expect(v.canStart).toBe(true);
+    expect(v.startBlock).toBeNull();
+  });
+
+  test('sem todo mundo pronto, ainda começa se todo post-it tem texto', () => {
+    const v = roomView(snapshot({ authors: circle, postits: all() }));
+    expect(v.allReady).toBe(false);
+    expect(v.canStart).toBe(true);
+  });
+
+  test('com post-it vazio, não começa', () => {
+    const v = roomView(snapshot({ authors: circle, postits: { ...all(), m2: postit('m1') } }));
+    expect(v.canStart).toBe(false);
+    expect(v.startBlock).toBe('empty');
+  });
+
+  test('precisa de pelo menos duas pessoas jogando', () => {
+    const v = roomView(snapshot({ members: [member('m1', 'Zé')], postits: { m1: postit(null, { text: null }) } }));
+    expect(v.canStart).toBe(false);
+    expect(v.startBlock).toBe('players');
+  });
+
+  test('só o moderador, e só no lobby', () => {
+    expect(roomView(snapshot({ authors: circle, postits: all({ ready: true }), you: 'm2' })).canStart).toBe(false);
+    expect(roomView(snapshot({ authors: circle, postits: all({ ready: true }), phase: 'playing' })).canStart).toBe(false);
   });
 });
 
@@ -225,6 +288,11 @@ describe('jogo', () => {
     expect(v.done).toBe(true);
   });
 
+  test('a turma no jogo: a vez, quem acertou (com o lugar) e quem desistiu', () => {
+    const v = roomView(playing({ turn: { owner: 'm2', left: 1000, running: true }, got: ['m3'], gaveUp: ['m1'] }));
+    expect(v.turma.map((r) => [r.member.id, r.card?.turn, r.status, r.place])).toEqual([['m1', false, 'gaveUp', 2], ['m2', true, 'playing', null], ['m3', false, 'got', 1]]);
+  });
+
   test('no fim todo post-it chega revelado', () => {
     const v = roomView(playing({ phase: 'ended', turn: null, postits: { m1: postit('m3', { text: 'Pelé', ready: true, revealed: true }) } }));
     expect(v.postits.every((p) => !p.hidden)).toBe(true);
@@ -262,18 +330,15 @@ describe('relógio', () => {
 });
 
 describe('reordenar a turma', () => {
-  test('arrastar alguém para antes de outra pessoa', () => {
-    expect(moveBefore(['a', 'b', 'c', 'd'], 'd', 'b')).toEqual(['a', 'd', 'b', 'c']);
-    expect(moveBefore(['a', 'b', 'c', 'd'], 'a', 'c')).toEqual(['b', 'a', 'c', 'd']);
+  test('↑ e ↓ trocam a pessoa com a vizinha', () => {
+    expect(moveBy(['a', 'b', 'c', 'd'], 'c', -1)).toEqual(['a', 'c', 'b', 'd']);
+    expect(moveBy(['a', 'b', 'c', 'd'], 'a', 1)).toEqual(['b', 'a', 'c', 'd']);
   });
 
-  test('soltar no fim', () => {
-    expect(moveBefore(['a', 'b', 'c'], 'a', null)).toEqual(['b', 'c', 'a']);
-  });
-
-  test('soltar em si mesmo ou com id desconhecido não muda nada', () => {
-    expect(moveBefore(['a', 'b', 'c'], 'b', 'b')).toEqual(['a', 'b', 'c']);
-    expect(moveBefore(['a', 'b', 'c'], 'x', 'b')).toEqual(['a', 'b', 'c']);
+  test('nas pontas, ou com id desconhecido, não muda nada', () => {
+    expect(moveBy(['a', 'b', 'c'], 'a', -1)).toEqual(['a', 'b', 'c']);
+    expect(moveBy(['a', 'b', 'c'], 'c', 1)).toEqual(['a', 'b', 'c']);
+    expect(moveBy(['a', 'b', 'c'], 'x', 1)).toEqual(['a', 'b', 'c']);
   });
 });
 

@@ -21,8 +21,8 @@ describe('tabela de tradução', () => {
   });
 
   test('traduz por chave e interpola parâmetros; parâmetro que falta fica à mostra', () => {
-    expect(translate('pt-BR', 'home.open')).toBe('Abrir uma sala');
-    expect(translate('en-US', 'home.open')).toBe('Open a room');
+    expect(translate('pt-BR', 'pre.createRoom')).toBe('Criar sala');
+    expect(translate('en-US', 'pre.createRoom')).toBe('Create room');
     expect(translate('pt-BR', 'sala.title', { code: 'ABCD' })).toBe('Sala ABCD');
     expect(translate('en-US', 'sala.title', { code: 'ABCD' })).toBe('Room ABCD');
     expect(translate('pt-BR', 'sala.title')).toBe('Sala {code}');

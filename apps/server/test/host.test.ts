@@ -180,7 +180,6 @@ describe('host: imagens', () => {
     say(host, a, { type: 'ping' });
     expect(host.image(orphan)).toBeUndefined();
 
-    say(host, a, { type: 'startWriting' });
     const used = idOf(host.addImage('token-a', webp()));
     say(host, a, { type: 'write', owner: 'm2', text: 'Pelé', image: used });
     clock.advance(10 * IMAGE_GRACE);
@@ -211,7 +210,6 @@ describe('host: imagens', () => {
 
   test('um write com imagem que a sala não tem é recusado antes de chegar à sala', () => {
     const { host, a } = hostWithTwo();
-    say(host, a, { type: 'startWriting' });
     a.sent = [];
     say(host, a, { type: 'write', owner: 'm2', text: 'Pelé', image: '0123456789abcdef' });
     expect(received(a)).toEqual([{ type: 'error', error: 'refused' }]);

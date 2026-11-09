@@ -55,3 +55,37 @@ describe('o que mais o navegador e a aba lembram', () => {
     expect(notepadIn(tab, 'WXYZ')).toBe('');
   });
 });
+
+describe('o que atravessa a ida do pré-lobby para a sala', () => {
+  test('quem criou a sala entra sozinho nela, uma vez, nesta aba', async () => {
+    const { autoJoinIn, rememberAutoJoinIn, takeAutoJoinIn } = await import('../src/lib/identity');
+    const tab = fakeStorage();
+    expect(autoJoinIn(tab, 'ABCD')).toBe(false);
+    rememberAutoJoinIn(tab, 'ABCD');
+    expect(autoJoinIn(tab, 'WXYZ')).toBe(false); // outra sala
+    expect(autoJoinIn(tab, 'ABCD')).toBe(true);
+    expect(takeAutoJoinIn(tab, 'ABCD')).toBe(true);
+    expect(autoJoinIn(tab, 'ABCD')).toBe(false); // já usado
+    expect(takeAutoJoinIn(tab, 'ABCD')).toBe(false);
+    expect(autoJoinIn(null, 'ABCD')).toBe(false);
+  });
+
+  test('o bloco aberto ou minimizado, por aba; começa aberto', async () => {
+    const { notepadMinimizedIn, rememberNotepadMinimizedIn } = await import('../src/lib/identity');
+    const tab = fakeStorage();
+    expect(notepadMinimizedIn(tab)).toBe(false);
+    rememberNotepadMinimizedIn(tab, true);
+    expect(notepadMinimizedIn(tab)).toBe(true);
+    rememberNotepadMinimizedIn(tab, false);
+    expect(notepadMinimizedIn(tab)).toBe(false);
+    expect(notepadMinimizedIn(null)).toBe(false);
+  });
+
+  test('a coluna recolhida ou não, por aba; começa aberta', async () => {
+    const { sideCollapsedIn, rememberSideCollapsedIn } = await import('../src/lib/identity');
+    const tab = fakeStorage();
+    expect(sideCollapsedIn(tab)).toBe(false);
+    rememberSideCollapsedIn(tab, true);
+    expect(sideCollapsedIn(tab)).toBe(true);
+  });
+});

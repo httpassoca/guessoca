@@ -7,11 +7,11 @@
 ### Sala
 
 **Sala** (`room`):
-O lugar onde uma turma se reúne para jogar. Qualquer pessoa cria uma sala e entra por um código de quatro letras ou pelo link `/sala/CODE`. Vive em memória: sobrevive ao fim do jogo e morre depois de dez minutos sem atividade, levando junto as imagens dos post-its.
+O lugar onde uma turma se reúne para jogar. Qualquer pessoa cria uma sala e entra por um código de quatro letras ou pelo link `/sala/CODE`. Antes de entrar há o **pré-lobby** (`prelobby`), a tela de criar ou entrar: cada pessoa escolhe apelido e personagem, e quem cria escolhe também o tamanho da vez, quantas pessoas cabem (de 2 a 8) e se só vai moderar; o moderador ainda muda isso no lobby, sem deixar o limite abaixo da turma. Vive em memória: sobrevive ao fim do jogo e morre depois de dez minutos sem atividade, levando junto as imagens dos post-its.
 _Evitar_: lobby, partida, servidor, mesa
 
 **Turma** (`members`):
-As pessoas numa sala, de 2 a 8, conectadas ou não. Quem cai continua na turma até a sala morrer e volta com o mesmo token. "Jogar de novo com a mesma turma" leva todo mundo de volta ao lobby.
+As pessoas numa sala, de 2 até o limite escolhido (no máximo 8), conectadas ou não. Quem cai continua na turma até a sala morrer e volta com o mesmo token. "Jogar de novo com a mesma turma" leva todo mundo de volta ao lobby.
 _Evitar_: grupo, time, jogadores, party
 
 **Apelido** (`nickname`):
@@ -27,7 +27,7 @@ Pessoa na sala que não joga o jogo em andamento: quem chegou depois do começo,
 _Evitar_: espectador, observador, viewer, spectator
 
 **Fase** (`phase`):
-Em que ponto a sala está: **lobby** (`lobby`), a turma se junta, escolhe personagens e a ordem; **escrita** (`writing`), cada pessoa escreve um post-it; **jogo** (`playing`), as vezes correm; **fim** (`ended`), o ranking e todos os post-its à mostra.
+Em que ponto a sala está: **lobby** (`lobby`), a turma se junta, acerta a ordem e escreve os post-its, até o moderador começar; **jogo** (`playing`), as vezes correm; **fim** (`ended`), tudo revelado: o ranking e todos os post-its à mostra, até o moderador jogar de novo.
 _Evitar_: estado, tela, etapa, round
 
 ### Post-it
@@ -37,11 +37,11 @@ A identidade que uma pessoa usa na testa durante o jogo: um texto obrigatório d
 _Evitar_: carta, identidade, personagem (é o corpo), palavra, card
 
 **Autor** (`author`) e **dono** (`owner`):
-O autor escreve o post-it; o dono o usa na testa. Por padrão a ordem é um círculo: cada pessoa escreve para a próxima na ordem das vezes. O moderador pode arrastar a turma, trocar quem escreve para quem, ou **sortear** (`shuffleAuthors`), que embaralha sem ninguém escrever para si.
+O autor escreve o post-it; o dono o usa na testa. Por padrão a ordem é um círculo: cada pessoa escreve para a próxima na ordem das vezes. O moderador pode mover a turma na ordem ou **sortear** (`shuffleAuthors`), que embaralha sem ninguém escrever para si. Quando o autor de um post-it muda no lobby (alguém entra ou é expulso, o moderador mexe na ordem ou sorteia), o post-it é apagado: texto, imagem e pronto. Do começo do jogo em diante, os autores não mudam mais.
 _Evitar_: escritor, alvo, target, destinatário
 
 **Pronto** (`ready`):
-O autor terminou o post-it. Os outros veem o post-it ao vivo enquanto ele é escrito, e o autor edita até apertar "Pronto". O jogo começa quando todo mundo está pronto, ou quando o moderador força; ao forçar, o moderador escreve os que faltam.
+O autor terminou o post-it. Os outros veem o post-it ao vivo enquanto ele é escrito, no lobby, e o autor edita até apertar "Pronto". Se o autor muda, o post-it é apagado e deixa de estar pronto. O jogo não começa sozinho: o moderador aperta "Começar", que pede todo post-it com texto, pronto ou não; o moderador escreve os que faltam.
 _Evitar_: enviar, confirmar, submit
 
 **Imagem** (`image`):
@@ -77,7 +77,7 @@ _Evitar_: notas, chat, caderno
 ### Telhado
 
 **Telhado** (`world`):
-O mundo sempre ligado: entrar na sala põe a pessoa no telhado. Lobby, escrita, jogo e fim são painéis HTML por cima. São telhados separados por vãos, umas duas telas de largura, num beat 'em up 2.5D: andar para os lados e em profundidade, e pular. A câmera segue a própria pessoa.
+O mundo sempre ligado: entrar na sala põe a pessoa no telhado. Lobby, jogo e fim são painéis HTML por cima. São telhados separados por vãos, umas duas telas de largura, num beat 'em up 2.5D: andar para os lados e em profundidade, e pular. A câmera segue a própria pessoa.
 _Evitar_: mapa, fase, level, cenário, cena
 
 **Personagem** (`character`):
@@ -103,5 +103,5 @@ A língua da interface, escolhida por navegador: português (pt-BR), o padrão, 
 _Evitar_: locale, tradução (é o mecanismo, não a escolha)
 
 **Jogador falso** (`fakePlayer`):
-Pessoa inventada para testar sozinho, só em localhost ou com `?dev`, nunca em produção. Escreve uma identidade ao acaso, fica parada no telhado e pula as próprias vezes.
+Pessoa inventada para testar sozinho, só em localhost ou com `?dev`, nunca em produção. No lobby, escreve uma identidade ao acaso e fica pronta (de novo, se o post-it dela for apagado), fica parada no telhado e pula as próprias vezes.
 _Evitar_: bot, NPC, IA, dummy

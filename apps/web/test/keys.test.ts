@@ -1,9 +1,9 @@
 import { describe, expect, test } from 'bun:test';
 import { isTextField, keyAction, swallowsSpace, worldKey, type KeyContext } from '../src/lib/keys';
 
-const myTurn: KeyContext = { inTextField: false, canClaim: true, canSkip: true };
-const notMine: KeyContext = { inTextField: false, canClaim: false, canSkip: false };
-const typing: KeyContext = { inTextField: true, canClaim: true, canSkip: true };
+const myTurn: KeyContext = { inTextField: false, canClaim: true, canSkip: true, canNotepad: true };
+const notMine: KeyContext = { inTextField: false, canClaim: false, canSkip: false, canNotepad: true };
+const typing: KeyContext = { inTextField: true, canClaim: true, canSkip: true, canNotepad: true };
 const press = (key: string, extra = {}) => ({ key, ...extra });
 
 describe('teclado', () => {
@@ -18,6 +18,12 @@ describe('teclado', () => {
     expect(keyAction(press('n'), notMine)).toBe('notepad');
     expect(keyAction(press('N'), notMine)).toBe('notepad');
     expect(keyAction(press('Escape'), notMine)).toBe('menu');
+  });
+
+  test('sem jogo correndo não há bloco: N não faz nada, Esc continua abrindo o menu', () => {
+    const lobby: KeyContext = { ...notMine, canNotepad: false };
+    expect(keyAction(press('n'), lobby)).toBeNull();
+    expect(keyAction(press('Escape'), lobby)).toBe('menu');
   });
 
   test('num campo de texto as teclas são do texto; Esc só sai do campo', () => {

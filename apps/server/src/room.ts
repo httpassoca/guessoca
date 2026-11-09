@@ -1,4 +1,4 @@
-import { CLOSE_KICKED, imageUrl, type ClientMessage, type PostitView, type RoomError, type RoomSnapshot, type ServerMessage } from '@guess/protocol';
+import { CLOSE_KICKED, imageUrl, type ClientMessage, type PostitView, type RoomError, type RoomInit, type RoomSnapshot, type ServerMessage } from '@guess/protocol';
 import {
   act, addMember, createGame, MAX_MEMBERS, nextDeadline, removeMember, revealed, settle, turnLeft, uniqueNickname,
   type Ctx, type GameAction, type GameEvent, type GameState,
@@ -54,6 +54,10 @@ export interface RoomState {
   ttl: number;
   /** aceita jogadores falsos (só em desenvolvimento) */
   dev: boolean;
+  /** quantas pessoas cabem na turma (fantasmas, falsos e quem caiu inclusive); o moderador muda no lobby */
+  maxPlayers: number;
+  /** o criador escolheu só moderar no pré-lobby: vale quando ele entra (a primeira pessoa), e então volta a false */
+  creatorOnlyModerate: boolean;
   game: GameState;
 }
 
@@ -86,27 +90,32 @@ export interface RoomOutput { state: RoomState; out: Outgoing[]; events: RoomEve
 /** `rng`: o sorteio (autores, identidades dos falsos); os testes fixam. */
 export interface StepOptions { rng?: () => number }
 
-/** `ttl`: quanto a sala vive sem atividade (os testes do host apressam); `dev`: aceita jogadores falsos. */
-export function createRoom(code: string, now: number, opts: { ttl?: number; dev?: boolean } = {}): RoomState {
+/**
+ * `ttl`: quanto a sala vive sem atividade (os testes do host apressam); `dev`: aceita jogadores falsos; `init`: o que o
+ * pré-lobby escolheu (já validado por `parseRoomInit`): o tamanho da vez, o limite de pessoas e se o criador só modera.
+ */
+export function createRoom(code: string, now: number, opts: { ttl?: number; dev?: boolean; init?: RoomInit } = {}): RoomState {
   const ttl = opts.ttl ?? ROOM_TTL;
+  const init = opts.init ?? {};
   return {
     code, phase: 'open', createdAt: now, lastActivity: now, members: [], visitors: [], kicked: [], nextId: 1,
     timers: [{ kind: 'death', at: now + ttl }], moderator: null, moderatorAway: null, ttl, dev: opts.dev ?? false,
-    game: createGame(),
+    maxPlayers: init.maxPlayers ?? MAX_MEMBERS, creatorOnlyModerate: init.onlyModerate ?? false,
+    game: createGame({ turnMs: init.turnMs }),
   };
 }
 
 /** As mensagens do cliente que são ações do jogo, passadas como estão às regras. */
 const GAME_ACTIONS = new Set<GameAction['type']>([
-  'character', 'order', 'swapAuthors', 'shuffleAuthors', 'turnMs', 'onlyModerate', 'startWriting', 'write', 'ready',
-  'forceStart', 'claim', 'vote', 'skip', 'giveUp', 'mark', 'pause', 'endGame', 'playAgain',
+  'character', 'order', 'shuffleAuthors', 'turnMs', 'onlyModerate', 'write', 'ready', 'start', 'claim', 'vote', 'skip',
+  'giveUp', 'mark', 'pause', 'endGame', 'playAgain',
 ]);
 const isGameAction = (m: ClientMessage): m is ClientMessage & GameAction => GAME_ACTIONS.has(m.type as GameAction['type']);
 
 /**
  * Única porta da sala: estado atual + entrada + hora → estado novo, mensagens por destinatário e eventos.
  * Nunca mexe no estado recebido e nunca agenda nada; os timers ficam em `state.timers`.
- * Depois de cada entrada o jogo é posto em dia (`settle`), os falsos escrevem, a sucessão do moderador é conferida e
+ * Depois de cada entrada o jogo é posto em dia (`settle`), os falsos escrevem (no lobby), a sucessão do moderador é conferida e
  * os timers são refeitos; se a sala mudou, todo token conectado recebe o snapshot.
  */
 export function step(state: RoomState, input: RoomInput, now: number, opts: StepOptions = {}): RoomOutput {
@@ -172,10 +181,18 @@ export function step(state: RoomState, input: RoomInput, now: number, opts: Step
       if (msg.type === 'ping') { send(token, { type: 'pong' }); break; } // não é atividade: uma aba esquecida aberta não segura a sala viva
       if (!m) {
         if (msg.type !== 'join') { refuse(token, msg.type); break; } // visitante não age
-        if (s.members.length >= MAX_MEMBERS) { refuse(token, msg.type, 'roomFull'); break; }
+        if (s.members.length >= s.maxPlayers) { refuse(token, msg.type, 'roomFull'); break; }
         s.visitors = s.visitors.filter((t) => t !== token);
         const created = addToTurma({ token, connected: true, fake: false }, msg.nickname);
-        s.moderator ??= created.id;
+        if (s.moderator === null) {
+          s.moderator = created.id;
+          // o criador escolheu só moderar no pré-lobby: entra já como fantasma
+          if (s.creatorOnlyModerate) {
+            s.creatorOnlyModerate = false;
+            const r = act(s.game, created.id, true, { type: 'onlyModerate', on: true }, ctx());
+            if (r.ok) { s.game = r.game; events.push(...r.events); }
+          }
+        }
         touch();
         events.push({ type: 'joined', id: created.id, nickname: created.nickname });
         break;
@@ -211,10 +228,16 @@ export function step(state: RoomState, input: RoomInput, now: number, opts: Step
           events.push(...r.events);
           break;
         }
+        case 'maxPlayers': {
+          // só no lobby, e nunca abaixo da turma de agora (quem caiu também tem o lugar guardado)
+          if (!isModerator || s.game.phase !== 'lobby' || msg.n < s.members.length) { refuse(token, msg.type); break; }
+          s.maxPlayers = msg.n;
+          break;
+        }
         case 'handOver': {
           const target = byId(msg.member);
           if (!isModerator || !target || target === m || target.fake) { refuse(token, msg.type); break; }
-          releaseOnlyModerate(s, m.id, ctx());
+          releaseOnlyModerate(s, m.id, ctx(), events);
           s.moderator = target.id;
           s.moderatorAway = null; // recomeça a contar, se a pessoa nova estiver offline
           events.push({ type: 'handedOver', from: m.id, to: target.id });
@@ -222,7 +245,7 @@ export function step(state: RoomState, input: RoomInput, now: number, opts: Step
         }
         case 'addFake': {
           if (!s.dev) { refuse(token, msg.type); break; }
-          if (s.members.length >= MAX_MEMBERS) { refuse(token, msg.type, 'roomFull'); break; }
+          if (s.members.length >= s.maxPlayers) { refuse(token, msg.type, 'roomFull'); break; }
           const fakes = s.members.filter((x) => x.fake).length;
           const created = addToTurma({ token: null, connected: true, fake: true }, `${FAKE_NICKNAME} ${fakes + 1}`);
           events.push({ type: 'fakeAdded', id: created.id, nickname: created.nickname });
@@ -261,7 +284,7 @@ export function step(state: RoomState, input: RoomInput, now: number, opts: Step
 
 /** O que todo mundo vê da sala; se não mudou, ninguém recebe snapshot novo. */
 function fingerprint(s: RoomState): string {
-  return JSON.stringify([s.members.map((m) => [m.id, m.nickname, m.connected]), s.moderator, s.game]);
+  return JSON.stringify([s.members.map((m) => [m.id, m.nickname, m.connected]), s.moderator, s.maxPlayers, s.game]);
 }
 
 /** Quem está online para o jogo: membros conectados, falsos inclusive. */
@@ -269,10 +292,13 @@ function onlineIds(s: RoomState): Set<string> {
   return new Set(s.members.filter((m) => m.connected).map((m) => m.id));
 }
 
-/** Na escrita, cada falso que escreve um post-it ainda não pronto escreve uma identidade ao acaso e aperta "Pronto". */
+/**
+ * No lobby, cada falso que escreve um post-it ainda não pronto (novo, ou apagado porque o autor mudou) escreve uma
+ * identidade ao acaso e aperta "Pronto".
+ */
 function writeForFakes(s: RoomState, ctx: Ctx, rng: () => number, events: RoomEvent[]) {
   for (const fake of s.members.filter((m) => m.fake)) {
-    if (s.game.phase !== 'writing') return;
+    if (s.game.phase !== 'lobby') return;
     const owner = Object.keys(s.game.postits).find((o) => s.game.authors[o] === fake.id && !s.game.postits[o].ready);
     if (owner === undefined) continue;
     const text = FAKE_IDENTITIES[Math.min(FAKE_IDENTITIES.length - 1, Math.floor(rng() * FAKE_IDENTITIES.length))];
@@ -297,7 +323,7 @@ function succeedModerator(s: RoomState, now: number, events: RoomEvent[], ctx: C
     .filter((m) => m !== mod && m.connected && !m.fake)
     .sort((a, b) => a.joinedAt - b.joinedAt)[0];
   if (!heir) return;
-  releaseOnlyModerate(s, mod.id, ctx);
+  releaseOnlyModerate(s, mod.id, ctx, events);
   s.moderator = heir.id;
   s.moderatorAway = null;
   events.push({ type: 'moderatorSucceeded', from: mod.id, to: heir.id });
@@ -307,9 +333,10 @@ function succeedModerator(s: RoomState, now: number, events: RoomEvent[], ctx: C
  * Quem deixa de ser moderador deixa de "só moderar": só o moderador mexe nisso, e sem o papel ficaria de fora para sempre.
  * No lobby volta a jogar já; durante um jogo continua fantasma até o próximo.
  */
-function releaseOnlyModerate(s: RoomState, id: string, ctx: Ctx) {
+function releaseOnlyModerate(s: RoomState, id: string, ctx: Ctx, events: RoomEvent[]) {
   if (!s.game.onlyModerate.includes(id)) return;
   const back = s.game.phase === 'lobby' ? act(s.game, id, true, { type: 'onlyModerate', on: false }, ctx) : null;
+  if (back?.ok) events.push(...back.events);
   s.game = back?.ok ? back.game : { ...s.game, onlyModerate: s.game.onlyModerate.filter((x) => x !== id) };
 }
 
@@ -359,6 +386,7 @@ export function snapshotFor(s: RoomState, token: string, now: number): RoomSnaps
     you,
     moderator: s.moderator,
     dev: s.dev,
+    maxPlayers: s.maxPlayers,
     members: s.members.map((m) => ({
       id: m.id, nickname: m.nickname, connected: m.connected, character: g.characters[m.id] ?? null, ghost: !g.order.includes(m.id), fake: m.fake,
     })),

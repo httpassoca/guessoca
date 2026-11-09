@@ -1,4 +1,4 @@
-import { CLOSE_ROOM_NOT_FOUND, IMAGE_BYTES_MAX, IMAGE_ID_RE, isWebp, SOCKET_IDLE_TIMEOUT, TOKEN_RE } from '@guess/protocol';
+import { CLOSE_ROOM_NOT_FOUND, IMAGE_BYTES_MAX, IMAGE_ID_RE, isWebp, parseRoomInit, SOCKET_IDLE_TIMEOUT, TOKEN_RE } from '@guess/protocol';
 import type { SocketData } from './host';
 import type { Log } from './log';
 import { Rooms } from './rooms';
@@ -6,6 +6,9 @@ import { staticHandler } from './static';
 
 /** `dev`: as salas aceitam jogadores falsos (nunca em produção). */
 export interface ServerOptions { port: number; distDir: string; log: Log; hostname?: string; dev?: boolean }
+
+/** O corpo de `POST /api/rooms` (as escolhas do pré-lobby) não passa disto. */
+const ROOM_INIT_BYTES_MAX = 1024;
 
 const IMAGES_PATH = /^\/api\/rooms\/([A-Za-z]+)\/images(?:\/([^/]+))?$/;
 
@@ -25,8 +28,14 @@ async function readCapped(req: Request, max: number): Promise<Uint8Array<ArrayBu
   return out;
 }
 
+/** O corpo de `POST /api/rooms` como JSON; vazio ou não JSON vira `undefined` (e a sala fica nos padrões). */
+function parseJson(bytes: Uint8Array): unknown {
+  try { return JSON.parse(new TextDecoder().decode(bytes)); } catch { return undefined; }
+}
+
 /**
- * HTTP: `/health`, `POST /api/rooms` (abre uma sala), as imagens dos post-its e o cliente estático. WebSocket em
+ * HTTP: `/health`, `POST /api/rooms` (abre uma sala com as escolhas do pré-lobby no corpo JSON, `RoomInit`: o que falta
+ * ou não vale fica no padrão; corpo acima de `ROOM_INIT_BYTES_MAX` → 413), as imagens dos post-its e o cliente estático. WebSocket em
  * `/ws?room=CODE&token=T`. Sala inexistente: o upgrade é aceito e fechado com um código que o cliente sabe explicar.
  * Imagens (ADR 0002): `POST /api/rooms/CODE/images?token=T` com um WebP → `{ id }`; `GET /api/rooms/CODE/images/ID`.
  */
@@ -65,7 +74,10 @@ export function createServer(opts: ServerOptions) {
       if (url.pathname === '/health') return Response.json({ ok: true, rooms: rooms.size });
       if (url.pathname === '/api/rooms') {
         if (req.method !== 'POST') return new Response('method not allowed', { status: 405 });
-        return Response.json({ code: rooms.create().code });
+        if (Number(req.headers.get('content-length') ?? 0) > ROOM_INIT_BYTES_MAX) return new Response('too big', { status: 413 });
+        const body = await readCapped(req, ROOM_INIT_BYTES_MAX);
+        if (!body) return new Response('too big', { status: 413 });
+        return Response.json({ code: rooms.create(parseRoomInit(parseJson(body))).code });
       }
       const image = IMAGES_PATH.exec(url.pathname);
       if (image) return images(req, url, image[1].toUpperCase(), image[2]);

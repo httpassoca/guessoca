@@ -10,7 +10,7 @@
   /**
    * O editor de um post-it: texto (obrigatório, até `POSTIT_MAX`) e imagem opcional. Cada tecla manda o post-it como
    * está (no máximo a cada ~100 ms), para a turma ver ao vivo; "Pronto" manda na hora e marca pronto. O moderador usa o
-   * mesmo editor para os post-its que faltam, sem "Pronto" (`canReady` false): ele força o começo.
+   * mesmo editor para os post-its que faltam, sem "Pronto" (`canReady` false): ele pode começar sem esperar o pronto.
    */
   let { owner, postit, code, token, send, canReady }: {
     owner: string; postit: PostitView; code: string; token: string; send: (r: GameRequest) => void; canReady: boolean;
@@ -47,25 +47,25 @@
   }
 </script>
 
-<div class="gs-editor">
-  <div class="gs-postit editing" style="--tilt: -1deg">
-    <div class="paper">
-      {#if preview}<img src={preview} alt="" />{/if}
-      <textarea class="gs-postit-input" bind:value={text} oninput={typed} maxlength={POSTIT_MAX} rows="2" disabled={locked} placeholder={t('editor.placeholder')} aria-label={t('editor.text')} spellcheck="false"></textarea>
-    </div>
+<div class="gs-editor" class:locked>
+  <div class="gs-editor-box">
+    {#if preview}<img class="gs-editor-img" src={preview} alt="" />{/if}
+    <label class="ss-textarea">
+      <span class="control"><textarea class="field gs-postit-input" bind:value={text} oninput={typed} maxlength={POSTIT_MAX} rows="2" disabled={locked} placeholder={t('editor.placeholder')} aria-label={t('editor.text')} spellcheck="false"></textarea></span>
+    </label>
   </div>
-  <div class="gs-editor-side">
-    <span class="gs-hint" class:gs-warn={text.length >= POSTIT_MAX}>{t('editor.count', { n: text.length, max: POSTIT_MAX })}</span>
+  <div class="gs-row" data-size-variant="sm">
+    <span class="gs-hint gs-count" class:gs-warn={text.length >= POSTIT_MAX}>{t('editor.count', { n: text.length, max: POSTIT_MAX })}</span>
     {#if !locked}
       <input class="gs-file" type="file" accept="image/*" bind:this={picker} onchange={picked} hidden />
-      <div class="gs-row">
-        <button class="ss-btn" type="button" disabled={uploading} onclick={() => picker?.click()}>{uploading ? t('editor.uploading') : image ? t('editor.imageChange') : t('editor.imageAdd')}</button>
-        {#if image}<button class="ss-btn ghost" type="button" disabled={uploading} onclick={removeImage}>{t('editor.imageRemove')}</button>{/if}
-      </div>
-      {#if imageFailed}<p class="gs-error">{t('editor.imageFailed')}</p>{/if}
+      <button class="ss-btn ghost" type="button" disabled={uploading} onclick={() => picker?.click()}>{uploading ? t('editor.uploading') : image ? t('editor.imageChange') : t('editor.imageAdd')}</button>
+      {#if image}<button class="ss-btn ghost" type="button" disabled={uploading} onclick={removeImage}>{t('editor.imageRemove')}</button>{/if}
+      <span class="gs-spacer"></span>
       {#if canReady}<button class="ss-btn primary" type="button" disabled={!text.trim() || uploading} onclick={ready}>{t('editor.ready')}</button>{/if}
     {:else}
+      <span class="gs-spacer"></span>
       <span class="ss-badge positive">{t('editor.isReady')}</span>
     {/if}
   </div>
+  {#if imageFailed}<p class="gs-error">{t('editor.imageFailed')}</p>{/if}
 </div>

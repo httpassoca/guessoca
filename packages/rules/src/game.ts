@@ -1,5 +1,5 @@
 /**
- * O jogo, puro: lobby, escrita, vezes, acertei e votação, desistir, ranking, poderes do moderador. Não sabe de tokens,
+ * O jogo, puro: lobby (com a escrita), vezes, acertei e votação, desistir, ranking, poderes do moderador. Não sabe de tokens,
  * sockets nem relógio: quem chama passa a hora e quem está online em `Ctx`. O servidor (`apps/server/src/room.ts`) cuida
  * da turma (entrar, apelido, conexão, expulsar, sucessão do moderador) e chama daqui. Vocabulário do `CONTEXT.md`;
  * a votação decide o acerto, não o jogo (ADR 0008): nada aqui lê o texto de um post-it para decidir alguma coisa.
@@ -168,8 +168,9 @@ export function createGame(init: { turnMs?: number } = {}): GameState {
 }
 
 /**
- * Alguém entrou na turma: ganha o primeiro personagem livre; no lobby entra no fim de `order` (o círculo recalcula e
- * `customAuthors` volta a false); fora do lobby fica fantasma até o próximo jogo.
+ * Alguém entrou na turma: ganha o primeiro personagem livre; no lobby entra no fim de `order` com um post-it vazio (o
+ * círculo recalcula, `customAuthors` volta a false e o post-it de quem muda de autor é apagado); fora do lobby fica
+ * fantasma até o próximo jogo. Não devolve eventos: o `cleared` de quem entra fica de fora.
  */
 export function addMember(g: GameState, id: string): GameState {
   if (id in g.characters) return g;
@@ -184,15 +185,15 @@ export function addMember(g: GameState, id: string): GameState {
   if (next.phase === 'lobby') {
     next.order.push(id);
     next.customAuthors = false;
-    fixAuthors(next);
+    fixAuthors(next, []);
   }
   return next;
 }
 
 /**
  * Alguém saiu da turma (expulso): sai de `order`, de `onlyModerate`, dos personagens, do ranking e dos votos. O post-it
- * de que era dono some em qualquer fase. Na escrita, o dono para quem escrevia fica sem autor (o moderador escreve); no
- * lobby, os autores voltam ao círculo. No jogo, se era a vez
+ * de que era dono some em qualquer fase. No lobby, os autores voltam ao círculo (se o sorteio deixa de valer) e o post-it
+ * de quem muda de autor é apagado; no jogo e no fim, o dono para quem escrevia fica sem autor. No jogo, se era a vez
  * dele, a próxima começa. Depois, o mesmo que `settle`.
  */
 export function removeMember(g: GameState, id: string, ctx: Ctx): { game: GameState; events: GameEvent[] } {
@@ -205,7 +206,7 @@ export function removeMember(g: GameState, id: string, ctx: Ctx): { game: GameSt
   next.got = next.got.filter((m) => m !== id);
   next.gaveUp = next.gaveUp.filter((m) => m !== id);
   if (next.phase === 'lobby') {
-    fixAuthors(next);
+    fixAuthors(next, events);
   } else {
     delete next.authors[id];
     for (const owner of Object.keys(next.authors)) if (next.authors[owner] === id) delete next.authors[owner];
@@ -252,28 +253,17 @@ function apply(g: GameState, actor: string, moderator: boolean, action: GameActi
       if (g.phase !== 'lobby' && g.phase !== 'playing') return 'wrongPhase';
       if (!isPermutation(action.order, g.order)) return 'invalid';
       g.order = [...action.order];
-      if (g.phase === 'lobby') fixAuthors(g);
-      return null;
-    }
-    case 'swapAuthors': {
-      if (!moderator) return 'notModerator';
-      if (g.phase !== 'lobby') return 'wrongPhase';
-      const { a, b } = action;
-      if (a === b || !g.order.includes(a) || !g.order.includes(b)) return 'invalid';
-      const authorA = g.authors[a];
-      const authorB = g.authors[b];
-      if (authorB === a || authorA === b) return 'invalid';
-      g.authors[a] = authorB;
-      g.authors[b] = authorA;
-      g.customAuthors = true;
+      if (g.phase === 'lobby') fixAuthors(g, events);
       return null;
     }
     case 'shuffleAuthors': {
       if (!moderator) return 'notModerator';
       if (g.phase !== 'lobby') return 'wrongPhase';
       if (g.order.length < MIN_PLAYERS) return 'invalid';
+      const before = g.authors;
       g.authors = derangement(g.order, ctx.rng);
       g.customAuthors = true;
+      syncPostits(g, before, events);
       return null;
     }
     case 'turnMs': {
@@ -296,42 +286,32 @@ function apply(g: GameState, actor: string, moderator: boolean, action: GameActi
         g.onlyModerate = g.onlyModerate.filter((id) => id !== actor);
         if (!g.order.includes(actor)) g.order.push(actor);
       }
-      fixAuthors(g);
-      return null;
-    }
-    case 'startWriting': {
-      if (!moderator) return 'notModerator';
-      if (g.phase !== 'lobby') return 'wrongPhase';
-      if (g.order.length < MIN_PLAYERS) return 'invalid';
-      g.phase = 'writing';
-      g.postits = {};
-      for (const owner of g.order) g.postits[owner] = { text: '', image: null, ready: false };
-      events.push({ type: 'writing' });
+      fixAuthors(g, events);
       return null;
     }
     case 'write': {
-      if (g.phase !== 'writing') return 'wrongPhase';
+      if (g.phase !== 'lobby') return 'wrongPhase';
       const postit = g.postits[action.owner];
-      if (!postit || postit.ready) return 'invalid';
-      const mayWrite = g.authors[action.owner] === actor || (moderator && action.owner !== actor);
+      if (!postit || postit.ready || action.owner === actor) return 'invalid';
+      const mayWrite = g.authors[action.owner] === actor || moderator;
       if (!mayWrite) return 'invalid';
       postit.text = cleanPostit(action.text);
       postit.image = action.image;
       return null;
     }
     case 'ready': {
-      if (g.phase !== 'writing') return 'wrongPhase';
-      const owner = Object.keys(g.postits).find((o) => g.authors[o] === actor);
+      if (g.phase !== 'lobby') return 'wrongPhase';
+      const owner = Object.keys(g.postits).find((o) => g.authors[o] === actor && o !== actor);
       if (owner === undefined) return 'invalid';
       const postit = g.postits[owner];
       if (postit.ready || postit.text === '') return 'invalid';
       postit.ready = true;
       return null;
     }
-    case 'forceStart': {
+    case 'start': {
       if (!moderator) return 'notModerator';
-      if (g.phase !== 'writing') return 'wrongPhase';
-      if (Object.values(g.postits).some((p) => p.text === '')) return 'invalid';
+      if (g.phase !== 'lobby') return 'wrongPhase';
+      if (g.order.length < MIN_PLAYERS || g.order.some((o) => !g.postits[o]?.text)) return 'invalid';
       startPlaying(g, ctx, events);
       return null;
     }
@@ -407,11 +387,12 @@ function apply(g: GameState, actor: string, moderator: boolean, action: GameActi
     }
     case 'endGame': {
       if (!moderator) return 'notModerator';
-      if (g.phase !== 'writing' && g.phase !== 'playing') return 'wrongPhase';
+      if (g.phase !== 'playing') return 'wrongPhase';
       endGame(g, events);
       return null;
     }
     case 'playAgain': {
+      if (!moderator) return 'notModerator';
       if (g.phase !== 'ended') return 'wrongPhase';
       const late = Object.keys(g.characters).filter((id) => !g.order.includes(id) && !g.onlyModerate.includes(id));
       g.phase = 'lobby';
@@ -419,6 +400,7 @@ function apply(g: GameState, actor: string, moderator: boolean, action: GameActi
       g.customAuthors = false;
       g.authors = circle(g.order);
       g.postits = {};
+      for (const owner of g.order) g.postits[owner] = emptyPostit();
       g.turn = null;
       g.vote = null;
       g.paused = false;
@@ -461,7 +443,7 @@ function endGame(g: GameState, events: GameEvent[]): void {
   events.push({ type: 'ended' });
 }
 
-/** Escrita → jogo: a primeira vez é da primeira pessoa da ordem que pode jogar. */
+/** Lobby → jogo: a primeira vez é da primeira pessoa da ordem que pode jogar. */
 function startPlaying(g: GameState, ctx: Ctx, events: GameEvent[]): void {
   g.phase = 'playing';
   g.turn = null;
@@ -499,13 +481,39 @@ function startTurn(g: GameState, ctx: Ctx, events: GameEvent[], after: string | 
 }
 
 /**
- * No lobby, depois de mudar a ordem: o círculo, a menos que os autores trocados ainda valham para a ordem nova (cada
- * pessoa da ordem escreve para uma outra, uma só).
+ * No lobby, depois de mudar a ordem ou a turma: o círculo, a menos que o sorteio ainda valha para a ordem nova (cada
+ * pessoa da ordem escreve para uma outra, uma só). Depois, os post-its acompanham (`syncPostits`).
  */
-function fixAuthors(g: GameState): void {
-  if (g.customAuthors && validAssignment(g.authors, g.order)) return;
-  g.customAuthors = false;
-  g.authors = circle(g.order);
+function fixAuthors(g: GameState, events: GameEvent[]): void {
+  const before = g.authors;
+  if (!(g.customAuthors && validAssignment(g.authors, g.order))) {
+    g.customAuthors = false;
+    g.authors = circle(g.order);
+  }
+  syncPostits(g, before, events);
+}
+
+function emptyPostit(): Postit {
+  return { text: '', image: null, ready: false };
+}
+
+/**
+ * No lobby, depois que os autores mudaram (`before` → `g.authors`): um post-it para cada dono de `order`. O de quem
+ * continua com o mesmo autor fica como estava; o de quem mudou de autor volta a vazio (texto, imagem e pronto), com
+ * `cleared` se tinha alguma coisa; quem é novo ganha um vazio; quem saiu de `order` perde o seu.
+ */
+function syncPostits(g: GameState, before: Record<string, string>, events: GameEvent[]): void {
+  const postits: Record<string, Postit> = {};
+  for (const owner of g.order) {
+    const old = g.postits[owner];
+    if (old && before[owner] === g.authors[owner]) {
+      postits[owner] = old;
+      continue;
+    }
+    postits[owner] = emptyPostit();
+    if (old && (old.text !== '' || old.image !== null || old.ready)) events.push({ type: 'cleared', owner });
+  }
+  g.postits = postits;
 }
 
 function validAssignment(authors: Record<string, string>, order: readonly string[]): boolean {
@@ -535,10 +543,6 @@ function isPermutation(candidate: readonly string[], of: readonly string[]): boo
 export function settle(g: GameState, ctx: Ctx): { game: GameState; events: GameEvent[] } {
   const next = structuredClone(g);
   const events: GameEvent[] = [];
-  if (next.phase === 'writing') {
-    const postits = Object.values(next.postits);
-    if (postits.length > 0 && postits.every((p) => p.ready)) startPlaying(next, ctx, events);
-  }
   // cada passo muda alguma coisa ou nada; repete até nada mudar (com folga contra um laço sem fim)
   for (let i = 0; i < 100 && next.phase === 'playing' && settleOnce(next, ctx, events); i++);
   return { game: next, events };
