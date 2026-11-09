@@ -42,11 +42,11 @@
     "atlas": "skeleton"
   },
   {
-    "model": "skeleton",
-    "name": "verde",
-    "color": "#2e7d3b",
+    "model": "kratos",
+    "name": "kratos",
+    "color": "#cdbfb4",
     "sheet": "/sprites/char-6.png",
-    "atlas": "skeleton"
+    "atlas": "kratos"
   },
   {
     "model": "skeleton",

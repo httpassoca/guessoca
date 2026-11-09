@@ -73,7 +73,7 @@ apps/web           Vite + Svelte 5 + PixiJS v8 + dssoca
                            desistir ou votar, os post-its como posso vê-los, o ranking, a contagem regressiva
   src/lib/image.ts         a imagem do post-it: reduz a 512 px, WebP baixando a qualidade até caber, sobe por POST
   src/lib/effects.ts       "efeitos de tela" (os filtros de filme) ligados ou não, por navegador (localStorage)
-  src/lib/sprites/         os atlas gerados (`characters.json`, `hero.json`, `skeleton.json`, `emotes.json`, `rooftop.json`),
+  src/lib/sprites/         os atlas gerados (`characters.json`, `hero.json`, `skeleton.json`, `kratos.json`, `emotes.json`, `rooftop.json`),
                            `characters.ts`, que diz de que modelo é cada personagem, a folha, a cor e onde está cada quadro
                            no atlas do modelo, e `rooftop.ts`, o mesmo para os objetos do telhado e as faixas da cidade
   src/lib/world/            o telhado no navegador: controls (teclas → `Input`), loop (60 passos por segundo), presence (manda
@@ -106,8 +106,10 @@ tools/sprites      `bun run sprites` (@guess/sprites): as receitas que geram as 
   src/grid.ts        pixel art escrita como texto (um caractere por pixel, `.` transparente)
   src/atlas.ts       o que os dois modelos têm em comum: as animações na ordem do jogo e a montagem da folha e do atlas
   src/hero.ts        o herói: fatia as folhas do pacote, tira a espada do golpe, quatro cores de cabelo
-  src/skeleton.ts    o cavaleiro esqueleto: tira o rastro dos golpes, desenha correr, pular e cair, quatro capas
-  src/characters.ts  os oito personagens (0–3 herói, 4–7 esqueleto), que viram `characters.json`
+  src/skeleton.ts    o cavaleiro esqueleto: tira o rastro dos golpes, desenha correr, pular e cair, três capas
+  src/kratos.ts      o Kratos: do quadro de lado de um GIF de giro, desenha as sete animações
+  src/gif.ts         lê um GIF animado como folha de uma linha
+  src/characters.ts  os oito personagens (0–3 herói, 4, 5 e 7 esqueleto, 6 Kratos), que viram `characters.json`
   src/emotes.ts      os balões `?`, `!`, `haha`, "eu?"/"me?" com uma fonte 3×5 em texto
   src/rooftop.ts     o telhado em grades de texto: a paleta, a prancheta (`Sketch`) que carimba grades, tampo, muretas,
                      fachadas, as três caixas do mapa (ar-condicionado, chaminé, caixa-d'água), antenas, letreiros de neon,
@@ -144,15 +146,16 @@ Como a arte funciona e como importar arte nova (personagens, animações, objeto
 [`docs/art.md`](docs/art.md). `bun run sprites:preview` gera folhas de contato ampliadas do que está versionado em
 `.preview/` (fora do git) para conferir no olho.
 
-Há dois modelos de personagem. O herói é o "male hero" (versão grátis) da [Ozzbit Games](https://ozzbit-games.itch.io),
+Há três modelos de personagem. O herói é o "male hero" (versão grátis) da [Ozzbit Games](https://ozzbit-games.itch.io),
 com licença só para uso pessoal e não comercial, modificações permitidas e crédito obrigatório (ADR 0007). O cavaleiro
-esqueleto é arte do dono do jogo, sem restrição nem crédito (emenda da ADR 0007). Os dois pacotes ficam fora do git, em
+esqueleto e o Kratos são arte do dono do jogo, sem restrição nem crédito (emendas da ADR 0007). Os pacotes ficam fora do git, em
 `assets-src/` (ignorado), e só as folhas que o pipeline gera são versionadas em `apps/web/public/sprites/` (os atlas em
 `apps/web/src/lib/sprites/`). O CI e o Docker usam o que está versionado e nunca precisam dos pacotes.
 
 ```
 cp -r ~/dev/tmp/male_hero_free assets-src/   # uma vez, na máquina do dono
 cp -r <folhas do esqueleto> assets-src/skeleton/   # IDLE.png, WALK.png, FWD_SWING.png, DOWN_SWING.png, ...
+cp <kratos.gif> assets-src/kratos/kratos.gif       # o giro de 8 quadros de 64×64
 bun run sprites                             # refaz as folhas e os atlas
 ```
 
@@ -161,20 +164,24 @@ com erro.
 
 O que sai:
 
-- `char-0.png` … `char-7.png`: uma folha por personagem, com uma linha por animação, na mesma ordem nos dois modelos:
+- `char-0.png` … `char-7.png`: uma folha por personagem, com uma linha por animação, na mesma ordem em todos os modelos:
   parado, andando, correndo, pulo, queda, queda em loop e empurrão.
   - `char-0` … `char-3`: o herói, igual menos o cabelo (castanho, preto, loiro, ruivo). O empurrão é o golpe do pacote
     sem a espada: as cores da lâmina e do cabo saem por cor, o rastro branco por ser uma mancha branca grande, e o
     contorno fino da lâmina por estar à frente do corpo.
-  - `char-4` … `char-7`: o cavaleiro esqueleto, igual menos a capa (vermelha, azul, verde, roxa). Fica com a espada em
+  - `char-4`, `char-5` e `char-7`: o cavaleiro esqueleto, igual menos a capa (vermelha, azul, roxa). Fica com a espada em
     tudo; dos golpes sai só o rastro branco (mancha branca grande demais para ser osso, ou ponta solta toda branca). A arte
     não tem correr, pular nem cair, então a receita desenha: correr é o andar inclinado 4 pixels para a frente com a capa
     arrastando atrás; pular é o parado agachado, depois o golpe de cima (espada erguida, um joelho para cima) esticado,
     com a capa puxada para baixo e a perna encolhida; cair é esse corpo com a capa do golpe para a frente girada 90° para
     voar para cima atrás das costas. O empurrão é o golpe para a frente, cinco quadros, com o pé de trás no lugar do
     parado.
+  - `char-6`: o Kratos, arte do dono, no lugar que era do esqueleto de capa verde. A arte é um GIF dele girando parado,
+    sem nenhuma animação do jogo, então a receita desenha as sete a partir do quadro de lado: corta o quadro no quadril,
+    faz das pernas duas (a de trás escurecida) que vão e voltam a partir do quadril e encolhem no joelho, e inclina, sobe
+    e desce o tronco; no empurrão dá um passo e estica a mão da espada. É um substituto até existirem folhas desenhadas.
 - `characters.json`: os oito, cada um com o modelo, o nome da cor, a cor na interface, a folha e o atlas. Um atlas por
-  modelo (`hero.json`, `skeleton.json`): tamanho do quadro, âncora (entre os pés), a cabeça, o parado, as linhas das
+  modelo (`hero.json`, `skeleton.json`, `kratos.json`): tamanho do quadro, âncora (entre os pés), a cabeça, o parado, as linhas das
   animações com quadros, fps e loop, e o crédito (ou null).
 - `emotes-pt-BR.png` e `emotes-en-US.png`: os balões das teclas 1–4; só o "eu?"/"me?" muda de uma para a outra.
 - `rooftop.png` (atlas em `rooftop.json`): o telhado neon-noir, todo desenhado em grades de texto em
@@ -194,7 +201,7 @@ O que sai:
 
 - **Outra cor de cabelo** ou **outra capa**: troque uma rampa em `HAIRS` (sombra, base, brilho) em
   `tools/sprites/src/hero.ts` ou em `CAPES` (sombra, base) em `tools/sprites/src/skeleton.ts`. São oito personagens
-  porque a sala tem oito pessoas: quatro de cada modelo, na ordem de `characters.ts`. A cor do personagem na interface é
+  porque a sala tem oito pessoas: quatro heróis, três esqueletos e o Kratos, na ordem de `characters.ts`. A cor do personagem na interface é
   a base da rampa; atualize `--gs-char-N` em `apps/web/src/app.css` (o teste confere).
 - **Variantes do esqueleto**: a capa é `771818` (sombra) e `982b2b` (base), os únicos vermelhos da arte além do olho
   (`fe0707`, que fica). Diga a cor da capa nova, ou outra peça (a espada, os ossos) e a cor; uma animação nova ou
@@ -230,5 +237,5 @@ certbot) são guiados por `bash deploy/wizard.sh`, que termina provando HTTPS e 
 ## Créditos
 
 Herói: [Ozzbit Games](https://ozzbit-games.itch.io) (pacote "male hero", uso pessoal e não comercial). O pacote original
-não está no repositório; só as folhas geradas pelo pipeline (ADR 0007). O cavaleiro esqueleto é arte do dono do jogo.
+não está no repositório; só as folhas geradas pelo pipeline (ADR 0007). O cavaleiro esqueleto e o Kratos são arte do dono do jogo.
 Guessoca não é comercial e não tem anúncios.

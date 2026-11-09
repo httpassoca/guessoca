@@ -53,9 +53,9 @@ describe('a montagem do atlas', () => {
 describe('os personagens', () => {
   const list = characters();
 
-  test('oito, quatro heróis e quatro esqueletos, cada um com a sua folha e o seu atlas', () => {
+  test('oito, quatro heróis, três esqueletos e o Kratos no lugar 6, cada um com a sua folha e o seu atlas', () => {
     expect(list).toHaveLength(8);
-    expect(list.map((c) => c.model)).toEqual(['hero', 'hero', 'hero', 'hero', 'skeleton', 'skeleton', 'skeleton', 'skeleton']);
+    expect(list.map((c) => c.model)).toEqual(['hero', 'hero', 'hero', 'hero', 'skeleton', 'skeleton', 'kratos', 'skeleton']);
     expect(list.map((c) => c.sheet)).toEqual(Array.from({ length: 8 }, (_, n) => `/sprites/char-${n}.png`));
     for (const c of list) expect(c.atlas).toBe(c.model);
   });
@@ -64,6 +64,6 @@ describe('os personagens', () => {
     expect(new Set(list.map((c) => c.color)).size).toBe(8);
     for (const c of list) expect(c.color).toMatch(/^#[0-9a-f]{6}$/);
     expect(list.slice(0, 4).map((c) => c.name)).toEqual(['castanho', 'preto', 'loiro', 'ruivo']);
-    expect(list.slice(4).map((c) => c.name)).toEqual(['vermelho', 'azul', 'verde', 'roxo']);
+    expect(list.slice(4).map((c) => c.name)).toEqual(['vermelho', 'azul', 'kratos', 'roxo']);
   });
 });

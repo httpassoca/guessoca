@@ -1,12 +1,12 @@
 /**
  * `bun run sprites`: roda as receitas sobre os pacotes em `assets-src/` (fora do git, ADR 0007) e escreve as folhas que o
  * jogo usa em `apps/web/public/sprites/` (`char-0.png` … `char-7.png`, uma por personagem) e os atlas em
- * `apps/web/src/lib/sprites/` (`hero.json`, `skeleton.json` e `characters.json`, que liga cada personagem ao seu).
+ * `apps/web/src/lib/sprites/` (`hero.json`, `skeleton.json`, `kratos.json` e `characters.json`, que liga cada personagem ao seu).
  * Só a saída vai para o git; o CI e o Docker nunca precisam dos pacotes.
  * O telhado (objetos em grade de texto e a cidade ao fundo) não usa o pacote e sai primeiro, mesmo sem ele.
  *
  * Ordem: `rooftop.png` + `skyline-*.png` + `rooftop.json` (de `rooftop.ts` e `skyline.ts`); depois cada modelo de
- * `models` (`hero.ts`, `skeleton.ts`), com as folhas nos lugares que `characters.ts` dá a ele; `characters.json`;
+ * `models` (`hero.ts`, `skeleton.ts`, `kratos.ts`), com as folhas nos lugares que `characters.ts` dá a ele; `characters.json`;
  * `emotes-<língua>.png` e `emotes.json` (`emotes.ts`); e por fim apaga nomes antigos que não existem mais. É o único
  * arquivo que toca o disco (com `png.ts`); as receitas são puras. `bun run sprites:preview` (`preview.ts`) lê o que
  * sai daqui e amplia para conferir.
@@ -16,7 +16,9 @@ import { join, resolve } from 'node:path';
 import { emoteSheet, type EmoteLang } from './emotes';
 import { characters } from './characters';
 import { buildHero, ANIMATIONS } from './hero';
+import { buildKratos } from './kratos';
 import { buildSkeleton, SHEETS as SKELETON_SHEETS } from './skeleton';
+import { readGifStrip } from './gif';
 import { rooftopSheet } from './rooftop';
 import { SKYLINES, skyline } from './skyline';
 import { readPng, writePng } from './png';
@@ -40,8 +42,8 @@ writeFileSync(join(atlasOut, 'rooftop.json'), JSON.stringify({ ...rooftop.atlas,
 console.log(`telhado: ${Object.keys(rooftop.atlas.frames).length} objetos em ${rooftop.sheet.width}×${rooftop.sheet.height}; cidade: ${skylines.map((s) => `${s.w}×${s.h}`).join(', ')}`);
 
 /**
- * Os dois modelos de personagem, cada um do seu pacote (fora do git). Sem um pacote, aquele modelo fica como está (as
- * folhas e o atlas já no git) e o outro sai assim mesmo; no fim, o comando diz o que faltou e sai com erro.
+ * Os modelos de personagem, cada um do seu pacote (fora do git). Sem um pacote, aquele modelo fica como está (as
+ * folhas e o atlas já no git) e os outros saem assim mesmo; no fim, o comando diz o que faltou e sai com erro.
  *
  * Como mudar: um modelo novo é mais uma entrada aqui — `model` (o nome em `Model` de `characters.ts`, e do atlas
  * `<model>.json`), `pack` (a pasta em `assets-src/`), `how` (o que dizer quando falta), `files` (nome lógico → arquivo,
@@ -63,7 +65,16 @@ const models = [
     files: SKELETON_SHEETS.map((n) => [n, `${n}.png`] as const),
     build: buildSkeleton,
   },
+  {
+    model: 'kratos' as const,
+    pack: join(root, 'assets-src/kratos'),
+    how: 'Copie o kratos.gif (o giro de 8 quadros de 64×64) para assets-src/kratos/ (ver README).',
+    files: [['ROTATION', 'kratos.gif'] as const],
+    build: buildKratos,
+  },
 ];
+/** lê uma folha do pacote: PNG, ou GIF como folha de uma linha (um quadro por célula) */
+const readSheet = (path: string) => (path.endsWith('.gif') ? readGifStrip(path) : readPng(path));
 const list = characters();
 const missing: string[] = [];
 for (const m of models) {
@@ -73,7 +84,7 @@ for (const m of models) {
     missing.push(m.model);
     continue;
   }
-  const built = m.build(Object.fromEntries(m.files.map(([name, file]) => [name, readPng(join(m.pack, file))])));
+  const built = m.build(Object.fromEntries(m.files.map(([name, file]) => [name, readSheet(join(m.pack, file))])));
   const slots = list.flatMap((c, n) => (c.model === m.model ? [n] : []));
   slots.forEach((n, i) => writePng(join(out, `char-${n}.png`), built.sheets[i]));
   writeFileSync(join(atlasOut, `${m.model}.json`), JSON.stringify(built.atlas, null, 2) + '\n');
