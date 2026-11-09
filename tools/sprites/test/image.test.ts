@@ -1,6 +1,9 @@
 import { describe, expect, test } from 'bun:test';
 import { parseGrid } from '../src/grid';
-import { blank, blit, bounds, components, crop, dropComponents, eraseColors, getPixel, hexOf, palette, rgbOf, setPixel, solidify, swapColors } from '../src/image';
+import {
+  blank, blit, bounds, components, crop, dropComponents, eraseColors, flipY, getPixel, hexOf, keepColors, palette, rgbOf, rotate90, setPixel, shear, solidify,
+  squashRows, stretchRows, swapColors, translate, under, type Image,
+} from '../src/image';
 
 const P = { r: 'ff0000', g: '00ff00', b: '0000ff', w: 'ffffff' };
 
@@ -89,5 +92,77 @@ describe('recortar, colar, limites', () => {
       ..g.
     `, P))).toEqual({ x: 1, y: 1, w: 2, h: 2 });
     expect(bounds(blank(3, 3))).toBeNull();
+  });
+});
+
+describe('transformações para desenhar quadros novos', () => {
+  const col = (img: Image, x: number) => [...Array(img.height)].map((_, y) => (getPixel(img, x, y)[3] ? hexOf(...(getPixel(img, x, y).slice(0, 3) as [number, number, number])) : '.'));
+  const rows = (img: Image) => [...Array(img.height)].map((_, y) => [...Array(img.width)].map((_, x) => {
+    const p = getPixel(img, x, y);
+    return p[3] ? Object.entries(P).find(([, h]) => h === hexOf(p[0], p[1], p[2]))![0] : '.';
+  }).join(''));
+
+  test('mover desloca tudo e o que sai some', () => {
+    expect(rows(translate(parseGrid('rg.', P), 1, 0))).toEqual(['.rg']);
+    expect(rows(translate(parseGrid('rg.', P), -1, 0))).toEqual(['g..']);
+    expect(rows(translate(parseGrid('r\ng', P), 0, 1))).toEqual(['.', 'r']);
+  });
+
+  test('inclinar empurra as linhas de cima para a frente, a partir do pé', () => {
+    const img = parseGrid(`
+      r...
+      r...
+      r...
+      g...
+    `, P);
+    // 1 pixel a cada 2 linhas acima da linha 3
+    expect(rows(shear(img, 0.5, 3))).toEqual(['.r..', '.r..', 'r...', 'g...']);
+  });
+
+  test('achatar tira linhas e desce o que está em cima; o chão fica', () => {
+    const img = parseGrid(`
+      r
+      g
+      b
+      w
+    `, P);
+    expect(rows(squashRows(img, 1, 2))).toEqual(['.', '.', 'r', 'w']);
+  });
+
+  test('esticar repete uma linha e sobe o que está em cima; o chão fica', () => {
+    const img = parseGrid(`
+      .
+      .
+      r
+      g
+      w
+    `, P);
+    expect(rows(stretchRows(img, 3, 2))).toEqual(['r', 'g', 'g', 'g', 'w']);
+  });
+
+  test('girar 90° no sentido do relógio: o que aponta para a esquerda passa a apontar para cima', () => {
+    const img = parseGrid(`
+      rg
+      b.
+    `, P);
+    const out = rotate90(img);
+    expect([out.width, out.height]).toEqual([2, 2]);
+    expect(rows(out)).toEqual(['br', '.g']);
+    expect(rows(rotate90(parseGrid('rgb', P)))).toEqual(['r', 'g', 'b']);
+  });
+
+  test('espelhar na vertical', () => {
+    expect(rows(flipY(parseGrid('r\ng', P)))).toEqual(['g', 'r']);
+  });
+
+  test('ficar só com algumas cores', () => {
+    expect(palette(keepColors(parseGrid('rgb', P), ['00FF00']))).toEqual(new Set(['00ff00']));
+  });
+
+  test('colar por baixo só preenche o que é transparente', () => {
+    const dst = parseGrid('r..', P);
+    under(dst, parseGrid('bbb', P), 0, 0);
+    expect(rows(dst)).toEqual(['rbb']);
+    expect(col(dst, 0)).toEqual(['ff0000']);
   });
 });

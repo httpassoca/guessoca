@@ -1,0 +1,58 @@
+[
+  {
+    "model": "hero",
+    "name": "castanho",
+    "color": "#7d5556",
+    "sheet": "/sprites/char-0.png",
+    "atlas": "hero"
+  },
+  {
+    "model": "hero",
+    "name": "preto",
+    "color": "#2c2838",
+    "sheet": "/sprites/char-1.png",
+    "atlas": "hero"
+  },
+  {
+    "model": "hero",
+    "name": "loiro",
+    "color": "#d9a441",
+    "sheet": "/sprites/char-2.png",
+    "atlas": "hero"
+  },
+  {
+    "model": "hero",
+    "name": "ruivo",
+    "color": "#b9452a",
+    "sheet": "/sprites/char-3.png",
+    "atlas": "hero"
+  },
+  {
+    "model": "skeleton",
+    "name": "vermelho",
+    "color": "#982b2b",
+    "sheet": "/sprites/char-4.png",
+    "atlas": "skeleton"
+  },
+  {
+    "model": "skeleton",
+    "name": "azul",
+    "color": "#2f50ad",
+    "sheet": "/sprites/char-5.png",
+    "atlas": "skeleton"
+  },
+  {
+    "model": "skeleton",
+    "name": "verde",
+    "color": "#2e7d3b",
+    "sheet": "/sprites/char-6.png",
+    "atlas": "skeleton"
+  },
+  {
+    "model": "skeleton",
+    "name": "roxo",
+    "color": "#6c2fa3",
+    "sheet": "/sprites/char-7.png",
+    "atlas": "skeleton"
+  }
+]

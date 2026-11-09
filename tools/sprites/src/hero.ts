@@ -1,12 +1,11 @@
 /**
- * A receita do personagem (ADR 0007): das folhas do pacote da Ozzbit Games, oito personagens iguais menos a cor do
- * cabelo, numa folha por personagem com uma linha por animação, e um atlas (`hero.json`) que vale para os oito.
+ * A receita do herói (ADR 0007): das folhas do pacote da Ozzbit Games, quatro personagens iguais menos a cor do
+ * cabelo, numa folha por personagem com uma linha por animação, e um atlas (`hero.json`) que vale para os quatro.
  * O empurrão é o golpe do pacote (combo_1 + combo_1_end) sem a espada: as cores da lâmina e do cabo são só dela e
  * saem por cor; o rastro branco do golpe sai por ser um pedaço quase todo branco solto do corpo.
  */
-import {
-  blank, blit, bounds, components, crop, dropComponents, eraseColors, palette, solidify, swapColors, trimThinAhead, type Hex, type Image,
-} from './image';
+import { ANIMATION_NAMES, layout, type AnimationName, type Atlas, type ModelSpec } from './atlas';
+import { bounds, components, crop, dropComponents, eraseColors, palette, solidify, swapColors, trimThinAhead, type Hex, type Image } from './image';
 
 /** Lado da célula das folhas do pacote. */
 export const CELL = 128;
@@ -20,23 +19,19 @@ export const ANIMATIONS = [
   { name: 'fall', from: ['fall'], fps: 12, loop: false },
   { name: 'fall_loop', from: ['fall_loop'], fps: 10, loop: true },
   { name: 'shove', from: ['combo_1', 'combo_1_end'], fps: 16, loop: false },
-] as const;
+] as const satisfies readonly { name: AnimationName; from: readonly string[]; fps: number; loop: boolean }[];
 
-export type AnimationName = (typeof ANIMATIONS)[number]['name'];
+if (ANIMATIONS.some((a, i) => a.name !== ANIMATION_NAMES[i])) throw new Error('as animações do herói fora da ordem do jogo');
 
 /** O cabelo castanho do pacote, do escuro ao claro: sombra, base, brilho. */
 export const HAIR: readonly [Hex, Hex, Hex] = ['4c2641', '7d5556', '9f95ab'];
 
-/** As oito cores de cabelo (sombra, base, brilho); a 0 é a original. A base é a cor do personagem na interface. */
+/** As quatro cores de cabelo (sombra, base, brilho) dos personagens 0–3; a 0 é a original. A base é a cor na interface. */
 export const HAIRS: readonly { name: string; ramp: readonly [Hex, Hex, Hex] }[] = [
   { name: 'castanho', ramp: HAIR },
   { name: 'preto', ramp: ['141220', '2c2838', '5d5873'] },
   { name: 'loiro', ramp: ['8a5a1e', 'd9a441', 'f7e39a'] },
   { name: 'ruivo', ramp: ['6b1f14', 'b9452a', 'ef9264'] },
-  { name: 'azul', ramp: ['1b2a6b', '3a5fd0', '9bb7ff'] },
-  { name: 'verde', ramp: ['1d4a2b', '3f944f', 'a0dc8e'] },
-  { name: 'prata', ramp: ['5f6172', 'aeb2c4', 'f2f3f8'] },
-  { name: 'lilás', ramp: ['46297a', '8a5cd6', 'cdb6ff'] },
 ];
 
 /** Cores que só a espada (lâmina azul, cabo laranja e dourado) usa no pacote. */
@@ -79,24 +74,23 @@ export function cells(sheet: Image): Image[] {
   return Array.from({ length: Math.floor(sheet.width / CELL) }, (_, i) => crop(sheet, i * CELL, 0, CELL, CELL));
 }
 
-export interface Atlas {
-  /** tamanho de cada quadro na folha */
-  frame: { w: number; h: number };
-  /** o ponto do quadro que fica no chão, entre os pés (o personagem é desenhado a partir dele) */
-  anchor: { x: number; y: number };
-  /** uma linha da folha por animação */
-  animations: Record<AnimationName, { row: number; frames: number; fps: number; loop: boolean }>;
-  /** um quadrado em volta da cabeça no primeiro quadro do parado: o rosto do personagem na interface */
-  head: { x: number; y: number; size: number };
-  /** as cores de cabelo, na ordem das folhas `hero-N.png` */
-  hairs: { name: string; color: string }[];
-  credit: string;
+/** O que a folha do herói leva além dos quadros: quantos, a velocidade e o crédito do pacote. */
+export const HERO_SPEC: ModelSpec = {
+  animations: Object.fromEntries(ANIMATIONS.map((a) => [a.name, { frames: 0, fps: a.fps, loop: a.loop }])) as ModelSpec['animations'],
+  credit: 'Ozzbit Games',
+};
+
+/** A cabeça: o cabelo no primeiro quadro do parado, esticado para baixo até pegar o rosto, num quadrado. */
+export function heroHead(idle: Image): Atlas['head'] {
+  const hairOnly = eraseColors(idle, [...palette(idle)].filter((c) => !HAIR.includes(c)));
+  const hb = bounds(hairOnly)!;
+  const size = Math.max(hb.w, hb.h + 6) + 2;
+  return { x: Math.max(0, Math.round(hb.x + hb.w / 2 - size / 2)), y: Math.max(0, hb.y - 1), size };
 }
 
 /**
- * Monta as folhas a partir das folhas do pacote (`sheets[nome]`). Todos os quadros são recortados pelo mesmo retângulo,
- * o menor que contém todos depois de tirar a espada, então o personagem não pula entre animações. Devolve uma folha por
- * cor de cabelo e o atlas.
+ * Monta as folhas a partir das folhas do pacote (`sheets[nome]`), recortadas pelo menor retângulo comum depois de tirar
+ * a espada (`layout`). Devolve uma folha por cor de cabelo (`HAIRS`) e o atlas.
  */
 export function buildHero(sheets: Readonly<Record<string, Image>>): { sheets: Image[]; atlas: Atlas } {
   const rows = ANIMATIONS.map((a) => a.from.flatMap((name) => {
@@ -104,36 +98,11 @@ export function buildHero(sheets: Readonly<Record<string, Image>>): { sheets: Im
     if (!sheet) throw new Error(`folha do pacote faltando: ${name}`);
     return cells(sheet).map((c) => solidify(a.name === 'shove' ? withoutSword(c) : c));
   }));
-
-  // o retângulo comum a todos os quadros
-  let minX = CELL, minY = CELL, maxX = 0, maxY = 0;
-  for (const f of rows.flat()) {
-    const b = bounds(f);
-    if (!b) continue;
-    minX = Math.min(minX, b.x); minY = Math.min(minY, b.y); maxX = Math.max(maxX, b.x + b.w); maxY = Math.max(maxY, b.y + b.h);
-  }
-  const w = maxX - minX, h = maxY - minY;
-  // os pés: o meio do parado, na linha de baixo
   const idle = bounds(rows[0][0])!;
-  const anchor = { x: Math.round(idle.x + idle.w / 2) - minX, y: h };
-
-  const cols = Math.max(...rows.map((r) => r.length));
-  const base = blank(cols * w, rows.length * h);
-  rows.forEach((frames, row) => frames.forEach((f, col) => blit(base, crop(f, minX, minY, w, h), col * w, row * h)));
-
-  // a cabeça: o cabelo no primeiro quadro do parado, esticado para baixo até pegar o rosto, num quadrado
-  const hairOnly = eraseColors(crop(rows[0][0], minX, minY, w, h), [...palette(rows[0][0])].filter((c) => !HAIR.includes(c)));
-  const hb = bounds(hairOnly)!;
-  const size = Math.max(hb.w, hb.h + 6) + 2;
-  const head = { x: Math.max(0, Math.round(hb.x + hb.w / 2 - size / 2)), y: Math.max(0, hb.y - 1), size };
-
-  const atlas: Atlas = {
-    frame: { w, h },
-    anchor,
-    head,
-    animations: Object.fromEntries(ANIMATIONS.map((a, row) => [a.name, { row, frames: rows[row].length, fps: a.fps, loop: a.loop }])) as Atlas['animations'],
-    hairs: HAIRS.map((hair) => ({ name: hair.name, color: `#${hair.ramp[1]}` })),
-    credit: 'Ozzbit Games',
+  const spec: ModelSpec = {
+    ...HERO_SPEC,
+    animations: Object.fromEntries(ANIMATIONS.map((a, i) => [a.name, { ...HERO_SPEC.animations[a.name], frames: rows[i].length }])) as ModelSpec['animations'],
   };
-  return { sheets: HAIRS.map((hair) => recolorHair(base, hair.ramp)), atlas };
+  const { sheet, atlas } = layout(rows, spec, { anchorX: idle.x + idle.w / 2, head: heroHead });
+  return { sheets: HAIRS.map((hair) => recolorHair(sheet, hair.ramp)), atlas };
 }

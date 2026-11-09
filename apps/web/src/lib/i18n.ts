@@ -22,7 +22,7 @@ const pt = {
   'home.code': 'Entrar com código',
   'home.codeInvalid': 'O código tem quatro letras (sem I nem O)',
   'home.enter': 'Entrar',
-  'credit.character': 'Personagem: Ozzbit Games',
+  'credit.character': 'Herói: Ozzbit Games',
   'nav.home': 'Início',
   // conexão
   'status.connecting': 'conectando…',
@@ -222,7 +222,7 @@ const en: Record<MsgKey, string> = {
   'home.code': 'Join with a code',
   'home.codeInvalid': 'The code is four letters (no I or O)',
   'home.enter': 'Join',
-  'credit.character': 'Character: Ozzbit Games',
+  'credit.character': 'Hero: Ozzbit Games',
   'nav.home': 'Home',
   'status.connecting': 'connecting…',
   'status.open': 'live',

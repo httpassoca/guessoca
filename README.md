@@ -73,8 +73,9 @@ apps/web           Vite + Svelte 5 + PixiJS v8 + dssoca
                            desistir ou votar, os post-its como posso vê-los, o ranking, a contagem regressiva
   src/lib/image.ts         a imagem do post-it: reduz a 512 px, WebP baixando a qualidade até caber, sobe por POST
   src/lib/effects.ts       "efeitos de tela" (os filtros de filme) ligados ou não, por navegador (localStorage)
-  src/lib/sprites/         os atlas gerados (`hero.json`, `emotes.json`, `rooftop.json`), `hero.ts`, que diz onde está cada
-                           quadro do personagem, e `rooftop.ts`, o mesmo para os objetos do telhado e as faixas da cidade
+  src/lib/sprites/         os atlas gerados (`characters.json`, `hero.json`, `skeleton.json`, `emotes.json`, `rooftop.json`),
+                           `characters.ts`, que diz de que modelo é cada personagem, a folha, a cor e onde está cada quadro
+                           no atlas do modelo, e `rooftop.ts`, o mesmo para os objetos do telhado e as faixas da cidade
   src/lib/world/            o telhado no navegador: controls (teclas → `Input`), loop (60 passos por segundo), presence (manda
                            a própria ~15/s e um batimento por segundo parado; interpola a dos outros), crowd (quem desenhar,
                            jogadores falsos parados em lugares fixos), view (escala inteira, onde vão o post-it e o balão),
@@ -100,9 +101,13 @@ apps/web           Vite + Svelte 5 + PixiJS v8 + dssoca
                            verdade, o modelo de vista, os sons da sala, volume e mudo, e os efeitos que rendem amostras
 
 tools/sprites      `bun run sprites` (@guess/sprites): as receitas que geram as folhas a partir do pacote (ver Sprites)
-  src/image.ts       imagens RGBA puras: recortar, colar, trocar e apagar cores, pedaços soltos, traços finos
+  src/image.ts       imagens RGBA puras: recortar, colar, trocar e apagar cores, pedaços soltos, traços finos, e as
+                     transformações para desenhar quadros novos (mover, inclinar, achatar, esticar, girar, colar por baixo)
   src/grid.ts        pixel art escrita como texto (um caractere por pixel, `.` transparente)
-  src/hero.ts        o personagem: fatia as folhas do pacote, tira a espada do golpe, oito cores de cabelo, atlas
+  src/atlas.ts       o que os dois modelos têm em comum: as animações na ordem do jogo e a montagem da folha e do atlas
+  src/hero.ts        o herói: fatia as folhas do pacote, tira a espada do golpe, quatro cores de cabelo
+  src/skeleton.ts    o cavaleiro esqueleto: tira o rastro dos golpes, desenha correr, pular e cair, quatro capas
+  src/characters.ts  os oito personagens (0–3 herói, 4–7 esqueleto), que viram `characters.json`
   src/emotes.ts      os balões `?`, `!`, `haha`, "eu?"/"me?" com uma fonte 3×5 em texto
   src/rooftop.ts     o telhado em grades de texto: a paleta, a prancheta (`Sketch`) que carimba grades, tampo, muretas,
                      fachadas, as três caixas do mapa (ar-condicionado, chaminé, caixa-d'água), antenas, letreiros de neon,
@@ -134,22 +139,38 @@ O mouse é só para a interface.
 
 ## Sprites
 
-O personagem é o "male hero" (versão grátis) da [Ozzbit Games](https://ozzbit-games.itch.io), com licença só para uso
-pessoal e não comercial, modificações permitidas e crédito obrigatório (ADR 0007). Por isso o pacote original não entra no
-git: fica em `assets-src/` (ignorado), e só as folhas que o pipeline gera são versionadas em `apps/web/public/sprites/`
-(os atlas em `apps/web/src/lib/sprites/`). O CI e o Docker usam o que está versionado e nunca precisam do pacote.
+Há dois modelos de personagem. O herói é o "male hero" (versão grátis) da [Ozzbit Games](https://ozzbit-games.itch.io),
+com licença só para uso pessoal e não comercial, modificações permitidas e crédito obrigatório (ADR 0007). O cavaleiro
+esqueleto é arte do dono do jogo, sem restrição nem crédito (emenda da ADR 0007). Os dois pacotes ficam fora do git, em
+`assets-src/` (ignorado), e só as folhas que o pipeline gera são versionadas em `apps/web/public/sprites/` (os atlas em
+`apps/web/src/lib/sprites/`). O CI e o Docker usam o que está versionado e nunca precisam dos pacotes.
 
 ```
 cp -r ~/dev/tmp/male_hero_free assets-src/   # uma vez, na máquina do dono
+cp -r <folhas do esqueleto> assets-src/skeleton/   # IDLE.png, WALK.png, FWD_SWING.png, DOWN_SWING.png, ...
 bun run sprites                             # refaz as folhas e os atlas
 ```
 
+Sem um dos pacotes, `bun run sprites` diz qual falta, deixa as folhas daquele modelo como estão, faz todo o resto e sai
+com erro.
+
 O que sai:
 
-- `hero-0.png` … `hero-7.png`: os oito personagens, iguais menos o cabelo (castanho, preto, loiro, ruivo, azul, verde,
-  prata, lilás). Uma linha por animação: parado, andando, correndo, pulo, queda, queda em loop e empurrão. O empurrão é o
-  golpe do pacote sem a espada: as cores da lâmina e do cabo saem por cor, o rastro branco por ser uma mancha branca
-  grande, e o contorno fino da lâmina por estar à frente do corpo.
+- `char-0.png` … `char-7.png`: uma folha por personagem, com uma linha por animação, na mesma ordem nos dois modelos:
+  parado, andando, correndo, pulo, queda, queda em loop e empurrão.
+  - `char-0` … `char-3`: o herói, igual menos o cabelo (castanho, preto, loiro, ruivo). O empurrão é o golpe do pacote
+    sem a espada: as cores da lâmina e do cabo saem por cor, o rastro branco por ser uma mancha branca grande, e o
+    contorno fino da lâmina por estar à frente do corpo.
+  - `char-4` … `char-7`: o cavaleiro esqueleto, igual menos a capa (vermelha, azul, verde, roxa). Fica com a espada em
+    tudo; dos golpes sai só o rastro branco (mancha branca grande demais para ser osso, ou ponta solta toda branca). A arte
+    não tem correr, pular nem cair, então a receita desenha: correr é o andar inclinado 4 pixels para a frente com a capa
+    arrastando atrás; pular é o parado agachado, depois o golpe de cima (espada erguida, um joelho para cima) esticado,
+    com a capa puxada para baixo e a perna encolhida; cair é esse corpo com a capa do golpe para a frente girada 90° para
+    voar para cima atrás das costas. O empurrão é o golpe para a frente, cinco quadros, com o pé de trás no lugar do
+    parado.
+- `characters.json`: os oito, cada um com o modelo, o nome da cor, a cor na interface, a folha e o atlas. Um atlas por
+  modelo (`hero.json`, `skeleton.json`): tamanho do quadro, âncora (entre os pés), a cabeça, o parado, as linhas das
+  animações com quadros, fps e loop, e o crédito (ou null).
 - `emotes-pt-BR.png` e `emotes-en-US.png`: os balões das teclas 1–4; só o "eu?"/"me?" muda de uma para a outra.
 - `rooftop.png` (atlas em `rooftop.json`): o telhado neon-noir, todo desenhado em grades de texto em
   `tools/sprites/src/rooftop.ts`, com uma paleta só (azul e roxo fundos, concreto molhado, neon magenta e ciano, janela
@@ -166,8 +187,13 @@ O que sai:
 
 ### Pedir um personagem ou objeto novo
 
-- **Outra cor de cabelo**: uma rampa a mais (sombra, base, brilho) em `HAIRS` em `tools/sprites/src/hero.ts`. Hoje são
-  oito porque a sala tem oito pessoas.
+- **Outra cor de cabelo** ou **outra capa**: troque uma rampa em `HAIRS` (sombra, base, brilho) em
+  `tools/sprites/src/hero.ts` ou em `CAPES` (sombra, base) em `tools/sprites/src/skeleton.ts`. São oito personagens
+  porque a sala tem oito pessoas: quatro de cada modelo, na ordem de `characters.ts`. A cor do personagem na interface é
+  a base da rampa; atualize `--gs-char-N` em `apps/web/src/app.css` (o teste confere).
+- **Variantes do esqueleto**: a capa é `771818` (sombra) e `982b2b` (base), os únicos vermelhos da arte além do olho
+  (`fe0707`, que fica). Diga a cor da capa nova, ou outra peça (a espada, os ossos) e a cor; uma animação nova ou
+  melhor sai de uma folha nova do dono em `assets-src/skeleton/` (a receita prefere arte de verdade ao que desenha).
 - **Outra peça do personagem** (cachecol, camisa…): o mesmo jeito, trocando as cores dessa peça; diga qual peça e a cor.
   Para achar as cores de uma peça, o pipeline tem `palette()`.
 - **Outro balão**: uma entrada em `EMOTES` e, se tiver letra nova, a letra em `FONT` (3×5) em `tools/sprites/src/emotes.ts`.
@@ -198,5 +224,6 @@ certbot) são guiados por `bash deploy/wizard.sh`, que termina provando HTTPS e 
 
 ## Créditos
 
-Personagem: [Ozzbit Games](https://ozzbit-games.itch.io) (pacote "male hero", uso pessoal e não comercial). O pacote original
-não está no repositório; só as folhas geradas pelo pipeline (ADR 0007). Guessoca não é comercial e não tem anúncios.
+Herói: [Ozzbit Games](https://ozzbit-games.itch.io) (pacote "male hero", uso pessoal e não comercial). O pacote original
+não está no repositório; só as folhas geradas pelo pipeline (ADR 0007). O cavaleiro esqueleto é arte do dono do jogo.
+Guessoca não é comercial e não tem anúncios.
