@@ -25,3 +25,10 @@ export const sheetSize = {
   w: Math.max(...Object.values(atlas.animations).map((a) => a.frames)) * atlas.frame.w,
   h: Object.keys(atlas.animations).length * atlas.frame.h,
 };
+
+/** O índice do quadro da animação `name` depois de `elapsed` ms nela, no fps da folha: em loop dá a volta, sem loop para no último. */
+export function frameIndex(name: AnimationName, elapsed: number): number {
+  const a = atlas.animations[name];
+  const n = Math.floor((Math.max(0, elapsed) * a.fps) / 1000);
+  return a.loop ? n % a.frames : Math.min(a.frames - 1, n);
+}

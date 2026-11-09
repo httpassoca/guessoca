@@ -2,6 +2,7 @@
   import type { Snippet } from 'svelte';
   import { t } from '../i18n.svelte';
   import type { PostitCard } from '../room/view';
+  import { tiltOf } from '../world/heads';
   import Swatch from './Swatch.svelte';
 
   /**
@@ -11,11 +12,7 @@
   let { card, children }: { card: PostitCard; children?: Snippet } = $props();
 
   /** um ângulo por dono, sempre o mesmo */
-  const tilt = $derived.by(() => {
-    let h = 0;
-    for (const c of card.owner.id) h = (h * 31 + c.charCodeAt(0)) | 0;
-    return ((Math.abs(h) % 7) - 3) * 0.9;
-  });
+  const tilt = $derived(tiltOf(card.owner.id));
 </script>
 
 <figure class="gs-postit" class:turn={card.turn} class:got={card.status === 'got'} class:gaveup={card.status === 'gaveUp'} class:off={!card.owner.connected} style="--tilt: {tilt}deg">

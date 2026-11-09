@@ -50,6 +50,12 @@
           <li><span>{t('keys.skip')}</span><Kbd keys={['Tab']} /></li>
           <li><span>{t('notepad.title')}</span><Kbd keys={['N']} /></li>
           <li><span>{t('menu.title')}</span><Kbd keys={['Esc']} /></li>
+          <li><span>{t('keys.walk')}</span><span><Kbd keys={['A', 'D']} /> <Kbd keys={['←', '→']} /></span></li>
+          <li><span>{t('keys.depth')}</span><span><Kbd keys={['W', 'S']} /> <Kbd keys={['↑', '↓']} /></span></li>
+          <li><span>{t('keys.run')}</span><Kbd keys={['Shift']} /></li>
+          <li><span>{t('keys.jump')}</span><Kbd keys={[t('keys.space')]} /></li>
+          <li><span>{t('keys.shove')}</span><Kbd keys={['J']} /></li>
+          <li><span>{t('keys.emotes')}</span><Kbd keys={['1', '2', '3', '4']} /></li>
         </ul>
       </div>
 

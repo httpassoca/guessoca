@@ -39,13 +39,69 @@ html, body { margin: 0; min-height: 100%; background: var(--ss-bg); }
 .gs-swatch { display: inline-grid; place-items: center; width: 22px; height: 22px; flex: none; border-radius: var(--ss-radius-1); background-color: var(--ss-bg-inset); background-repeat: no-repeat; image-rendering: pixelated; color: var(--ss-fg-faint); font: 700 var(--ss-ui-xs) var(--ss-font-mono); box-shadow: inset 0 0 0 1px var(--c, var(--ss-line)); }
 .gs-swatch.none { background: var(--ss-bg-inset); color: var(--ss-fg-faint); }
 
-/* a sala depois de entrar: barra em cima, painel da fase embaixo */
-.gs-room { min-height: 100vh; box-sizing: border-box; display: flex; flex-direction: column; gap: 12px; padding: 12px 16px 24px; font-family: var(--ss-font-body); color: var(--ss-fg); }
-.gs-bar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 8px 12px; }
+/* a sala depois de entrar: o telhado atrás de tudo; por cima, a barra, a vez no meio, a coluna da fase à direita e a turma embaixo */
+.gs-room { position: fixed; inset: 0; overflow: hidden; font-family: var(--ss-font-body); color: var(--ss-fg); }
+.gs-world { position: absolute; inset: 0; z-index: 0; }
+.gs-world-canvas { display: block; width: 100%; height: 100%; image-rendering: pixelated; }
+.gs-world-failed { position: absolute; left: 16px; bottom: 140px; z-index: 1; max-width: 420px; margin: 0; color: var(--ss-fg-faint); font-size: var(--ss-ui-sm); }
+.gs-hud { position: absolute; inset: 0; z-index: 2; box-sizing: border-box; display: flex; flex-direction: column; gap: 10px; padding: 12px; pointer-events: none; }
+.gs-hud > *, .gs-center > *, .gs-side { pointer-events: auto; }
+.gs-bar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 8px 12px; flex: none; }
 .gs-bar .meta { color: var(--ss-fg-faint); font-size: var(--ss-ui-xs); }
 .gs-spacer { flex: 1; }
 .gs-code.small { font-size: var(--ss-size-h3); }
-.gs-main { width: min(1100px, 100%); margin: 0 auto; display: flex; flex-direction: column; gap: 12px; }
+.gs-mid { flex: 1; min-height: 0; display: flex; gap: 12px; align-items: stretch; pointer-events: none; }
+.gs-center { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: center; pointer-events: none; }
+.gs-side { width: 440px; max-width: 45vw; flex: none; box-sizing: border-box; overflow: auto; overscroll-behavior: contain; padding: 10px; border-radius: var(--ss-radius-2);
+  background: color-mix(in srgb, var(--ss-bg) 88%, transparent); box-shadow: 0 0 0 1px var(--ss-line); }
+/* na coluna estreita, os painéis empilham */
+.gs-side .gs-cols { grid-template-columns: minmax(0, 1fr); }
+.gs-side .gs-cols .wide { grid-column: auto; }
+.gs-side .gs-board { grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); }
+.gs-side .gs-postit .paper { max-width: 130px; }
+.gs-side .gs-postit .text { font-size: 0.9rem; }
+.gs-side .gs-postit .paper.hidden .q { font-size: 2.5rem; }
+.gs-turnbar { width: min(620px, 100%); display: flex; flex-direction: column; gap: 10px; }
+.gs-turnbar .gs-block { background: color-mix(in srgb, var(--ss-bg-elev) 94%, transparent); }
+
+/* post-its sobre as cabeças (posicionados pelo WorldRuntime a cada quadro) */
+.gs-heads { position: absolute; inset: 0; z-index: 1; overflow: hidden; pointer-events: none; }
+.gs-head { position: absolute; left: 0; top: 0; visibility: hidden; will-change: transform; }
+.gs-head .inner { position: absolute; left: 0; bottom: 0; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: 3px; }
+.gs-head .paper { box-sizing: border-box; width: 78px; min-height: 52px; max-height: 96px; padding: 5px 4px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; overflow: hidden;
+  background: linear-gradient(180deg, var(--gs-paper) 0%, var(--gs-paper) 82%, var(--gs-paper-edge) 100%); color: var(--gs-ink); transform: rotate(var(--tilt, 0deg));
+  box-shadow: 0 3px 6px rgb(0 0 0 / 0.45); font: 700 11px/1.1 var(--ss-font-display); text-align: center; }
+.gs-head .paper img { max-width: 100%; max-height: 44px; object-fit: contain; }
+.gs-head .paper .text { overflow-wrap: anywhere; }
+.gs-head .paper .blank { color: rgb(0 0 0 / 0.35); }
+.gs-head .paper.hidden .q { font-size: 28px; color: rgb(0 0 0 / 0.55); }
+.gs-head .tag { padding: 1px 6px; border-radius: 3px; background: rgb(0 0 0 / 0.6); color: #fff; font: 600 11px/1.3 var(--ss-font-body); white-space: nowrap; max-width: 120px; overflow: hidden; text-overflow: ellipsis; }
+.gs-head .mine .tag { background: var(--ss-accent); color: var(--ss-fg-on-primary); }
+
+/* a faixa da turma, embaixo */
+.gs-roster { flex: none; align-self: center; max-width: 100%; box-sizing: border-box; display: flex; align-items: flex-end; gap: 16px; padding: 8px 12px; overflow-x: auto; background: color-mix(in srgb, var(--ss-bg) 85%, transparent); }
+.gs-roster .cards { list-style: none; margin: 0; padding: 4px 0 0; display: flex; gap: 12px; align-items: flex-end; }
+.gs-mini { display: flex; flex-direction: column; align-items: center; gap: 4px; flex: none; }
+.gs-mini .paper { position: relative; box-sizing: border-box; width: 64px; height: 56px; padding: 4px; display: flex; flex-direction: column; align-items: center; justify-content: center; overflow: hidden;
+  background: linear-gradient(180deg, var(--gs-paper) 0%, var(--gs-paper) 82%, var(--gs-paper-edge) 100%); color: var(--gs-ink); transform: rotate(var(--tilt, 0deg));
+  box-shadow: 0 2px 5px rgb(0 0 0 / 0.4); font: 700 10px/1.1 var(--ss-font-display); text-align: center; }
+.gs-mini .paper img { max-width: 100%; max-height: 30px; object-fit: contain; }
+.gs-mini .paper .text { overflow-wrap: anywhere; }
+.gs-mini .paper.hidden .q { font-size: 24px; color: rgb(0 0 0 / 0.55); }
+.gs-mini .paper .blank { color: rgb(0 0 0 / 0.35); }
+.gs-mini .mark { position: absolute; right: 2px; top: 2px; padding: 0 3px; border-radius: 3px; font: 700 10px/1.3 var(--ss-font-mono); }
+.gs-mini .mark.got { background: var(--ss-green); color: #fff; }
+.gs-mini .mark.gaveup { background: rgb(0 0 0 / 0.55); color: #fff; }
+.gs-mini .name { display: inline-flex; align-items: center; gap: 4px; max-width: 90px; font-size: var(--ss-ui-xs); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.gs-mini.turn .paper { outline: 3px solid var(--ss-accent); outline-offset: 3px; }
+.gs-mini.turn .name { color: var(--ss-accent); font-weight: 700; }
+.gs-mini.got .paper { filter: saturate(0.6); }
+.gs-mini.gaveup .paper { filter: grayscale(0.7); opacity: 0.8; }
+.gs-mini.off { opacity: 0.45; }
+.gs-roster .ghosts { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding-left: 16px; border-left: 1px dashed var(--ss-line-strong); font-size: var(--ss-ui-xs); color: var(--ss-fg-muted); }
+.gs-roster .ghosts .lbl { font-family: var(--ss-font-mono); text-transform: uppercase; letter-spacing: 0.06em; color: var(--ss-fg-faint); }
+.gs-ghost { display: inline-flex; align-items: center; gap: 4px; }
+.gs-ghost.off { opacity: 0.45; }
 .gs-stack { display: flex; flex-direction: column; gap: 12px; }
 .gs-cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 12px; align-items: start; }
 .gs-cols .wide { grid-column: span 2; }

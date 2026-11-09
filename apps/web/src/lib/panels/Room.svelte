@@ -13,11 +13,15 @@
   import Menu from './Menu.svelte';
   import Notepad from './Notepad.svelte';
   import Playing from './Playing.svelte';
+  import Roster from './Roster.svelte';
+  import TurnBar from './TurnBar.svelte';
   import Writing from './Writing.svelte';
+  import World from '../world/World.svelte';
 
   /**
-   * A sala depois de entrar na turma: a barra de cima, o painel da fase (lobby, escrita, jogo, fim), o bloco (N), o menu
-   * (Esc) e o teclado. Tudo o que é decidido vem de `roomView`; aqui só se desenha e se pede.
+   * A sala depois de entrar na turma: o telhado sempre ligado atrás de tudo (`World`), e por cima a barra, a vez e a
+   * votação no meio, o painel da fase (lobby, escrita, jogo, fim) numa coluna à direita que se recolhe, a faixa da turma
+   * embaixo, o bloco (N), o menu (Esc) e o teclado. Tudo o que é decidido vem de `roomView`; aqui só se desenha e se pede.
    */
   let { remote, st, room, token, status }: { remote: RemoteRoom; st: RemoteState; room: RoomSnapshot; token: string; status: string } = $props();
 
@@ -31,6 +35,10 @@
 
   let menuOpen = $state(false);
   let notepadOpen = $state(false);
+  /** a coluna da direita (o painel da fase); recolhida, o telhado fica inteiro */
+  let sideOpen = $state(true);
+  let sideWidth = $state(0);
+  const showRoster = $derived(room.phase !== 'lobby');
   const dev = $derived(devTools(location, room.dev));
   const PHASE: Record<RoomSnapshot['phase'], MsgKey> = { lobby: 'phase.lobby', writing: 'phase.writing', playing: 'phase.playing', ended: 'phase.ended' };
 
@@ -61,6 +69,12 @@
     }
   }
 
+  /** Botão clicado com o mouse perde o foco: o Espaço é do telhado e não pode apertá-lo de novo. */
+  function onClick(e: MouseEvent) {
+    const el = document.activeElement;
+    if (e.detail > 0 && el instanceof HTMLButtonElement) el.blur();
+  }
+
   onMount(() => {
     // o personagem que este navegador escolheu da última vez, se estiver livre
     const c = characterToClaim(v, rememberedCharacter());
@@ -70,32 +84,44 @@
   });
 </script>
 
-<svelte:window onkeydown={onKey} />
+<svelte:window onkeydown={onKey} onclick={onClick} />
 
 <div class="gs-room">
-  <header class="ss-card gs-bar">
-    <span class="gs-code small">{room.code}</span>
-    <span class="ss-badge brand">{t(PHASE[room.phase])}</span>
-    {#if v.isGhost}<span class="ss-badge info">{t('badge.ghost')}</span>{/if}
-    <span class="meta" class:gs-warn={st.status === 'reconnecting'}>{status}</span>
-    <span class="gs-spacer"></span>
-    {#if v.offline.length}<span class="gs-hint">{t('bar.offline', { names: v.offline.map((m) => m.nickname).join(', ') })}</span>{/if}
-    {#if dev}<button class="ss-btn ghost" type="button" onclick={() => send({ type: 'addFake' })}>{t('dev.addFake')}</button>{/if}
-    <button class="ss-btn ghost" type="button" aria-pressed={notepadOpen} onclick={() => (notepadOpen = !notepadOpen)}>{t('notepad.title')} <Kbd keys={['N']} /></button>
-    <button class="ss-btn ghost" type="button" onclick={() => (menuOpen = true)}>{t('menu.title')} <Kbd keys={['Esc']} /></button>
-  </header>
+  <World {remote} {room} {v} blocked={menuOpen || notepadOpen} insetRight={sideOpen ? sideWidth + 24 : 0} />
 
-  <main class="gs-main">
-    {#if room.phase === 'lobby'}
-      <Lobby {v} {room} {send} />
-    {:else if room.phase === 'writing'}
-      <Writing {v} {room} {token} {send} />
-    {:else if room.phase === 'playing'}
-      <Playing {v} {room} {send} {turnLeft} {voteLeft} />
-    {:else}
-      <Ended {v} {room} {send} />
-    {/if}
-  </main>
+  <div class="gs-hud">
+    <header class="ss-card gs-bar">
+      <span class="gs-code small">{room.code}</span>
+      <span class="ss-badge brand">{t(PHASE[room.phase])}</span>
+      {#if v.isGhost}<span class="ss-badge info">{t('badge.ghost')}</span>{/if}
+      <span class="meta" class:gs-warn={st.status === 'reconnecting'}>{status}</span>
+      <span class="gs-spacer"></span>
+      {#if v.offline.length}<span class="gs-hint">{t('bar.offline', { names: v.offline.map((m) => m.nickname).join(', ') })}</span>{/if}
+      {#if dev}<button class="ss-btn ghost" type="button" onclick={() => send({ type: 'addFake' })}>{t('dev.addFake')}</button>{/if}
+      <button class="ss-btn ghost" type="button" aria-pressed={notepadOpen} onclick={() => (notepadOpen = !notepadOpen)}>{t('notepad.title')} <Kbd keys={['N']} /></button>
+      <button class="ss-btn ghost" type="button" aria-pressed={sideOpen} aria-controls="gs-side" onclick={() => (sideOpen = !sideOpen)}>{sideOpen ? t('side.hide') : t('side.show')}</button>
+      <button class="ss-btn ghost" type="button" onclick={() => (menuOpen = true)}>{t('menu.title')} <Kbd keys={['Esc']} /></button>
+    </header>
+
+    <div class="gs-mid">
+      <div class="gs-center">
+        {#if room.phase === 'playing'}<TurnBar {v} {room} {send} {turnLeft} {voteLeft} />{/if}
+      </div>
+      <aside id="gs-side" class="gs-side" hidden={!sideOpen} bind:offsetWidth={sideWidth} aria-label={t(PHASE[room.phase])}>
+        {#if room.phase === 'lobby'}
+          <Lobby {v} {room} {send} />
+        {:else if room.phase === 'writing'}
+          <Writing {v} {room} {token} {send} />
+        {:else if room.phase === 'playing'}
+          <Playing {v} {room} {send} />
+        {:else}
+          <Ended {v} {room} {send} />
+        {/if}
+      </aside>
+    </div>
+
+    {#if showRoster}<Roster {v} />{/if}
+  </div>
 
   {#if notepadOpen}<Notepad code={room.code} onclose={() => (notepadOpen = false)} />{/if}
   {#if menuOpen}<Menu {v} {room} {send} onrename={(n) => remote.rename(n)} onclose={() => (menuOpen = false)} />{/if}

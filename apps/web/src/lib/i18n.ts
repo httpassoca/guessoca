@@ -172,6 +172,18 @@ const pt = {
   'menu.moderator': 'Moderação',
   'menu.leave': 'Sair para o início',
   'menu.back': 'Voltar',
+  // telhado
+  'side.hide': 'Recolher painel',
+  'side.show': 'Mostrar painel',
+  'roster.title': 'A turma',
+  'world.failed': 'Este navegador não conseguiu desenhar o telhado (sem WebGL). O jogo segue nos painéis.',
+  'keys.walk': 'Andar',
+  'keys.depth': 'Para o fundo / para a frente',
+  'keys.run': 'Correr (segurando)',
+  'keys.jump': 'Pular',
+  'keys.space': 'Espaço',
+  'keys.shove': 'Empurrar',
+  'keys.emotes': 'Emotes: ? ! haha eu?',
 };
 export type MsgKey = keyof typeof pt;
 
@@ -327,6 +339,17 @@ const en: Record<MsgKey, string> = {
   'menu.moderator': 'Moderation',
   'menu.leave': 'Leave to home',
   'menu.back': 'Back',
+  'side.hide': 'Hide panel',
+  'side.show': 'Show panel',
+  'roster.title': 'Everyone',
+  'world.failed': "This browser couldn't draw the rooftop (no WebGL). The game goes on in the panels.",
+  'keys.walk': 'Walk',
+  'keys.depth': 'Back / front',
+  'keys.run': 'Run (hold)',
+  'keys.jump': 'Jump',
+  'keys.space': 'Space',
+  'keys.shove': 'Shove',
+  'keys.emotes': 'Emotes: ? ! haha me?',
 };
 
 export const messages: Record<Lang, Record<MsgKey, string>> = { 'pt-BR': pt, 'en-US': en };
