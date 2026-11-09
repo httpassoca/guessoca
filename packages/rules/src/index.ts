@@ -31,3 +31,5 @@ export function uniqueNickname(raw: string, taken: readonly string[]): string {
     if (!used.has(candidate.toLocaleLowerCase())) return candidate;
   }
 }
+
+export * from './game';
