@@ -1,9 +1,9 @@
 import { describe, expect, test } from 'bun:test';
 import { isTextField, keyAction, swallowsSpace, worldKey, type KeyContext } from '../src/lib/keys';
 
-const myTurn: KeyContext = { inTextField: false, canClaim: true, canSkip: true, canNotepad: true };
-const notMine: KeyContext = { inTextField: false, canClaim: false, canSkip: false, canNotepad: true };
-const typing: KeyContext = { inTextField: true, canClaim: true, canSkip: true, canNotepad: true };
+const myTurn: KeyContext = { inTextField: false, canClaim: true, canSkip: true, canNotepad: true, canPanel: true };
+const notMine: KeyContext = { inTextField: false, canClaim: false, canSkip: false, canNotepad: true, canPanel: true };
+const typing: KeyContext = { inTextField: true, canClaim: true, canSkip: true, canNotepad: true, canPanel: true };
 const press = (key: string, extra = {}) => ({ key, ...extra });
 
 describe('teclado', () => {
@@ -26,10 +26,21 @@ describe('teclado', () => {
     expect(keyAction(press('Escape'), lobby)).toBe('menu');
   });
 
+  test('P recolhe e mostra o painel, em qualquer fase; com o menu aberto não', () => {
+    expect(keyAction(press('p'), notMine)).toBe('panel');
+    expect(keyAction(press('P'), notMine)).toBe('panel');
+    const lobby: KeyContext = { ...notMine, canNotepad: false };
+    expect(keyAction(press('p'), lobby)).toBe('panel');
+    const menuOpen: KeyContext = { ...notMine, canPanel: false };
+    expect(keyAction(press('p'), menuOpen)).toBeNull();
+    expect(keyAction(press('p', { ctrlKey: true }), notMine)).toBeNull();
+  });
+
   test('num campo de texto as teclas são do texto; Esc só sai do campo', () => {
     expect(keyAction(press('Enter'), typing)).toBeNull();
     expect(keyAction(press('Tab'), typing)).toBeNull();
     expect(keyAction(press('n'), typing)).toBeNull();
+    expect(keyAction(press('p'), typing)).toBeNull();
     expect(keyAction(press('Escape'), typing)).toBe('blur');
   });
 
@@ -106,7 +117,7 @@ describe('teclado do telhado', () => {
   });
 
   test('as teclas do jogo não viram teclas do telhado, e vice-versa', () => {
-    for (const k of [{ key: 'Enter', code: 'Enter' }, { key: 'Tab', code: 'Tab' }, { key: 'n', code: 'KeyN' }, { key: 'Escape', code: 'Escape' }]) expect(worldKey(k, free)).toBeNull();
+    for (const k of [{ key: 'Enter', code: 'Enter' }, { key: 'Tab', code: 'Tab' }, { key: 'n', code: 'KeyN' }, { key: 'p', code: 'KeyP' }, { key: 'Escape', code: 'Escape' }]) expect(worldKey(k, free)).toBeNull();
     for (const k of [{ key: 'a', code: 'KeyA' }, { key: ' ', code: 'Space' }, { key: 'j', code: 'KeyJ' }, { key: '1', code: 'Digit1' }]) expect(keyAction(k, myTurn)).toBeNull();
   });
 

@@ -167,7 +167,7 @@ html, body { margin: 0; min-height: 100%; background: var(--ss-bg); }
  * da sala à esquerda (recolhível), a vez no meio de cima, o ranking no canto de cima à direita e o bloco embaixo.
  * As medidas batem com `layout.ts` (EDGE 12, GAP 12).
  */
-.gs-room { --gs-edge: 12px; --gs-corner-h: 36px; --gs-side-w: 380px; --gs-rank-w: 240px;
+.gs-room { --gs-edge: 12px; --gs-corner-h: 36px; --gs-side-w: 480px; --gs-rank-w: 240px;
   position: fixed; inset: 0; overflow: hidden; font-family: var(--ss-font-body); color: var(--ss-fg); }
 .gs-world { position: absolute; inset: 0; z-index: 0; }
 .gs-world-canvas { display: block; width: 100%; height: 100%; image-rendering: pixelated; }
@@ -195,7 +195,12 @@ html, body { margin: 0; min-height: 100%; background: var(--ss-bg); }
   background: var(--gs-float-bg); border: 1px solid var(--gs-float-line); -webkit-backdrop-filter: var(--gs-float-blur); backdrop-filter: var(--gs-float-blur); }
 .gs-side-head { flex: none; display: flex; align-items: center; gap: 12px; min-height: 52px; box-sizing: border-box; padding: 12px 16px; border-bottom: 1px solid var(--ss-line); }
 .gs-side-head .meta { color: var(--ss-fg-faint); font-size: var(--ss-ui-sm); }
-.gs-side-body { flex: 1; min-height: 0; overflow: auto; overscroll-behavior: contain; display: flex; flex-direction: column; gap: 24px; padding: 16px; }
+.gs-side-body { flex: 1; min-height: 0; overflow: auto; overscroll-behavior: contain; display: flex; flex-direction: column; gap: 20px; padding: 16px; }
+/* um fio só entre as seções (turma | meu post-it | os que faltam | configurações), nunca dentro delas */
+.gs-side-body > .gs-sec:not(:first-child) { border-top: 1px solid var(--ss-line); padding-top: 20px; }
+/* dentro da coluna, as linhas de configuração se agrupam pelo espaço, sem fio */
+.gs-side .gs-rows { border-top: 0; gap: 4px; }
+.gs-side .gs-rows > .gs-line { min-height: 36px; padding: 4px 0; border-bottom: 0; }
 .gs-side-foot { flex: none; display: flex; flex-direction: column; align-items: stretch; gap: 8px; padding: 12px 16px; border-top: 1px solid var(--ss-line); }
 .gs-side-foot:empty { display: none; }
 .gs-side-foot .gs-hint { text-align: center; }
@@ -205,20 +210,31 @@ html, body { margin: 0; min-height: 100%; background: var(--ss-bg); }
 .gs-sec-head h3 { display: flex; align-items: baseline; gap: 8px; margin: 0; font: 500 var(--ss-ui-md)/20px var(--ss-font-body); color: var(--ss-fg); }
 
 /* a turma, uma linha por pessoa na ordem das vezes; todas com a mesma forma: nome e ações, depois o post-it e o estado */
-.gs-turma { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; border-top: 1px solid var(--ss-line); }
-.gs-turma > li { display: flex; gap: 8px; padding: 8px 4px 8px 0; border-bottom: 1px solid var(--ss-line); font-size: var(--ss-ui-md); }
+.gs-turma { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.gs-turma > li { display: flex; gap: 8px; padding: 4px 4px 4px 0; font-size: var(--ss-ui-md); }
 .gs-turma > li.turn { background: color-mix(in srgb, var(--ss-fg) 5%, transparent); box-shadow: inset 2px 0 0 var(--ss-accent); }
 .gs-turma > li.off { opacity: 0.55; }
 .gs-turma .pos { flex: none; width: 24px; color: var(--ss-fg-faint); font: 400 var(--ss-ui-sm)/28px var(--ss-font-mono); font-variant-numeric: tabular-nums; text-align: right; }
 .gs-turma .main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
 .gs-turma .top { display: flex; align-items: center; gap: 8px; min-width: 0; min-height: 28px; }
 .gs-turma .top .gs-who { flex: 1 1 auto; }
-.gs-turma .act { display: inline-flex; align-items: center; flex: none; min-width: 112px; }
+.gs-turma .act { display: inline-flex; align-items: center; justify-content: flex-end; flex: none; min-width: 112px; }
 .gs-turma .sub { display: flex; align-items: center; gap: 12px; min-width: 0; min-height: 24px; }
 .gs-turma .state { margin-left: auto; display: inline-flex; align-items: center; gap: 8px; min-width: 0; color: var(--ss-fg-muted); font-size: var(--ss-ui-sm); }
-.gs-turma .writes { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.gs-turma .writes + .gs-tag::before { content: '·'; margin-right: 4px; color: var(--ss-fg-faint); }
-.gs-turma .marks { display: flex; gap: 4px; margin-left: -8px; }
+.gs-turma .writes { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ss-fg-faint); }
+.gs-turma .sub > .ss-tooltip { flex: 0 1 auto; min-width: 0; max-width: 60%; }
+.gs-turma .sub > .ss-tooltip > .trigger { max-width: 100%; }
+.gs-turma .sub > .ss-tooltip .gs-chip { max-width: 100%; }
+/* para quem escreve: o alvo, o rosto e o nome */
+.gs-target { display: inline-flex; align-items: center; gap: 4px; min-width: 0; color: var(--ss-fg-muted); }
+.gs-target > .ss-icon { color: var(--ss-fg-faint); margin-right: 2px; }
+.gs-target .name { max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* em que pé está: o lápis parado (vazio), o lápis que rabisca (escrevendo, um estado vivo) e o pronto, um tom acima */
+.gs-progress { display: inline-grid; place-items: center; width: 16px; height: 16px; color: var(--ss-fg-faint); }
+.gs-progress.writing { color: var(--ss-fg-muted); }
+.gs-progress.writing .ss-icon { transform-origin: 20% 80%; animation: gs-scribble 1.2s var(--gs-ease) infinite; }
+.gs-progress.ready { color: var(--ss-fg); }
+@keyframes gs-scribble { 0%, 100% { transform: translateX(-1px) rotate(-4deg); } 50% { transform: translateX(1.5px) rotate(4deg); } }
 .gs-ghosts { margin-top: 8px; }
 /* o post-it de alguém dentro da linha: uma etiqueta de uma linha */
 .gs-chip { display: inline-flex; align-items: center; gap: 8px; flex: 0 1 auto; min-width: 24px; max-width: 60%; height: 24px; box-sizing: border-box; padding: 0 8px; justify-content: center;
@@ -228,14 +244,41 @@ html, body { margin: 0; min-height: 100%; background: var(--ss-bg); }
 .gs-chip.hidden { color: var(--ss-fg-muted); }
 .gs-chip.blank { color: var(--ss-fg-faint); border-color: var(--ss-line); }
 
-/* o editor do post-it */
-.gs-editor { display: flex; flex-direction: column; gap: 8px; }
-.gs-editor-box { display: flex; gap: 8px; align-items: stretch; }
-.gs-editor-box .ss-textarea { flex: 1; }
-.gs-editor-img { width: 56px; height: 56px; object-fit: contain; flex: none; border: 1px solid var(--ss-line); background: var(--ss-bg-inset); }
-.gs-postit-input { width: 100%; box-sizing: border-box; resize: none; font-family: var(--ss-font-mono); }
-.gs-editor-foot { flex-wrap: nowrap; }
-.gs-editor-foot .gs-n { min-width: 40px; }
+/* o editor do post-it: o lugar da imagem (um quadrado) e o texto, lado a lado e da mesma altura */
+.gs-editor { --gs-slot: 112px; display: flex; flex-direction: column; gap: 8px; }
+.gs-editor-box { display: flex; gap: 8px; height: var(--gs-slot); }
+.gs-slot { position: relative; flex: none; width: var(--gs-slot); height: var(--gs-slot); box-sizing: border-box; border: 1px dashed var(--ss-line-strong);
+  transition: border-color var(--gs-fast) var(--gs-ease), background-color var(--gs-fast) var(--gs-ease); }
+.gs-slot.filled { border-style: solid; border-color: var(--ss-line); background: var(--ss-bg-inset); }
+.gs-slot-img { position: absolute; inset: 0; display: block; width: 100%; height: 100%; object-fit: cover; }
+.gs-slot-pick { all: unset; position: absolute; inset: 0; box-sizing: border-box; display: grid; place-items: center; cursor: pointer; color: var(--ss-fg-faint);
+  transition: color var(--gs-fast) var(--gs-ease); }
+.gs-slot-pick:disabled { cursor: progress; }
+.gs-slot-pick:focus-visible { outline: 2px solid var(--gs-focus); outline-offset: 2px; }
+.gs-slot-empty { display: flex; flex-direction: column; align-items: center; gap: 8px; color: var(--ss-fg-faint); }
+.gs-slot-label { font: 400 var(--ss-ui-sm)/16px var(--ss-font-body); }
+.gs-slot:not(.filled):not(.busy):hover { border-color: var(--ss-fg-faint); background: var(--ss-hover); }
+.gs-slot:not(.filled):hover .gs-slot-empty, .gs-slot-pick:focus-visible .gs-slot-empty { color: var(--ss-fg-muted); }
+/* com imagem: o mouse em cima (ou o foco) escurece e diz que clicar troca */
+.gs-slot-over { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
+  background: rgb(0 0 0 / 0.6); color: var(--ss-fg); opacity: 0; transition: opacity var(--gs-fast) var(--gs-ease); }
+.gs-slot:hover .gs-slot-over, .gs-slot-pick:focus-visible .gs-slot-over { opacity: 1; }
+.gs-slot.busy .gs-slot-pick { background: rgb(0 0 0 / 0.6); color: var(--ss-fg-muted); }
+/* a lixeira no canto da imagem: pequena e baixa; vermelha com o mouse em cima */
+.gs-slot-trash { position: absolute; z-index: 1; top: 4px; right: 4px; }
+.gs-trash { all: unset; box-sizing: border-box; display: grid; place-items: center; width: 24px; height: 24px; cursor: pointer;
+  color: var(--ss-fg-muted); background: color-mix(in srgb, var(--ss-bg) 85%, transparent); border: 1px solid var(--ss-line);
+  transition: color var(--gs-fast) var(--gs-ease), background-color var(--gs-fast) var(--gs-ease), border-color var(--gs-fast) var(--gs-ease); }
+.gs-trash:hover, .gs-trash:focus-visible { color: var(--ss-fg-on-danger); background: var(--ss-danger); border-color: var(--ss-danger); }
+.gs-trash:focus-visible { outline: 2px solid var(--gs-focus); outline-offset: 2px; }
+/* o texto ocupa o resto da linha, na altura do quadrado; a contagem fica dentro, no canto de baixo */
+.gs-editor-text { position: relative; flex: 1; min-width: 0; }
+:is(.gs-screen, .gs-room) .gs-editor-text.ss-textarea .control { flex: 1; min-height: 0; box-sizing: border-box; }
+:is(.gs-screen, .gs-room) .gs-editor .gs-postit-input { height: 100%; box-sizing: border-box; resize: none; padding-bottom: 24px; font-family: var(--ss-font-mono); }
+.gs-editor-count { position: absolute; right: 8px; bottom: 4px; pointer-events: none; }
+.gs-editor.locked .gs-slot { border-style: solid; border-color: var(--ss-line); }
+.gs-editor.locked .gs-slot-empty { opacity: 0.6; }
+.gs-editor-foot { flex-wrap: nowrap; min-height: 28px; }
 
 /* a vez e a votação, em cima no meio do que sobra: do tamanho do que mostram */
 .gs-top { position: absolute; z-index: 9; top: var(--gs-edge); right: calc(var(--gs-edge) + var(--gs-rank-w) + 12px); display: flex; justify-content: center; pointer-events: none; }
@@ -323,6 +366,6 @@ html, body { margin: 0; min-height: 100%; background: var(--ss-bg); }
 @keyframes gs-rise { from { opacity: 0; transform: translateY(8px); } }
 
 @media (prefers-reduced-motion: reduce) {
-  .gs-head .tip, .gs-notepad-tab, .gs-rank, .gs-char, :is(.gs-screen, .gs-room) .ss-btn { transition: none; }
-  .gs-menu, .gs-vote { animation: none; }
+  .gs-head .tip, .gs-notepad-tab, .gs-rank, .gs-char, :is(.gs-screen, .gs-room) .ss-btn, .gs-slot, .gs-slot-pick, .gs-slot-over, .gs-trash { transition: none; }
+  .gs-menu, .gs-vote, .gs-progress.writing .ss-icon { animation: none; }
 }

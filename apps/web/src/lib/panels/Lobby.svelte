@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { RoomSnapshot } from '@guess/protocol';
   import { MIN_PLAYERS } from '@guess/rules';
+  import { Tooltip } from 'dssoca';
   import Stepper from '../hud/Stepper.svelte';
   import Switch from '../hud/Switch.svelte';
   import { maxPlayersOptions } from '../create';
@@ -34,7 +35,7 @@
 <section class="gs-block gs-sec">
   <div class="gs-sec-head">
     <h3>{t('sala.turma')}<span class="gs-n">{room.members.length}/{room.maxPlayers}</span></h3>
-    {#if v.isModerator}<button class="ss-btn gs-sm" type="button" disabled={v.players.length < 2} title={t('lobby.shuffleHint')} onclick={() => send({ type: 'shuffleAuthors' })}>{t('lobby.shuffle')}</button>{/if}
+    {#if v.isModerator}<Tooltip text={t('lobby.shuffleHint')} placement="bottom"><button class="ss-btn gs-sm" type="button" disabled={v.players.length < 2} onclick={() => send({ type: 'shuffleAuthors' })}>{t('lobby.shuffle')}</button></Tooltip>{/if}
   </div>
   <Turma {v} {room} {send} />
 </section>

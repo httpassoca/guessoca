@@ -1,12 +1,13 @@
 <script lang="ts">
   import type { RoomSnapshot } from '@guess/protocol';
+  import { Tooltip } from 'dssoca';
   import { MIN_PLAYERS } from '@guess/rules';
   import { onMount, untrack } from 'svelte';
   import type { MsgKey } from '../i18n';
   import { t } from '../i18n.svelte';
   import { notepadMinimized, rememberedCharacter, rememberNotepadMinimized, rememberSideCollapsed, sideCollapsed } from '../identity';
   import { isTextField, keyAction } from '../keys';
-  import { besideSide, EDGE, GAP, notepadBox, sideInset } from '../layout';
+  import { besideSide, EDGE, GAP, notepadBox, sideCollapsedAfter, sideInset, type Phase } from '../layout';
   import type { GameRequest, RemoteRoom, RemoteState } from '../room/remote';
   import { characterToClaim, countdown, devTools, roomView } from '../room/view';
   import { roomPath } from '../route.svelte';
@@ -54,6 +55,15 @@
   const PHASE: Record<RoomSnapshot['phase'], MsgKey> = { lobby: 'phase.lobby', playing: 'phase.playing', ended: 'phase.ended' };
 
   function setSide(open: boolean) { sideOpen = open; rememberSideCollapsed(!open); }
+
+  // a troca de fase recolhe a coluna (o jogo começou) ou a abre (o fim, a volta ao lobby); dentro da fase, é da pessoa
+  let seenPhase: Phase | null = null;
+  $effect(() => {
+    const phase = room.phase;
+    const collapsed = sideCollapsedAfter(seenPhase, phase, untrack(() => !sideOpen));
+    seenPhase = phase;
+    if (collapsed === untrack(() => sideOpen)) setSide(!collapsed);
+  });
   function setNotepadMin(on: boolean) { notepadMin = on; rememberNotepadMinimized(on); }
 
   // recusa do servidor: um aviso que some sozinho
@@ -71,13 +81,14 @@
 
   function onKey(e: KeyboardEvent) {
     const el = document.activeElement as HTMLElement | null;
-    const action = keyAction(e, { inTextField: isTextField(el), canClaim: v.canClaim && !menuOpen, canSkip: v.canSkip && !menuOpen, canNotepad: game && !menuOpen });
+    const action = keyAction(e, { inTextField: isTextField(el), canClaim: v.canClaim && !menuOpen, canSkip: v.canSkip && !menuOpen, canNotepad: game && !menuOpen, canPanel: !menuOpen });
     if (!action) return;
     e.preventDefault();
     switch (action) {
       case 'claim': send({ type: 'claim' }); break;
       case 'skip': send({ type: 'skip' }); break;
       case 'notepad': setNotepadMin(!notepadMin); break;
+      case 'panel': setSide(!sideOpen); break;
       case 'menu': menuOpen = !menuOpen; break;
       case 'blur': el?.blur(); break;
     }
@@ -112,7 +123,7 @@
 
   <aside id="gs-side" class="gs-side" hidden={!sideOpen} bind:offsetWidth={sideWidth} aria-label={t('side.label')}>
     <header class="gs-side-head">
-      <span class="gs-code small" title={t('sala.title', { code: room.code })}>{room.code}</span>
+      <Tooltip text={t('sala.title', { code: room.code })} placement="bottom"><span class="gs-code small">{room.code}</span></Tooltip>
       <span class="gs-tags"><span class="gs-tag">{t(PHASE[room.phase])}</span>{#if v.isGhost}<span class="gs-tag">{t('badge.ghost')}</span>{/if}</span>
       <span class="gs-spacer"></span>
       <span class="meta" class:gs-warn={st.status === 'reconnecting'}>{status}</span>
@@ -127,7 +138,7 @@
     <footer class="gs-side-foot">
       {#if room.phase === 'lobby'}
         {#if v.isModerator}
-          <button class="ss-btn primary full-width" type="button" disabled={!v.canStart} onclick={() => send({ type: 'start' })}>{t('lobby.start')}</button>
+          <button class="ss-btn full-width" class:primary={v.startPrimary} type="button" disabled={!v.canStart} onclick={() => send({ type: 'start' })}>{t('lobby.start')}</button>
           <p class="gs-hint">
             {#if v.startBlock === 'players'}{t('lobby.needPlayers', { min: MIN_PLAYERS })}
             {:else if v.startBlock === 'empty'}{@const n = v.players.length - v.writtenCount}{n === 1 ? t('lobby.startEmptyOne') : t('lobby.startEmpty', { n })}

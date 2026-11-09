@@ -2,13 +2,13 @@
  * O teclado do jogo, puro: que ação uma tecla vira. O mouse cuida dos painéis; o teclado só tem atalhos. Num campo de
  * texto as teclas são do texto (Esc só sai do campo). Enter = Acertei e Tab = passar a vez, só na própria vez; fora
  * dela o Tab anda entre os botões como sempre. N abre e minimiza o bloco (só com o jogo correndo ou no fim, quando
- * ele existe); Esc abre e fecha o menu.
+ * ele existe); P recolhe e mostra o painel da sala; Esc abre e fecha o menu.
  *
  * O telhado (`worldKey`) tem as suas: A/D ou ←/→ andam, W/S ou ↑/↓ mudam a profundidade, Shift corre, Espaço pula,
  * J empurra e 1–4 são os emotes. Vão pela posição da tecla (`code`), não pela letra, para correr com Shift continuar
  * andando. Não se cruzam com as do jogo.
  */
-export type KeyAction = 'claim' | 'skip' | 'notepad' | 'menu' | 'blur';
+export type KeyAction = 'claim' | 'skip' | 'notepad' | 'panel' | 'menu' | 'blur';
 
 export interface KeyPress { key: string; code?: string; ctrlKey?: boolean; altKey?: boolean; metaKey?: boolean; shiftKey?: boolean; repeat?: boolean }
 export interface KeyContext {
@@ -18,6 +18,8 @@ export interface KeyContext {
   canSkip: boolean;
   /** o bloco existe agora (jogo ou fim) */
   canNotepad: boolean;
+  /** o painel da sala pode ser recolhido ou mostrado agora (não com o menu aberto) */
+  canPanel: boolean;
 }
 
 export function keyAction(e: KeyPress, ctx: KeyContext): KeyAction | null {
@@ -28,6 +30,7 @@ export function keyAction(e: KeyPress, ctx: KeyContext): KeyAction | null {
     case 'Enter': return ctx.canClaim ? 'claim' : null;
     case 'Tab': return ctx.canSkip ? 'skip' : null;
     case 'n': case 'N': return ctx.canNotepad ? 'notepad' : null;
+    case 'p': case 'P': return ctx.canPanel ? 'panel' : null;
     default: return null;
   }
 }

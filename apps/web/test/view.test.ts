@@ -194,7 +194,23 @@ describe('lobby: Começar', () => {
     expect(v.startBlock).toBe('players');
   });
 
+  test('Começar só é a ação principal quando vale e o meu Pronto não está esperando (uma principal por vez)', () => {
+    // todo mundo pronto: Começar é a principal
+    expect(roomView(snapshot({ authors: circle, postits: all({ ready: true }) })).startPrimary).toBe(true);
+    // Zé escreve para Ana e ainda não marcou pronto: Pronto é a principal, Começar fica neutro (mas vale)
+    const pending = roomView(snapshot({ authors: circle, postits: { ...all({ ready: true }), m2: postit('m1', { text: 'Pelé', written: true }) } }));
+    expect(pending.canStart).toBe(true);
+    expect(pending.startPrimary).toBe(false);
+    // o meu já está pronto, os outros não: Começar volta a ser a principal
+    expect(roomView(snapshot({ authors: circle, postits: { ...all(), m2: postit('m1', { text: 'Pelé', written: true, ready: true }) } })).startPrimary).toBe(true);
+    // não vale: não é a principal
+    expect(roomView(snapshot({ authors: circle, postits: { ...all(), m2: postit('m1') } })).startPrimary).toBe(false);
+    // o moderador que não escreve para ninguém
+    expect(roomView(snapshot({ members: [member('m1', 'Zé', { ghost: true }), member('m2', 'Ana'), member('m3', 'Bia')], order: ['m2', 'm3'], authors: { m2: 'm3', m3: 'm2' }, postits: { m2: postit('m3', { text: 'Pelé', written: true }), m3: postit('m2', { text: 'Xuxa', written: true }) } })).startPrimary).toBe(true);
+  });
+
   test('só o moderador, e só no lobby', () => {
+    expect(roomView(snapshot({ authors: circle, postits: all({ ready: true }), you: 'm2' })).startPrimary).toBe(false);
     expect(roomView(snapshot({ authors: circle, postits: all({ ready: true }), you: 'm2' })).canStart).toBe(false);
     expect(roomView(snapshot({ authors: circle, postits: all({ ready: true }), phase: 'playing' })).canStart).toBe(false);
   });
