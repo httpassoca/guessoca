@@ -113,6 +113,7 @@ tools/sprites      `bun run sprites` (@guess/sprites): as receitas que geram as 
                      fachadas, as três caixas do mapa (ar-condicionado, chaminé, caixa-d'água), antenas, letreiros de neon,
                      poças, lua e neblina; a folha `rooftop.png` e o atlas
   src/skyline.ts     a cidade ao fundo: faixas que repetem, geradas por um sorteio semeado (longe e perto)
+  src/preview.ts     `bun run sprites:preview`: folhas de contato ampliadas (4×) da saída, em `.preview/`
   test/              as receitas com imagens de mentira (o pacote não é preciso para testar)
 
 Dockerfile         imagem oficial do Bun em duas etapas: builda o cliente, roda o servidor (ver Deploy)
@@ -138,6 +139,10 @@ deploy/            wizard.sh (passos humanos do deploy) e guess.passoca.dev.ngin
 O mouse é só para a interface.
 
 ## Sprites
+
+Como a arte funciona e como importar arte nova (personagens, animações, objetos, mapas, emotes) está em
+[`docs/art.md`](docs/art.md). `bun run sprites:preview` gera folhas de contato ampliadas do que está versionado em
+`.preview/` (fora do git) para conferir no olho.
 
 Há dois modelos de personagem. O herói é o "male hero" (versão grátis) da [Ozzbit Games](https://ozzbit-games.itch.io),
 com licença só para uso pessoal e não comercial, modificações permitidas e crédito obrigatório (ADR 0007). O cavaleiro

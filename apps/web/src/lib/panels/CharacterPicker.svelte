@@ -6,6 +6,8 @@
   /**
    * Os oito personagens para escolher um (pré-lobby): o escolhido anda; os que outra pessoa da sala pegou ficam
    * apagados, com o apelido de quem pegou. `taken[n]`: o apelido de quem tem o personagem `n`, ou null.
+   * Um botão por lugar (0..`CHARACTERS`−1), com o retrato de `Hero` na escala 2; os nomes são "Personagem N" (i18n
+   * `pre.characterN`), não os nomes das cores de `characters.json`. Um modelo novo aparece aqui sem mudar nada.
    */
   let { value, taken = [], onpick }: { value: number | null; taken?: (string | null)[]; onpick: (n: number) => void } = $props();
   const all = Array.from({ length: CHARACTERS }, (_, n) => n);

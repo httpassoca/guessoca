@@ -1,12 +1,14 @@
 /**
  * Quem está no telhado além de mim, como este navegador o conhece agora, puro: cada pessoa conectada com personagem e
  * presença, interpolada (`samplePresence`); os jogadores falsos, que não mandam presença, parados num lugar fixo perto
- * do ponto de volta. Quem nunca mandou presença ainda não aparece.
+ * do ponto de volta. Quem nunca mandou presença ainda não aparece. Tudo em unidades do mundo; `runtime.ts` passa isto
+ * a `scene.ts` (desenho) e a `othersOf` (física). Testado em `apps/web/test/world-crowd.test.ts`.
  */
 import type { EmoteName, MemberView, RoomSnapshot } from '@guess/protocol';
 import { groundAt, MAP, spawnPoint, type Anim, type Other, type Platform, type Vec3 } from '@guess/world';
 import { samplePresence, type PresenceTrack } from './presence';
 
+/** Outro corpo no telhado, já interpolado: posição e velocidade em unidades do mundo (e por segundo). */
 export interface CrowdBody extends Vec3 {
   id: string;
   character: number;
@@ -18,15 +20,19 @@ export interface CrowdBody extends Vec3 {
   fake: boolean;
 }
 
-/** a distância do primeiro falso ao ponto de volta, e entre um e o seguinte do mesmo lado */
+/**
+ * a distância do primeiro falso ao ponto de volta, e entre um e o seguinte do mesmo lado, em unidades do mundo: 44
+ * deixa livre o lugar onde eu nasço (até ±28, `spawnOffset` em `runtime.ts`); 20 é pouco mais que a largura do corpo
+ * (2·`BODY_RX` = 16)
+ */
 const FAKE_FIRST = 44;
 const FAKE_STEP = 20;
-/** quanto o falso fica longe da beirada do telhado */
+/** quanto o falso fica longe da beirada do telhado (unidades do mundo), para não ficar pendurado no vão */
 const FAKE_EDGE = 10;
 
 /**
  * O lugar do falso número `index` (pela ordem entre os falsos da turma): alternando à direita e à esquerda do ponto de
- * volta, num degrau de profundidade, sempre no mesmo telhado e no chão dele.
+ * volta, num degrau de profundidade (−8, 0, +8 em `z`, revezando), sempre no mesmo telhado e no chão dele.
  */
 export function fakeSpot(index: number, platforms: readonly Platform[] = MAP): Vec3 {
   const spawn = spawnPoint(platforms);
@@ -38,6 +44,7 @@ export function fakeSpot(index: number, platforms: readonly Platform[] = MAP): V
   return { x, y: groundAt(platforms, x, z) ?? spawn.y, z };
 }
 
+/** Quem desenhar além de mim, a partir da sala e da última presença de cada um, no instante `now` (ms). */
 export function crowd(
   room: Pick<RoomSnapshot, 'members' | 'you'>,
   trackOf: (id: string) => PresenceTrack | undefined,

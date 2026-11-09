@@ -2,6 +2,11 @@
   /**
    * O personagem `n` parado, ampliado sem borrar, numa janela igual para os dois modelos (`PORTRAIT`) com o pé no mesmo
    * lugar; `animate` toca o parado em loop. A folha anda por dentro da janela, que corta o resto do quadro.
+   *
+   * Sem Pixi: a folha `char-N.png` como `background-image` com `image-rendering: pixelated`, e a animação é um
+   * `steps()` de CSS que anda `background-position-x` um quadro por passo, no fps do atlas (`idle.frames / idle.fps` s
+   * por volta). `scale` é inteiro (pixels da tela por pixel do quadro), para não borrar. Usado por `CharacterPicker`
+   * (escala 2) e `Stage` (escala 4). Lê `../sprites/characters.ts`.
    */
   import { character, frameAt, PORTRAIT, sheetSize } from '../sprites/characters';
   let { n, scale = 2, animate = false }: { n: number; scale?: number; animate?: boolean } = $props();

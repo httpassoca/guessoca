@@ -1,5 +1,10 @@
 <script lang="ts">
-  /** O rosto do personagem `n` (a cabeça do primeiro quadro do parado), num quadradinho com a cor dele. null = sem personagem. */
+  /**
+   * O rosto do personagem `n` (a cabeça do primeiro quadro do parado), num quadradinho com a cor dele. null = sem
+   * personagem. O quadrado `atlas.head` (pixels do quadro, achado pela receita do modelo em `tools/sprites`) é ampliado
+   * até `size` pixels da tela; a escala aqui não é inteira, e o `image-rendering: pixelated` do `.gs-swatch` (`app.css`)
+   * evita o borrão. A cor (`--c`) é a de `characters.json`, igual a `--gs-char-N`.
+   */
   import { character, sheetSize } from '../sprites/characters';
   let { n, size = 22 }: { n: number | null; size?: number } = $props();
   const art = $derived(n === null ? null : character(n));

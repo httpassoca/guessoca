@@ -1,21 +1,27 @@
 /**
  * A chuva, pura: um número fixo de gotas que caem na diagonal pela tela e, quando passam do fim, voltam para cima. As
  * mesmas gotas sempre (nada é criado por quadro); o Pixi só copia a posição de cada uma para um traço fino.
- * Em pixels da tela, por segundo.
+ * Em pixels da tela, por segundo. `weather.ts` desenha as gotas e escolhe os números; testada em
+ * `apps/web/test/world-backdrop.test.ts`.
  */
+/** Uma gota: a ponta de baixo em `x, y` (pixels da tela), o comprimento do traço e a velocidade de queda (px/s). */
 export interface Drop { x: number; y: number; len: number; speed: number }
 
+/** Como a chuva cai; cada gota sorteia velocidade e comprimento entre os dois números de cada faixa. */
 export interface RainOptions {
   count: number;
   /** quanto anda para a esquerda por pixel que desce (o vento) */
   slant: number;
+  /** px da tela por segundo, mínimo e máximo */
   speed: [number, number];
+  /** px da tela, mínimo e máximo */
   length: [number, number];
 }
 
-/** folga dos lados antes de a gota dar a volta em x */
+/** folga dos lados, em px da tela, antes de a gota dar a volta em x (para não sumir na borda ainda visível) */
 const MARGIN = 40;
 
+/** As gotas e o passo delas; `random` injetável para os testes. */
 export class Rain {
   readonly drops: Drop[];
   private w = 0;

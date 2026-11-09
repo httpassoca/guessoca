@@ -2,11 +2,13 @@
  * O que vai sobre a cabeça de cada personagem (HTML, ADR 0006), puro: o apelido e, no jogo e no fim, o post-it como eu
  * posso vê-lo (o meu "?" até ser revelado; fantasmas veem todos, porque o snapshot já lhes manda tudo), com a vez marcada.
  * No lobby, só o apelido: os post-its sendo escritos ficam na coluna. Quem não tem personagem não tem cabeça. Onde cada
- * cabeça está na tela é com o `WorldRuntime`, a cada quadro.
+ * cabeça está na tela é com o `WorldRuntime`, a cada quadro (`headAnchor` em `view.ts`, depois `declutter.ts`).
+ * Não desenha arte: só decide o conteúdo das etiquetas em HTML.
  */
 import type { RoomSnapshot } from '@guess/protocol';
 import type { PostitCard, RoomView } from '../room/view';
 
+/** A etiqueta sobre a cabeça de um membro. */
 export interface Head {
   id: string;
   nickname: string;
@@ -15,6 +17,7 @@ export interface Head {
   card: PostitCard | null;
 }
 
+/** As etiquetas de quem tem personagem, na ordem da turma. */
 export function heads(room: RoomSnapshot, v: RoomView): Head[] {
   const cards = room.phase === 'lobby' ? new Map<string, PostitCard>() : new Map(v.postits.map((c) => [c.owner.id, c]));
   return room.members

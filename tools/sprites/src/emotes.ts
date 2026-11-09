@@ -2,15 +2,26 @@
  * Os balões dos emotes (teclas 1–4): `?`, `!`, `haha` e "eu?" (apontando para si). Desenhados aqui, de grades de texto:
  * uma fonte de 3×5 pixels e um balão com contorno e rabicho montado em código. O balão que tem palavra sai uma vez por
  * língua ("eu?" / "me?", ADR 0004); a folha de cada língua tem os quatro, na ordem das teclas.
+ *
+ * Sai, por `index.ts`: `apps/web/public/sprites/emotes-pt-BR.png`, `emotes-en-US.png` e um atlas só,
+ * `apps/web/src/lib/sprites/emotes.json` (as duas folhas têm o mesmo tamanho, porque "eu?" e "me?" têm a mesma largura;
+ * uma palavra de largura diferente numa língua pediria um atlas por língua). O cliente (`world/scene.ts`) desenha o
+ * balão com a ponta do rabicho (`tip`) em `emoteAnchor` (`world/view.ts`): ao lado da cabeça, na altura dos olhos.
+ *
+ * Como mudar: um balão novo é um nome em `EMOTES` aqui e em `EMOTES` de `@guess/protocol` (a mesma ordem: as teclas),
+ * um `case` em `emote`, e as letras que faltarem em `FONT`. Pixels: tudo em pixels do balão (1 = 1 unidade do mundo).
  */
 import { parseGrid } from './grid';
 import { blank, blit, getPixel, setPixel, type Image } from './image';
 
+/** contorno e letras: quase preto, puxado para o roxo do telhado */
 const INK = '1a1426';
+/** o papel do balão */
 const PAPER = 'ffffff';
+/** o `!` em vermelho, para chamar atenção */
 const ALERT = 'e0304a';
 
-/** A fonte: 3 de largura, 5 de altura (o `!` e o `?` cabem nisso). */
+/** A fonte: 3 de largura, 5 de altura (o `!` e o `?` cabem nisso). Só as letras que os balões usam; `#` é tinta. */
 const FONT: Record<string, string> = {
   '?': `
     ###
@@ -56,7 +67,7 @@ const FONT: Record<string, string> = {
     #.#`,
 };
 
-/** Um texto na fonte de 3×5, com 1 pixel entre letras. */
+/** Um texto na fonte de 3×5, com 1 pixel entre letras: `4·n − 1` de largura, 5 de altura. Letra fora da fonte é erro. */
 export function text(s: string, color = INK): Image {
   const glyphs = [...s].map((ch) => {
     const grid = FONT[ch];
@@ -68,12 +79,14 @@ export function text(s: string, color = INK): Image {
   return img;
 }
 
-/**
- * Um balão em volta de `content`: papel branco com pelo menos 2 pixels de folga, contorno escuro com os cantos cortados,
- * e um rabicho embaixo, no meio, apontando para a cabeça. Nunca mais estreito que `BALLOON_MIN_W`, para o rabicho não
- * engolir a borda de baixo.
- */
+/** A largura mínima do balão, em pixels: com menos, o rabicho (5 de largura) engoliria a borda de baixo. */
 export const BALLOON_MIN_W = 13;
+
+/**
+ * Um balão em volta de `content`: papel branco com pelo menos 2 pixels de folga (`pad`), contorno escuro de 1 pixel com
+ * os cantos cortados, e um rabicho de 2 linhas (`tail`) embaixo, no meio, apontando para a cabeça. Nunca mais estreito
+ * que `BALLOON_MIN_W`. Altura: o conteúdo + 2·2 de folga + 2 de contorno + 2 de rabicho (13 com a fonte de 5).
+ */
 export function balloon(content: Image): Image {
   const pad = 2;
   const padX = Math.max(pad, Math.ceil((BALLOON_MIN_W - 2 - content.width) / 2));
@@ -101,13 +114,16 @@ export function balloon(content: Image): Image {
   return img;
 }
 
-/** Os quatro emotes, na ordem das teclas 1–4. */
+/** Os quatro emotes, na ordem das teclas 1–4; os mesmos nomes e a mesma ordem de `EMOTES` em `@guess/protocol`. */
 export const EMOTES = ['question', 'exclaim', 'haha', 'me'] as const;
+/** Um dos emotes (a chave no atlas). */
 export type EmoteName = (typeof EMOTES)[number];
+/** As línguas da interface (ADR 0004): uma folha de balões para cada. */
 export type EmoteLang = 'pt-BR' | 'en-US';
 
 const words: Record<EmoteLang, string> = { 'pt-BR': 'eu?', 'en-US': 'me?' };
 
+/** O balão `name` na língua `lang`: só o "eu?"/"me?" muda de uma língua para a outra. */
 export function emote(name: EmoteName, lang: EmoteLang): Image {
   switch (name) {
     case 'question': return balloon(text('?'));
@@ -117,8 +133,9 @@ export function emote(name: EmoteName, lang: EmoteLang): Image {
   }
 }
 
+/** O atlas dos balões (`emotes.json`), em pixels da folha. */
 export interface EmoteAtlas {
-  /** cada balão na folha: posição, tamanho e o ponto da ponta do rabicho */
+  /** cada balão na folha: posição, tamanho e a ponta do rabicho (`tip`, relativo ao canto do balão: o meio da última linha) */
   frames: Record<EmoteName, { x: number; y: number; w: number; h: number; tip: { x: number; y: number } }>;
 }
 
@@ -142,4 +159,5 @@ export function inkAt(img: Image, x: number, y: number): string | null {
   return a ? [r, g, b].map((v) => v.toString(16).padStart(2, '0')).join('') : null;
 }
 
+/** As cores dos balões, para os testes. */
 export const EMOTE_COLORS = { INK, PAPER, ALERT };

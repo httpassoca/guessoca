@@ -1,6 +1,7 @@
 /**
  * Pixel art escrita como texto: cada linha é uma linha de pixels, cada caractere uma cor da paleta, `.` (ou espaço) é
- * transparente. É como os balões dos emotes e os objetos do telhado são desenhados (ADR 0007).
+ * transparente. É como os balões dos emotes (`emotes.ts`) e os objetos do telhado (`rooftop.ts`, que monta as grades
+ * com a `Sketch`) são desenhados (ADR 0007): arte nossa, sem pacote nem licença. Puro, sem disco.
  *
  *     parseGrid(`
  *       .##.
@@ -9,6 +10,7 @@
  */
 import { blank, rgbOf, setPixel, type Hex, type Image } from './image';
 
+/** Um caractere da grade → a cor (`rrggbb`). `.` e espaço não entram: são sempre transparentes. */
 export type Palette = Readonly<Record<string, Hex>>;
 
 /** Linhas da grade sem as linhas vazias das pontas e sem o recuo comum (para escrever grades indentadas no código). */
@@ -20,6 +22,10 @@ export function gridLines(text: string): string[] {
   return lines.map((l) => l.slice(indent).replace(/\s+$/, ''));
 }
 
+/**
+ * A grade como `Image` opaca (alfa 255 ou 0): um pixel por caractere, largura da linha mais comprida (as curtas
+ * completam com transparente). Um caractere fora de `colors` é erro, com a linha.
+ */
 export function parseGrid(text: string, colors: Palette): Image {
   const lines = gridLines(text);
   const width = Math.max(0, ...lines.map((l) => l.length));

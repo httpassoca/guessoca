@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "scripts": { "sprites": "bun src/index.ts", "test": "bun test", "check": "tsc --noEmit" },
+  "scripts": { "sprites": "bun src/index.ts", "sprites:preview": "bun src/preview.ts", "test": "bun test", "check": "tsc --noEmit" },
   "dependencies": { "@guess/world": "workspace:*" },
   "devDependencies": { "pngjs": "^7.0.0", "@types/pngjs": "^6.0.5", "typescript": "^5.9.0" }
 }

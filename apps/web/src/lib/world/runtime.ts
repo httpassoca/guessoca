@@ -4,6 +4,10 @@
  * (Pixi embaixo, os post-its em HTML por cima, posicionados à mão a cada quadro, sem passar pelo Svelte).
  * Junta peças puras e testadas (`controls`, `loop`, `presence`, `crowd`, `view`, `keys`); ele mesmo é só cola e não
  * tem teste automático.
+ *
+ * O que toca na arte: monta a lista de `SceneBody` (unidades do mundo) para `scene.ts`, com `animSince` dos outros
+ * medido aqui (a presença não leva quando a animação começou), e põe cada post-it em HTML em `headAnchor` (pixels da
+ * tela), separado por `declutter`, com `z-index` 1000 − `z` (quem está mais à frente cobre).
  */
 import { EMOTE_MS, EMOTES, type RoomSnapshot } from '@guess/protocol';
 import { applyShove, blinking, createBody, followCamera, MAP, stepBody, type Body, type Camera, type WorldEvent } from '@guess/world';
@@ -18,8 +22,10 @@ import type { Scene, SceneBody } from './scene';
 import { declutter, type Tag } from './declutter';
 import { headAnchor, makeView, renderView } from './view';
 
+/** Se o canvas já desenha: carregando as folhas, pronto, ou sem como desenhar (sem WebGL nem canvas). */
 export type SceneStatus = 'loading' | 'ready' | 'failed';
 
+/** O que o `World.svelte` passa ao ligar o telhado. */
 export interface RuntimeOptions {
   remote: RemoteRoom;
   /** onde o canvas entra */
@@ -32,9 +38,14 @@ export interface RuntimeOptions {
   onEvent?: (ev: WorldEvent) => void;
 }
 
-/** onde meu corpo nasce em relação ao ponto de volta, pela minha posição na turma (para não nascer em cima de alguém) */
+/**
+ * onde meu corpo nasce em relação ao ponto de volta, pela minha posição na turma (para não nascer em cima de alguém):
+ * cinco lugares de −28 a +28 unidades do mundo, de 14 em 14 (pouco menos que a largura do corpo, 16; o separar da física
+ * resolve o resto)
+ */
 const spawnOffset = (index: number) => ((index % 5) - 2) * 14;
 
+/** O telhado ligado de uma aba: `start` liga o laço e carrega a cena, `dispose` desliga. */
 export class WorldRuntime {
   private room: RoomSnapshot | null = null;
   private blocked = false;
@@ -200,6 +211,7 @@ export class WorldRuntime {
     const lift = declutter(shown.map((s) => s.tag));
     for (const { el, tag } of shown) {
       el.style.transform = `translate3d(${Math.round(tag.x)}px, ${Math.round(tag.y - (lift.get(tag.id) ?? 0))}px, 0)`;
+      // quem está mais à frente (z menor) por cima; 1000 passa de qualquer z do mapa (0–`DEPTH`)
       el.style.zIndex = String(Math.round(1000 - tag.z));
       if (el.style.visibility !== 'visible') el.style.visibility = 'visible';
     }

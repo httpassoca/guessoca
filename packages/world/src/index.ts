@@ -6,6 +6,10 @@
  * Unidades: pixels do mundo (1 = 1 pixel do sprite, antes da ampliação). `x` ao longo dos telhados (direita positiva),
  * `y` para cima (0 = chão do telhado mais baixo), `z` em profundidade (0 = beirada da frente, cresce para o fundo).
  * Tempo em segundos dentro da física (`dt`), e em ms quando é hora do relógio (`now`).
+ *
+ * Para a arte: 1 unidade do mundo = 1 pixel do quadro do personagem e 1 pixel da folha do telhado; a tela amplia tudo
+ * pela mesma escala inteira (`View.scale`). O `MAP` é a colisão; o cenário (`apps/web/src/lib/world/dressing.ts` e
+ * `tools/sprites/src/rooftop.ts`) tem que bater com ele ao pixel. Ver `docs/art.md`.
  */
 export interface Vec3 { x: number; y: number; z: number }
 
@@ -20,7 +24,12 @@ export const RUN = 150;
 export const DEPTH_SPEED = 60;
 /** quanto o corpo sobe sem pular (beirada baixa, degrau) */
 export const STEP = 6;
-/** o corpo é uma elipse no chão (meia-largura em x, meia-profundidade em z) e uma altura */
+/**
+ * o corpo é uma elipse no chão (meia-largura em x, meia-profundidade em z) e uma altura, em unidades do mundo. A elipse
+ * é mais estreita que o desenho (o herói parado tem 32 de largura) para os corpos poderem se encostar; `BODY_H` é a
+ * altura da cabeça em que outro pisa (o herói parado tem 37 de altura, o esqueleto 51): não é o topo do sprite, e o
+ * post-it usa a cabeça do atlas (`headY` em `apps/web/src/lib/world/view.ts`), não isto. A sombra no cliente sai da elipse.
+ */
 export const BODY_RX = 8;
 export const BODY_RZ = 5;
 export const BODY_H = 40;
@@ -41,7 +50,11 @@ export const SHOVE_DY = 30;
 export const SHOVE_VX = 260;
 export const SHOVE_VY = 160;
 export const SHOVE_STUN_MS = 400;
-/** tempo entre dois empurrões da mesma pessoa, ms (a animação dura isso) */
+/**
+ * tempo entre dois empurrões da mesma pessoa, ms. É também quanto dura a animação `shove` no mundo (`anim` fica `shove`
+ * até `shoveUntil`): a linha `shove` da folha tem que caber nisto (herói 7 quadros a 16 fps = 438 ms, esqueleto 5 a
+ * 12 = 417 ms); mais longa, é cortada; mais curta, segura o último quadro.
+ */
 export const SHOVE_COOLDOWN_MS = 450;
 
 // --- mapa -------------------------------------------------------------------------------------------------------------
@@ -52,13 +65,20 @@ export const SHOVE_COOLDOWN_MS = 450;
  */
 export interface Platform { x0: number; x1: number; z0: number; z1: number; top: number; kind: 'roof' | 'box' }
 
-/** fundo do telhado (o `z` vai de 0 a isto) */
+/**
+ * fundo do telhado (o `z` vai de 0 a isto), em unidades do mundo; na tela, `DEPTH`·`DEPTH_K` = 33,6 linhas, por isso o
+ * ladrilho do tampo (`roof-top` em `tools/sprites/src/rooftop.ts`) tem 34
+ */
 export const DEPTH = 56;
 
 /**
  * O telhado: três prédios com vãos de 50 px entre eles, umas duas telas de largura, o do meio o mais alto, e caixas em
  * cima para subir. Os vãos se cruzam correndo (RUN · tempo no ar ≈ 100 px, sobra uns 40 px para subir no do meio);
  * andando, só descendo (do meio para o da direita, com uns 7 px de folga): subir no telhado do meio pede corrida.
+ *
+ * Arte: cada `box` precisa de um objeto na folha do telhado com a mesma largura, a frente da altura `top` − telhado e o
+ * tampo com `round((z1 − z0)·DEPTH_K)` linhas (`fits` em `tools/sprites/src/rooftop.ts`), senão fica invisível; cada
+ * `roof` ganha tampo, muretas e fachada em `apps/web/src/lib/world/platforms.ts`.
  */
 export const MAP: readonly Platform[] = [
   { kind: 'roof', x0: 0, x1: 260, z0: 0, z1: DEPTH, top: 0 },
@@ -75,7 +95,11 @@ export const WORLD_X1 = 900;
 
 // --- corpos -----------------------------------------------------------------------------------------------------------
 
-/** As animações do personagem (as linhas da folha gerada por `bun run sprites`). */
+/**
+ * As animações do personagem (as linhas da folha gerada por `bun run sprites`, nesta ordem: `ANIMATION_NAMES` em
+ * `tools/sprites/src/atlas.ts`). `animate` escolhe: `idle` parado ou atordoado, `walk` andando, `run` acima de `WALK`
+ * (Shift), `jump` subindo, `fall` descendo e depois `fall_loop`, `shove` durante `SHOVE_COOLDOWN_MS` depois do J.
+ */
 export type Anim = 'idle' | 'walk' | 'run' | 'jump' | 'fall' | 'fall_loop' | 'shove';
 
 export interface Body extends Vec3 {
@@ -142,7 +166,11 @@ export function createBody(platforms: readonly Platform[], now: number, offset =
 const MAX_DT = 0.05;
 /** atordoado no chão, a velocidade horizontal cai isto por segundo, px/s² */
 const FRICTION = 1200;
-/** `fall` toca uma vez: 4 quadros a 12 fps em apps/web/src/lib/sprites/hero.json, ms */
+/**
+ * `fall` toca uma vez: 4 quadros a 12 fps em apps/web/src/lib/sprites/hero.json, ms. Fixo do herói e usado para os dois
+ * modelos: o `fall` do esqueleto (2 quadros a 10 fps = 200 ms) segura o último quadro por uns 133 ms antes do
+ * `fall_loop`. Um modelo com `fall` mais longo que isto tem o fim cortado.
+ */
 const FALL_MS = (4 / 12) * 1000;
 /** parado contra um lado, fica a isto dele (para continuar fora do retângulo, que inclui as bordas) */
 const GAP = 1e-6;
@@ -425,9 +453,15 @@ export function blinking(body: Pick<Body, 'respawnAt' | 'blinkUntil'>, now: numb
 
 // --- projeção ---------------------------------------------------------------------------------------------------------
 
-/** quanto um pixel de profundidade sobe na tela (a perspectiva do beat 'em up) */
+/**
+ * quanto um pixel de profundidade sobe na tela (a perspectiva do beat 'em up): uma projeção oblíqua, sem encurtar a
+ * altura (`y` fica 1:1) e com 1 unidade de `z` virando 0,6 de altura na tela, então o telhado (56 de fundo) ocupa umas 34
+ * linhas. Os tampos e os objetos de caixa da folha do telhado são desenhados achatados por isto (o fundo de uma caixa
+ * vira `round(fundo · 0,6)` linhas); mudar este número pede refazer essas grades.
+ */
 export const DEPTH_K = 0.6;
 
+/** A tela onde se projeta, em pixels da tela (`makeView` em `apps/web/src/lib/world/view.ts`). */
 export interface View {
   /** pixels da tela por pixel do mundo (inteiro, para o pixel art não borrar) */
   scale: number;
@@ -437,12 +471,13 @@ export interface View {
   groundY: number;
 }
 
-/** A câmera: o ponto do mundo no centro da tela, em x. */
+/** A câmera: o ponto do mundo no centro da tela, em x (unidades do mundo; não há câmera em y nem em z). */
 export interface Camera { x: number }
 
 /**
  * Um ponto do mundo na tela: `sx = (x - cam.x)·scale + width/2`, `sy = groundY - (y + z·DEPTH_K)·scale`. É a mesma conta
- * para o Pixi e para os post-its em HTML (ADR 0006).
+ * para o Pixi e para os post-its em HTML (ADR 0006). `p` em unidades do mundo; o resultado em pixels da tela, sem
+ * arredondar (o Pixi arredonda com `roundPixels`, o HTML com `Math.round`).
  */
 export function project(p: Vec3, cam: Camera, view: View): { x: number; y: number } {
   return {
@@ -451,7 +486,10 @@ export function project(p: Vec3, cam: Camera, view: View): { x: number; y: numbe
   };
 }
 
-/** A ordem de desenho: maior primeiro = mais ao fundo. Quem está mais ao fundo (z maior) fica atrás. */
+/**
+ * A ordem de desenho: maior primeiro = mais ao fundo. Quem está mais ao fundo (z maior) fica atrás. Só `z`: a altura não
+ * conta (quem pula ou está na cabeça de alguém fica na sua profundidade); `scene.ts` desempata pelo id.
+ */
 export function depthKey(p: Pick<Vec3, 'z'>): number {
   return p.z;
 }

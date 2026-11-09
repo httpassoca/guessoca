@@ -4,6 +4,31 @@
  * e a chuva. Tudo dentro de um contêiner só, o mundo, que leva os filtros de filme (`film.ts`) quando os efeitos de tela
  * estão ligados; os post-its e painéis são HTML por cima e nunca passam por eles. Não decide nada: desenha o que o
  * `WorldRuntime` manda, na mesma projeção (`project`) dos post-its em HTML. Não tem teste automático (Pixi e WebGL).
+ *
+ * Entrada: as folhas em `apps/web/public/sprites/` (servidas em `/sprites/…`: `char-N.png`, `emotes-<lang>.png`,
+ * `rooftop.png`, `skyline-*.png`) e os atlas em `apps/web/src/lib/sprites/*.json`, tudo gerado por `bun run sprites`
+ * (`tools/sprites`); os corpos (`SceneBody`, em unidades do mundo) vêm de `runtime.ts`. Saída: o canvas, em pixels da
+ * tela. Vizinhos: `backdrop.ts` (céu e cidade), `platforms.ts` (telhados e caixas), `weather.ts` (chuva e neblina da
+ * frente), `film.ts` (filtros), `view.ts` (escala e onde vai o balão).
+ *
+ * Camadas, de trás para a frente, dentro de `world`:
+ *
+ *     scenery [ backdrop, platforms.back ]   ← bloom (`film.scenery`)
+ *     shadows                                 elipses no chão
+ *     bodies                                  um sprite por corpo, ordenado por profundidade
+ *     platforms.front                         a mureta da frente, cobre os pés na beirada
+ *     balloons                                balões dos emotes, sempre por cima dos corpos
+ *     weather                                 neblina da frente e chuva
+ *   world inteiro                             ← aberração RGB + CRT (`film.world`)
+ *   (HTML por cima do canvas: post-its e painéis, fora dos filtros)
+ *
+ * Profundidade: a cada quadro os corpos são ordenados por `depthKey` (= `z`), maior primeiro (mais ao fundo), empate
+ * pelo id para a ordem não piscar; o `zIndex` do sprite é a posição nessa lista. A altura (`y`) não entra: quem pula
+ * continua na sua profundidade. Os objetos do cenário não entram nessa ordem: as caixas vão até o fundo do telhado e
+ * ficam sempre atrás dos corpos (`platforms.back`), a mureta sempre na frente (`platforms.front`).
+ *
+ * Como mudar: uma camada nova entra em `load()`, no `addChild` do `world` (ou do `scenery`, se deve ganhar o brilho);
+ * uma animação nova de personagem precisa estar em `ANIMS` (na ordem das linhas da folha) e no `Anim` do `@guess/world`.
  */
 import { EMOTES, type EmoteName } from '@guess/protocol';
 import { BODY_RX, BODY_RZ, DEPTH_K, depthKey, groundAt, MAP, project, type Anim, type Camera, type Vec3, type View } from '@guess/world';
@@ -19,26 +44,48 @@ import { Platforms } from './platforms';
 import { emoteAnchor } from './view';
 import { Weather } from './weather';
 
+/** Um corpo para desenhar: `x, y, z` em unidades do mundo (os pés), o resto como na presença. */
 export interface SceneBody extends Vec3 {
   id: string;
+  /** o personagem (0..7), índice de `CHARACTER_ART` */
   character: number;
+  /** 1 olha para a direita (como a folha); −1 espelha o sprite */
   facing: 1 | -1;
   anim: Anim;
-  /** quando a animação atual começou, ms */
+  /** quando a animação atual começou, ms (o quadro sai de `frameIndex` com o fps do atlas) */
   animSince: number;
   emote: EmoteName | null;
+  /** caído ou voltando: o sprite pisca */
   blink: boolean;
 }
 
+/** As animações na ordem das linhas da folha (`ANIMATION_NAMES` em `tools/sprites/src/atlas.ts`). */
 const ANIMS: Anim[] = ['idle', 'walk', 'run', 'jump', 'fall', 'fall_loop', 'shove'];
 const emoteSheet = (lang: Lang) => `/sprites/emotes-${lang}.png`;
 const LANGS: Lang[] = ['pt-BR', 'en-US'];
+/** o fundo do canvas antes do céu carregar: quase preto, puxado para o roxo do céu (no olho) */
 const BG = 0x0b0a14;
-/** piscando: alterna a cada tanto ms */
+/** piscando: alterna a cada tanto ms (uns 5,5 por segundo, no olho) */
 const BLINK_PERIOD = 90;
+/** a opacidade no meio-ciclo apagado do pisca: some quase toda, mas ainda se acha o personagem */
+const BLINK_ALPHA = 0.15;
+/** a sombra de quem pisca fica mais fraca */
+const BLINK_SHADOW_ALPHA = 0.3;
+
+/**
+ * A sombra, em unidades do mundo antes da escala: uma elipse um pouco maior que a base do corpo (`BODY_RX`·1,3 de
+ * meia-largura) e achatada pela perspectiva (`BODY_RZ`·`DEPTH_K`, vezes 1,8 para ler na tela). Ajustada no olho.
+ */
+const SHADOW_RX = BODY_RX * 1.3;
+const SHADOW_RY = BODY_RZ * DEPTH_K * 1.8;
+const SHADOW_ALPHA = 0.4;
+/** a sombra encolhe com a altura acima do chão: até `SHADOW_MIN` em `SHADOW_FADE` unidades (mais que o pico do pulo, 50) */
+const SHADOW_FADE = 120;
+const SHADOW_MIN = 0.45;
 
 interface Drawn { sprite: Sprite; shadow: Graphics; balloon: Sprite }
 
+/** O canvas do telhado: `create` monta, `render` desenha um quadro, `destroy` desmonta. */
 export class Scene {
   /** tudo o que o Pixi desenha; os filtros de filme vão aqui */
   private readonly world = new Container();
@@ -72,6 +119,8 @@ export class Scene {
 
   /** Cria o canvas dentro de `host` e carrega as folhas. Rejeita se não houver como desenhar (sem WebGL nem canvas). */
   static async create(host: HTMLElement): Promise<Scene> {
+    // pixel art: ampliar sem borrar (vizinho mais próximo), posições arredondadas para pixel inteiro, sem antialias e
+    // sem a densidade do monitor (a escala inteira de `view.ts` já faz a ampliação)
     TextureSource.defaultOptions.scaleMode = 'nearest';
     const app = new Application();
     await app.init({
@@ -115,6 +164,11 @@ export class Scene {
     this.applyEffects();
   }
 
+  /**
+   * Desenha um quadro: `list` em unidades do mundo, `cam`/`view` como em `project` (a escala inteira de `view` amplia
+   * cada sprite; `facing` −1 espelha), `now` em ms (animações, pisca, neon, chuva), `lang` escolhe a folha dos balões.
+   * O sprite vai com a âncora do atlas (entre os pés, em pixels do quadro) no ponto projetado dos pés.
+   */
   render(list: readonly SceneBody[], cam: Camera, view: View, now: number, lang: Lang) {
     const s = view.scale;
     this.backdrop?.update(cam, view, now);
@@ -139,17 +193,18 @@ export class Scene {
       d.sprite.scale.set(b.facing * s, s);
       d.sprite.zIndex = i;
       d.sprite.visible = true;
-      d.sprite.alpha = b.blink && Math.floor(now / BLINK_PERIOD) % 2 === 1 ? 0.15 : 1;
+      d.sprite.alpha = b.blink && Math.floor(now / BLINK_PERIOD) % 2 === 1 ? BLINK_ALPHA : 1;
 
       // a sombra fica no chão debaixo dos pés, não na altura do corpo: o pulo se lê como altura
+      // (abaixo do chão mais de 1 unidade = caindo pelo vão: sem sombra)
       const ground = groundAt(MAP, b.x, b.z);
       if (ground === null || b.y < ground - 1) d.shadow.visible = false;
       else {
         const g = project({ x: b.x, y: ground, z: b.z }, cam, view);
-        const k = Math.max(0.45, 1 - (b.y - ground) / 120);
+        const k = Math.max(SHADOW_MIN, 1 - (b.y - ground) / SHADOW_FADE);
         d.shadow.position.set(at.x, g.y);
         d.shadow.scale.set(s * k);
-        d.shadow.alpha = b.blink ? 0.3 : 1;
+        d.shadow.alpha = b.blink ? BLINK_SHADOW_ALPHA : 1;
         d.shadow.visible = true;
       }
 
@@ -171,7 +226,7 @@ export class Scene {
 
   private add(id: string): Drawn {
     const sprite = new Sprite();
-    const shadow = new Graphics().ellipse(0, 0, BODY_RX * 1.3, BODY_RZ * DEPTH_K * 1.8).fill({ color: 0x000000, alpha: 0.4 });
+    const shadow = new Graphics().ellipse(0, 0, SHADOW_RX, SHADOW_RY).fill({ color: 0x000000, alpha: SHADOW_ALPHA });
     const balloon = new Sprite();
     this.bodies.addChild(sprite);
     this.shadows.addChild(shadow);

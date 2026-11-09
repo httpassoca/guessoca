@@ -5,18 +5,41 @@
  *
  * Repete sem emenda: as duas primeiras e as duas últimas colunas ficam fora dos prédios, só com a base, então a primeira
  * e a última coluna são iguais.
+ *
+ * Sai, por `index.ts`: `apps/web/public/sprites/skyline-far.png` e `skyline-near.png`, listadas em `skylines` de
+ * `apps/web/src/lib/sprites/rooftop.json`. O cliente (`world/backdrop.ts`) as põe num `TilingSprite` na escala inteira, com
+ * a base de cada uma a uma altura fixa do chão (`FAR_BASE`, `NEAR_BASE`) e rolando a `PARALLAX.far`/`.near` da câmera
+ * (`world/parallax.ts`). Em pixels da faixa, `y` para baixo; 1 pixel = 1 unidade do mundo antes da escala.
+ *
+ * Como mudar: outra cidade é outra `seed` em `SKYLINES` (a mesma semente dá sempre a mesma imagem, byte a byte); outro
+ * clima são os números de `STYLES`. Conferir com `bun run sprites:preview`.
  */
 import { blank, rgbOf, setPixel, type Hex, type Image } from './image';
 
+/** A camada: `far` (longe, clara e enevoada) ou `near` (perto, escura). O cliente acha a faixa pela camada. */
 export type SkylineLayer = 'far' | 'near';
 
+/** Uma faixa: o nome do arquivo (sem `.png`), a camada, o tamanho em pixels (a largura é o ladrilho que repete) e a semente. */
 export interface SkylineSpec { name: string; layer: SkylineLayer; width: number; height: number; seed: number }
 
+/**
+ * As duas faixas. A largura é o ladrilho (a de perto mais larga, porque anda mais rápido e a repetição se notaria antes);
+ * a altura dá folga acima do prédio mais alto de cada estilo (`maxH`) para as antenas. As sementes são fixas e não têm
+ * significado: trocar uma dá outra cidade.
+ */
 export const SKYLINES: readonly SkylineSpec[] = [
   { name: 'skyline-far', layer: 'far', width: 320, height: 150, seed: 11 },
   { name: 'skyline-near', layer: 'near', width: 448, height: 230, seed: 29 },
 ];
 
+/**
+ * O jeito de uma camada. Cores: `body` (paredes, sorteadas por prédio), `edge` (a quina da esquerda e a borda da caixa-
+ * d'água), `roof` (a laje e as antenas), `dark` (janela apagada; null = nem desenha), `lit` (janelas acesas), `base` (o
+ * chão atrás de tudo, `baseH` linhas de altura, para não ver céu entre os prédios). `litP` é a chance de uma janela estar
+ * acesa (vezes 1,6 ou 0,6 por prédio, e 2,2 num andar em cada quatro). `win`: tamanho da janela e passo em x/y, em pixels.
+ * `minW`–`maxW`, `minH`–`maxH`: largura e altura sorteadas de cada prédio. `antennaP`, `tankP`, `neonP`: as chances de
+ * antena, caixa-d'água e neon por prédio. Todos ajustados no olho.
+ */
 interface Style {
   body: Hex[]; edge: Hex; roof: Hex; dark: Hex | null; lit: Hex[]; litP: number; base: Hex; baseH: number;
   win: { w: number; h: number; sx: number; sy: number };
@@ -24,6 +47,7 @@ interface Style {
   antennaP: number; tankP: number; neonP: number;
 }
 
+/** Longe: claro, roxo, janelas de 1 pixel e poucas, sem caixas-d'água. Perto: escuro, janelas de 2×2, mais neon. */
 const STYLES: Record<SkylineLayer, Style> = {
   far: {
     body: ['2a2350', '2e2757', '262048'], edge: '3a3172', roof: '342c66', dark: null, lit: ['a5789a', 'c79c6e', '8c6aa8'],
@@ -37,7 +61,9 @@ const STYLES: Record<SkylineLayer, Style> = {
   },
 };
 
+/** Neon (tubo, brilho): o magenta e o ciano da paleta do telhado (`x`/`v` e `z`/`u` em `rooftop.ts`). */
 const NEON: [Hex, Hex][] = [['ff3cc8', '6e1660'], ['3ef0ff', '125a74']];
+/** A luz vermelha na ponta das antenas (o `R` do telhado). */
 const BEACON: Hex = 'ff4256';
 
 /** Sorteio pequeno e determinístico (mulberry32): a mesma semente dá sempre a mesma cidade. */
@@ -52,6 +78,11 @@ export function rng(seed: number): () => number {
   };
 }
 
+/**
+ * Uma faixa da cidade, `width × height` pixels: prédios lado a lado da coluna 2 até `width − 2`, cada um com largura e
+ * altura sorteadas, às vezes um recuo no topo, janelas, antena, caixa-d'água e neon; às vezes um vão de 1–4 pixels
+ * entre eles (mostra a `base`). Determinística pela `seed`.
+ */
 export function skyline(o: { layer: SkylineLayer; width: number; height: number; seed: number }): Image {
   const st = STYLES[o.layer];
   const r = rng(o.seed);
