@@ -21,7 +21,11 @@ export const CHARACTERS = 8;
 /** O jogo começa com pelo menos esta turma jogando. */
 export const MIN_PLAYERS = 2;
 
-export type Phase = 'lobby' | 'writing' | 'playing' | 'ended';
+/**
+ * `lobby`: a turma se junta e cada um escreve o post-it de quem lhe cabe, ao mesmo tempo; `playing`: as vezes correm;
+ * `ended`: tudo revelado, até o moderador apertar "jogar de novo". (O pré-lobby, criar ou entrar na sala, é só tela.)
+ */
+export type Phase = 'lobby' | 'playing' | 'ended';
 
 export interface Postit {
   /** aparado, até `POSTIT_MAX`; '' = ainda não escrito */
@@ -58,13 +62,14 @@ export interface GameState {
   characters: Record<string, number>;
   /**
    * dono → autor. Enquanto `customAuthors` é false, é o círculo sobre `order` (cada um escreve para o próximo) e é
-   * recalculado a cada mudança da ordem; depois de trocar ou sortear, fica como o moderador deixou. A partir da escrita, os
-   * autores ficam congelados: reordenar durante o jogo não muda quem escreveu o quê.
+   * recalculado a cada mudança da ordem; depois de sortear, fica como o moderador deixou (até a turma mudar, quando volta
+   * ao círculo). No lobby, todo post-it cujo autor mudou é apagado (texto, imagem e pronto): ninguém herda o que foi
+   * escrito para outra pessoa. A partir do começo do jogo, os autores ficam congelados.
    */
   authors: Record<string, string>;
   customAuthors: boolean;
   turnMs: number;
-  /** dono → post-it; existe para cada dono de `order` a partir da escrita */
+  /** dono → post-it; existe para cada dono de `order` já no lobby (vazio até o autor escrever) */
   postits: Record<string, Postit>;
   turn: Turn | null;
   /** o moderador pausou o relógio */
@@ -90,23 +95,21 @@ export type GameAction =
   | { type: 'character'; character: number }
   /** moderador: nova ordem das vezes; tem de ser uma permutação de `order` (lobby ou jogo) */
   | { type: 'order'; order: string[] }
-  /** moderador: troca os autores de dois donos; recusa se alguém passar a escrever para si (lobby) */
-  | { type: 'swapAuthors'; a: string; b: string }
-  /** moderador: sorteia os autores sem ninguém escrever para si (lobby) */
+  /** moderador: sorteia os autores sem ninguém escrever para si (lobby); apaga os post-its cujo autor mudou */
   | { type: 'shuffleAuthors' }
   /** moderador: tamanho da vez, de `TURN_MIN` a `TURN_MAX` em passos de `TURN_STEP` (lobby) */
   | { type: 'turnMs'; ms: number }
   /** moderador: só moderar (sai de `order`, vira fantasma) ou voltar a jogar (lobby) */
   | { type: 'onlyModerate'; on: boolean }
-  /** moderador: lobby → escrita, com pelo menos `MIN_PLAYERS` em `order` */
-  | { type: 'startWriting' }
-  // escrita
-  /** o autor de `owner` (ou o moderador, para qualquer dono) escreve o post-it; recusa depois de pronto */
+  /** o autor de `owner` (ou o moderador, para qualquer dono menos o próprio) escreve o post-it; recusa depois de pronto (lobby) */
   | { type: 'write'; owner: string; text: string; image: string | null }
-  /** o autor marca o post-it que escreve como pronto (precisa de texto); todos prontos → jogo */
+  /** o autor marca o post-it que escreve como pronto (precisa de texto; lobby) */
   | { type: 'ready' }
-  /** moderador: começa o jogo já; recusa se algum post-it está sem texto (o moderador escreve antes) */
-  | { type: 'forceStart' }
+  /**
+   * moderador: lobby → jogo, com pelo menos `MIN_PLAYERS` em `order` e todo post-it com texto (pronto ou não: o moderador
+   * pode começar sem esperar o "Pronto" de alguém, mas não com post-it vazio)
+   */
+  | { type: 'start' }
   // jogo
   /** a dona da vez diz que acertou: o relógio para e a votação abre */
   | { type: 'claim' }
@@ -120,10 +123,10 @@ export type GameAction =
   | { type: 'mark'; member: string; right: boolean }
   /** moderador: pausa ou solta o relógio */
   | { type: 'pause'; on: boolean }
-  /** moderador: encerra o jogo (escrita ou jogo → fim) */
+  /** moderador: encerra o jogo (jogo → fim) */
   | { type: 'endGame' }
   // fim
-  /** qualquer pessoa: de volta ao lobby com a mesma turma; fantasmas entram, quem só modera continua de fora */
+  /** moderador: de volta ao lobby com a mesma turma; fantasmas entram, quem só modera continua de fora; post-its novos e vazios */
   | { type: 'playAgain' };
 
 /** Por que uma ação foi recusada. */
@@ -131,8 +134,9 @@ export type GameError = 'notModerator' | 'wrongPhase' | 'notYourTurn' | 'invalid
 
 /** O que aconteceu de notável: para o log do servidor e, mais tarde, para os sons. */
 export type GameEvent =
-  | { type: 'writing' }
   | { type: 'started' }
+  /** o autor deste post-it mudou no lobby e ele foi apagado */
+  | { type: 'cleared'; owner: string }
   | { type: 'turn'; owner: string }
   | { type: 'claimed'; owner: string }
   | { type: 'voted'; owner: string; yes: boolean; yesVotes: number; noVotes: number }
@@ -144,7 +148,8 @@ export type GameEvent =
 
 export type ActionResult = { ok: true; game: GameState; events: GameEvent[] } | { ok: false; error: GameError };
 
-export function createGame(): GameState {
+/** `turnMs`: o tamanho da vez escolhido ao criar a sala (padrão `TURN_DEFAULT`). */
+export function createGame(init: { turnMs?: number } = {}): GameState {
   return {
     phase: 'lobby',
     order: [],
@@ -152,7 +157,7 @@ export function createGame(): GameState {
     characters: {},
     authors: {},
     customAuthors: false,
-    turnMs: TURN_DEFAULT,
+    turnMs: init.turnMs ?? TURN_DEFAULT,
     postits: {},
     turn: null,
     paused: false,

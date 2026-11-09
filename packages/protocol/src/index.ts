@@ -3,7 +3,7 @@
  * recebe. Cliente e servidor importam daqui; nada é duplicado. Imagens não passam pelo socket (ADR 0002): sobem por
  * `POST /api/rooms/CODE/images?token=T` e o snapshot leva só o endereço.
  */
-import { CHARACTERS, NICKNAME_MAX, POSTIT_MAX, TURN_MAX, TURN_MIN, TURN_STEP, type Phase } from '@guess/rules';
+import { CHARACTERS, MAX_MEMBERS, MIN_PLAYERS, NICKNAME_MAX, POSTIT_MAX, TURN_MAX, TURN_MIN, TURN_STEP, type Phase } from '@guess/rules';
 import type { Anim } from '@guess/world';
 
 /** O cliente manda `ping` neste intervalo; o servidor derruba quem fica o dobro em silêncio (e o cliente derruba um socket que não responde nada por um intervalo inteiro). */
@@ -73,19 +73,19 @@ export type ClientMessage =
   // moderador, lobby
   /** a ordem das vezes (também durante o jogo) */
   | { type: 'order'; order: string[] }
-  | { type: 'swapAuthors'; a: string; b: string }
   /** "Sortear": ninguém escreve para si */
   | { type: 'shuffleAuthors' }
   | { type: 'turnMs'; ms: number }
   /** só moderar, como fantasma */
   | { type: 'onlyModerate'; on: boolean }
-  | { type: 'startWriting' }
-  // escrita
+  /** quantas pessoas cabem na sala, de `MIN_PLAYERS` a `MAX_MEMBERS`; nunca menos que a turma de agora */
+  | { type: 'maxPlayers'; n: number }
+  // lobby: a escrita acontece aqui
   /** o post-it de `owner` como está agora (cada tecla); `image` = id devolvido pelo upload, ou null */
   | { type: 'write'; owner: string; text: string; image: string | null }
   | { type: 'ready' }
-  /** moderador: começa sem esperar quem não está pronto */
-  | { type: 'forceStart' }
+  /** moderador: começa o jogo (todo post-it com texto; não precisa estarem todos prontos) */
+  | { type: 'start' }
   // jogo
   /** Acertei */
   | { type: 'claim' }
@@ -184,6 +184,8 @@ export interface RoomSnapshot {
   moderator: string | null;
   /** o servidor aceita jogadores falsos (só em desenvolvimento) */
   dev: boolean;
+  /** quantas pessoas cabem na sala (a turma toda, fantasmas inclusive) */
+  maxPlayers: number;
   /** a turma, na ordem em que entrou */
   members: MemberView[];
   /** quem joga, na ordem das vezes */
@@ -191,7 +193,7 @@ export interface RoomSnapshot {
   /** dono → autor */
   authors: Record<string, string>;
   turnMs: number;
-  /** dono → post-it, a partir da escrita */
+  /** dono → post-it, já no lobby */
   postits: Record<string, PostitView>;
   turn: TurnView | null;
   /** o moderador pausou o relógio */
@@ -220,6 +222,24 @@ export function parsePresence(raw: unknown): Presence | null {
   return { x: p.x, y: p.y, z: p.z, vx: p.vx, vy: p.vy, vz: p.vz, facing: p.facing, anim: p.anim as Anim, emote: p.emote as EmoteName | null, blink: p.blink };
 }
 
+const isTurnMs = (ms: unknown): ms is number =>
+  typeof ms === 'number' && Number.isInteger(ms) && ms >= TURN_MIN && ms <= TURN_MAX && (ms - TURN_MIN) % TURN_STEP === 0;
+const isMaxPlayers = (n: unknown): n is number => typeof n === 'number' && Number.isInteger(n) && n >= MIN_PLAYERS && n <= MAX_MEMBERS;
+
+/** O que se escolhe no pré-lobby ao criar a sala (corpo de `POST /api/rooms`); o que falta ou não passa fica no padrão. */
+export interface RoomInit { turnMs?: number; maxPlayers?: number; onlyModerate?: boolean }
+
+/** Lê o corpo de `POST /api/rooms`: cada campo só vale se passar na validação; o resto é ignorado. */
+export function parseRoomInit(raw: unknown): RoomInit {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {};
+  const b = raw as Record<string, unknown>;
+  return {
+    ...(isTurnMs(b.turnMs) ? { turnMs: b.turnMs } : {}),
+    ...(isMaxPlayers(b.maxPlayers) ? { maxPlayers: b.maxPlayers } : {}),
+    ...(typeof b.onlyModerate === 'boolean' ? { onlyModerate: b.onlyModerate } : {}),
+  };
+}
+
 const isId = (v: unknown): v is string => typeof v === 'string' && MEMBER_ID_RE.test(v);
 const isBool = (v: unknown): v is boolean => typeof v === 'boolean';
 
@@ -233,9 +253,8 @@ export function parseClientMessage(raw: unknown): ClientMessage | null {
   switch (m.type) {
     case 'ping':
     case 'shuffleAuthors':
-    case 'startWriting':
     case 'ready':
-    case 'forceStart':
+    case 'start':
     case 'claim':
     case 'skip':
     case 'giveUp':
@@ -251,12 +270,10 @@ export function parseClientMessage(raw: unknown): ClientMessage | null {
       return Number.isInteger(m.character) && (m.character as number) >= 0 && (m.character as number) < CHARACTERS ? { type: 'character', character: m.character as number } : null;
     case 'order':
       return Array.isArray(m.order) && m.order.length <= 16 && m.order.every(isId) && new Set(m.order).size === m.order.length ? { type: 'order', order: [...m.order] } : null;
-    case 'swapAuthors':
-      return isId(m.a) && isId(m.b) && m.a !== m.b ? { type: 'swapAuthors', a: m.a, b: m.b } : null;
-    case 'turnMs': {
-      const ms = m.ms;
-      return typeof ms === 'number' && Number.isInteger(ms) && ms >= TURN_MIN && ms <= TURN_MAX && (ms - TURN_MIN) % TURN_STEP === 0 ? { type: 'turnMs', ms } : null;
-    }
+    case 'maxPlayers':
+      return isMaxPlayers(m.n) ? { type: 'maxPlayers', n: m.n } : null;
+    case 'turnMs':
+      return isTurnMs(m.ms) ? { type: 'turnMs', ms: m.ms } : null;
     case 'onlyModerate':
     case 'pause':
       return isBool(m.on) ? { type: m.type, on: m.on } : null;
