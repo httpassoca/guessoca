@@ -8,6 +8,8 @@
   import { isTextField, keyAction } from '../keys';
   import type { GameRequest, RemoteRoom, RemoteState } from '../room/remote';
   import { characterToClaim, countdown, devTools, roomView } from '../room/view';
+  import { playSfx } from '../sound/player';
+  import { roomSoundsTracker } from '../sound/room';
   import Ended from './Ended.svelte';
   import Lobby from './Lobby.svelte';
   import Menu from './Menu.svelte';
@@ -80,7 +82,10 @@
     const c = characterToClaim(v, rememberedCharacter());
     if (c !== null) send({ type: 'character', character: c });
     const tick = setInterval(() => (now = performance.now()), 200);
-    return () => { clearInterval(tick); clearTimeout(refusedTimer); };
+    // os sons da sala (votação, acertou, fim de vez), snapshot a snapshot, direto do `RemoteRoom` (sem esperar o Svelte)
+    const sounds = roomSoundsTracker();
+    const offSounds = remote.watch((s) => { for (const name of sounds(s.status, s.room, s.room?.you ?? null)) playSfx(name); });
+    return () => { clearInterval(tick); clearTimeout(refusedTimer); offSounds(); };
   });
 </script>
 
