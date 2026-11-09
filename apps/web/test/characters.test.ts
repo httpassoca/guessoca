@@ -5,12 +5,14 @@ import { CHARACTERS } from '@guess/rules';
 import { character, CHARACTER_ART, frameAt, frameIndex, PORTRAIT, sheetSize } from '../src/lib/sprites/characters';
 
 describe('personagens', () => {
-  test('um por personagem do protocolo: quatro heróis, depois quatro esqueletos', () => {
+  test('um por personagem do protocolo: quatro heróis, três esqueletos e o Kratos no lugar 6', () => {
     expect(CHARACTER_ART).toHaveLength(CHARACTERS);
-    expect(CHARACTER_ART.map((c) => c.model)).toEqual(['hero', 'hero', 'hero', 'hero', 'skeleton', 'skeleton', 'skeleton', 'skeleton']);
+    expect(CHARACTER_ART.map((c) => c.model)).toEqual(['hero', 'hero', 'hero', 'hero', 'skeleton', 'skeleton', 'kratos', 'skeleton']);
     expect(character(3).sheet).toBe('/sprites/char-3.png');
     expect(character(5).atlas).toBe(character(4).atlas);
+    expect(character(7).atlas).toBe(character(4).atlas);
     expect(character(0).atlas).not.toBe(character(4).atlas);
+    expect(character(6).atlas).not.toBe(character(4).atlas);
   });
 
   test('cores únicas, para bordas e marcas na interface', () => {
@@ -28,7 +30,7 @@ describe('personagens', () => {
     expect(character(-1)).toBe(character(0));
   });
 
-  for (const n of [0, 4]) {
+  for (const n of [0, 4, 6]) {
     const { atlas, model } = character(n);
 
     test(`${model}: as animações que o jogo usa existem`, () => {

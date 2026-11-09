@@ -12,7 +12,7 @@ owner's files ──cp──▶ assets-src/ (gitignored)         text grids in c
                          │   bun run sprites   (tools/sprites/src/index.ts)
                          ▼
    apps/web/public/sprites/*.png        apps/web/src/lib/sprites/*.json      (both committed)
-   char-0..7, rooftop, skyline-*,       hero, skeleton, characters,
+   char-0..7, rooftop, skyline-*,       hero, skeleton, kratos, characters,
    emotes-<lang>                        rooftop, emotes
                          │                        │
                          ▼                        ▼
@@ -30,7 +30,7 @@ owner's files ──cp──▶ assets-src/ (gitignored)         text grids in c
 ## Licensing (ADR 0007)
 
 - **Hero**: Ozzbit Games' free "male hero" pack. Personal and non-commercial use only, modifications allowed, **credit required** ("Herói: Ozzbit Games", the `credit.character` i18n key, shown in the menu and on the home screen; `hero.json` carries `"credit": "Ozzbit Games"`). The pack itself must never be redistributed.
-- **Skeleton knight**: the owner's own art. No restriction and no credit (`"credit": null`).
+- **Skeleton knight** and **Kratos**: the owner's own art. No restriction and no credit (`"credit": null`).
 - **Scenery, emotes and skyline**: drawn in code (text grids and a seeded generator). No licence strings attached.
 - **Never commit `assets-src/`.** It's in `.gitignore` and `.dockerignore`. Commit only the generated output.
 - Art from any other pack needs a licence that allows this use (a free, non-commercial game whose repo is public). Signs and text are our own words: no real brands or game names.
@@ -49,7 +49,9 @@ Pipeline, `tools/sprites/src/` (`@guess/sprites`, pure apart from `png.ts` and t
 | `atlas.ts` | What the two models share: `ANIMATION_NAMES` (row order) and `layout()`, which crops all frames to one rectangle and builds the sheet and `Atlas`. |
 | `hero.ts` | The hero recipe: slice 128×128 cells, remove the sword from the shove, four hair ramps. |
 | `skeleton.ts` | The skeleton recipe: slice 170×125 cells, remove slash trails, draw run/jump/fall, four cape ramps. |
-| `characters.ts` | The eight slots (0–3 hero, 4–7 skeleton) → `characters.json`. |
+| `kratos.ts` | The Kratos recipe: takes the side frame of a turnaround GIF and draws all seven animations from it (legs swung from the hip, torso leaned and bobbed). |
+| `gif.ts` | Decodes an animated GIF into frames and lays them out as a one-row sheet. |
+| `characters.ts` | The eight slots (0–3 hero, 4, 5, 7 skeleton, 6 Kratos) → `characters.json`. |
 | `emotes.ts` | The emote balloons, from a 3×5 text font, one sheet per language. |
 | `rooftop.ts` | The rooftop palette, the `Sketch` stamping board, every prop/texture/sign as a text grid, and the shelf-packed `rooftop.png` + atlas. |
 | `skyline.ts` | The two seeded, seamlessly tiling city strips. |
@@ -59,7 +61,7 @@ Generated data, `apps/web/src/lib/sprites/`:
 
 | File | Job |
 |---|---|
-| `hero.json`, `skeleton.json` | One `Atlas` per model: frame size, anchor, head box, stand box, animation rows with frames/fps/loop, credit. |
+| `hero.json`, `skeleton.json`, `kratos.json` | One `Atlas` per model: frame size, anchor, head box, stand box, animation rows with frames/fps/loop, credit. |
 | `characters.json` | Slot `n` → model, colour name, UI colour, sheet URL, atlas name. |
 | `rooftop.json` | Every rooftop frame (position, anchor, `tile`, `face`) plus the skyline strips. |
 | `emotes.json` | Each balloon's rectangle and tail tip (shared by both languages). |
@@ -93,8 +95,8 @@ World geometry the art must match: `packages/world/src/index.ts` (`MAP`, `DEPTH`
 
 There are four spaces. Comments say which one a value is in.
 
-1. **Source-sheet pixels**: the pack's cells. Hero cells are 128×128 (`CELL` in `hero.ts`); skeleton cells are 170×125 (`CELL_W`, `CELL_H`), and in them the feet rest on row `FEET_Y = 80`. Every recipe works in cell coordinates until `layout()`.
-2. **Frame pixels**: after `layout()` crops all frames of a model to the smallest rectangle containing every opaque pixel of every animation. The hero is 45×51 and the skeleton 120×61. The **anchor** is the point between the feet on the ground: `x` is the middle of the idle's feet, `y` is the bottom row of the first idle frame (the frame height, in practice). Atlas `head` and `stand` are in frame pixels too.
+1. **Source-sheet pixels**: the pack's cells. Hero cells are 128×128 (`CELL` in `hero.ts`); skeleton cells are 170×125 (`CELL_W`, `CELL_H`), and in them the feet rest on row `FEET_Y = 80`; Kratos cells are 64×64 with the feet on row 62, pasted into a padded 96×72 working canvas. Every recipe works in cell coordinates until `layout()`.
+2. **Frame pixels**: after `layout()` crops all frames of a model to the smallest rectangle containing every opaque pixel of every animation. The hero is 45×51, the skeleton 120×61 and Kratos 46×64. The **anchor** is the point between the feet on the ground: `x` is the middle of the idle's feet, `y` is the bottom row of the first idle frame (the frame height, in practice). Atlas `head` and `stand` are in frame pixels too.
 3. **World units**: `x` along the roofs (right is positive), `y` up (0 = the lowest roof), `z` depth (0 = front edge, `DEPTH = 56` = back). **1 world unit = 1 sprite pixel**, so a 40-px-tall prop is 40 units tall.
 4. **Screen pixels**: `project(p, cam, view)` gives `sx = (x − cam.x)·scale + width/2`, `sy = groundY − (y + z·DEPTH_K)·scale`. `DEPTH_K = 0.6` is an oblique projection: one unit of depth rises 0.6 px on screen while height stays 1:1, so a box's lid is drawn `round(depth · 0.6)` rows tall.
 
@@ -103,7 +105,7 @@ There are four spaces. Comments say which one a value is in.
 - **Depth sorting**: bodies are sorted by `depthKey(p) = z`, larger first (further back is drawn first), with ties broken by id so the order doesn't flicker. Each sprite's `zIndex` is its place in that list. Height doesn't count: someone riding a head has nearly the same `z` as the person below, so who covers whom is decided by `z` (then id), not by who is on top.
 - **Layer order** inside the world container: `scenery` (backdrop, then `platforms.back`: back decor, roof tops, ledges, facades, edges, facade signs, floor decor, box props) → shadows → bodies → `platforms.front` (front parapets, covering feet at the edge) → emote balloons → weather. The post-its and panels are HTML above the canvas and never pass through the filters.
 - **Shadow**: an ellipse at the ground under the feet (`groundAt(MAP, x, z)`), not at the body's height, so a jump reads as height. It's `BODY_RX·1.3` by `BODY_RZ·DEPTH_K·1.8` world units at 40 % black, and shrinks to 45 % size by 120 units above the ground.
-- **`BODY_H = 40`** is the physics height (what you stand on when riding a head). It isn't the sprite height (hero 37, skeleton 51). Post-it height comes from the atlas instead: `headY(n) = anchor.y − head.y + 3` (hero 40, skeleton 47). The emote tail sits at `headY − 11`, `EMOTE_GAP = 14` units in front of the face.
+- **`BODY_H = 40`** is the physics height (what you stand on when riding a head). It isn't the sprite height (hero 37, skeleton 51, Kratos 62). Post-it height comes from the atlas instead: `headY(n) = anchor.y − head.y + 3` (hero 40, skeleton 47). The emote tail sits at `headY − 11`, `EMOTE_GAP = 14` units in front of the face.
 
 ## The character contract
 
@@ -136,7 +138,7 @@ Every model's sheet has one row per animation, in this exact order (`ANIMATION_N
 
 ### The eight slots
 
-`CHARACTERS = 8` in `@guess/rules` (a room has up to eight people, each with a unique character). `tools/sprites/src/characters.ts` lists them, hero variants (`HAIRS`) first and then skeleton variants (`CAPES`); the index is the slot. `characters.json` maps each slot to:
+`CHARACTERS = 8` in `@guess/rules` (a room has up to eight people, each with a unique character). `tools/sprites/src/characters.ts` lists them, hero variants (`HAIRS`) first and then skeleton variants (`CAPES`), with Kratos spliced in at `KRATOS_SLOT = 6` (the slot the green cape had); the index is the slot. `characters.json` maps each slot to:
 
 ```json
 { "model": "skeleton", "name": "azul", "color": "#2f50ad", "sheet": "/sprites/char-5.png", "atlas": "skeleton" }
@@ -305,6 +307,7 @@ Take screenshots in the middle of each animation (run, jump, fall off a roof edg
 
 ## Pitfalls
 
+- **Kratos has no drawn animations.** The source GIF is only a turnaround, so every Kratos frame is derived in `kratos.ts` from the one side-view frame. To improve a movement, tune the `Pose` numbers there, or ask the owner for real sheets (64×64 cells, facing right, feet on row 62) and swap the row in `derive`.
 - **CI has no `assets-src/`.** Tests that read real art must not touch the disk when it's absent. `describe.skipIf(!existsSync(pack))` is not enough on its own: bun runs a skipped `describe` body while registering its tests, so guard every read inside the body as well (see the end of `tools/sprites/test/skeleton.test.ts`). The recipe tests use fake images built in code.
 - **Semi-transparent pixels get solidified.** `solidify` makes any alpha above 0 fully opaque, so soft edges become hard halos and drop shadows become solid blobs. Clean the source.
 - **White slash trails versus white bones or shirts.** Trails are erased as white components that are too big: on the hero, white blobs over `SHIRT_WHITE_MAX = 24` px (the shirt's blobs are at most 17 px; trails are 325+); on the skeleton, white blobs over `SLASH_MIN = 100` (the largest bone blob is 55; the smallest trail 180), plus loose mostly-white pieces of at least `SLASH_TIP_MIN = 40`. New art with large white areas (a white cape, a big skull) needs new thresholds, or a different trail colour in the source. The tests compare bone and eye counts before and after.

@@ -34,10 +34,10 @@ function body(img = blank(CELL_W, CELL_H), x0 = 0) {
 }
 
 describe('capa', () => {
-  test('a capa vermelha é a original; quatro capas com cores diferentes', () => {
-    expect(CAPES.map((c) => c.name)).toEqual(['vermelho', 'azul', 'verde', 'roxo']);
+  test('a capa vermelha é a original; três capas com cores diferentes (a verde deu o lugar ao Kratos)', () => {
+    expect(CAPES.map((c) => c.name)).toEqual(['vermelho', 'azul', 'roxo']);
     expect(CAPES[0].ramp).toEqual(CAPE);
-    expect(new Set(CAPES.map((c) => c.ramp[1])).size).toBe(4);
+    expect(new Set(CAPES.map((c) => c.ramp[1])).size).toBe(3);
   });
 
   test('trocar a capa só mexe nas cores da capa: olhos, ossos e espada ficam', () => {
@@ -110,7 +110,7 @@ describe('as animações desenhadas', () => {
 
   test('a folha e o atlas: uma folha por capa, a âncora no chão', () => {
     const { sheets: out, atlas } = buildSkeleton(sheets);
-    expect(out).toHaveLength(4);
+    expect(out).toHaveLength(3);
     expect(atlas.credit).toBeNull();
     expect(atlas.anchor.y).toBe(atlas.stand.y + atlas.stand.h);
     const { x, y, size } = atlas.head;

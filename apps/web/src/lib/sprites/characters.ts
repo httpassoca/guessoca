@@ -1,7 +1,7 @@
 /**
  * Os personagens desenhados a partir das folhas geradas por `bun run sprites` (ADR 0007): `characters.json` diz de que
- * modelo é cada um (0–3 o herói, 4–7 o esqueleto), a cor e a folha; cada modelo tem o seu atlas (`hero.json`,
- * `skeleton.json`) com o tamanho do quadro, a âncora, a cabeça e as animações. Puro, para os componentes e para o mundo
+ * modelo é cada um (0–3 o herói, 4, 5 e 7 o esqueleto, 6 o Kratos), a cor e a folha; cada modelo tem o seu atlas (`hero.json`,
+ * `skeleton.json`, `kratos.json`) com o tamanho do quadro, a âncora, a cabeça e as animações. Puro, para os componentes e para o mundo
  * (Pixi) lerem do mesmo lugar.
  *
  * Entrada: os JSON ao lado, escritos por `tools/sprites/src/index.ts` (não editar à mão; `bun run sprites` refaz). As
@@ -17,12 +17,13 @@
 import type { Anim } from '@guess/world';
 import list from './characters.json';
 import hero from './hero.json';
+import kratos from './kratos.json';
 import skeleton from './skeleton.json';
 
 /** As linhas da folha: as mesmas animações que o mundo escolhe (`Anim` em `@guess/world`). */
 export type AnimationName = Anim;
 /** Os modelos de personagem, cada um com um atlas `<modelo>.json`. */
-export type Model = 'hero' | 'skeleton';
+export type Model = 'hero' | 'skeleton' | 'kratos';
 
 /** O atlas de um modelo, como `tools/sprites` escreve (`Atlas` em `tools/sprites/src/atlas.ts`). */
 export interface Atlas {
@@ -41,7 +42,7 @@ export interface Atlas {
 }
 
 /** Um atlas por modelo; `characters.json` diz qual cada personagem usa. */
-const ATLASES: Record<Model, Atlas> = { hero, skeleton };
+const ATLASES: Record<Model, Atlas> = { hero, skeleton, kratos };
 
 /** Tudo o que a interface e o mundo precisam de um personagem. */
 export interface CharacterArt {
@@ -55,7 +56,7 @@ export interface CharacterArt {
   atlas: Atlas;
 }
 
-/** Os oito personagens, na ordem dos lugares do protocolo (0–3 o herói, 4–7 o esqueleto). */
+/** Os oito personagens, na ordem dos lugares do protocolo (0–3 o herói, 4, 5 e 7 o esqueleto, 6 o Kratos). */
 export const CHARACTER_ART: readonly CharacterArt[] = list.map((c) => ({
   model: c.model as Model, name: c.name, color: c.color, sheet: c.sheet, atlas: ATLASES[c.atlas as Model],
 }));
@@ -86,7 +87,7 @@ export function frameIndex(atlas: Atlas, name: AnimationName, elapsed: number): 
 }
 
 /**
- * A janela, em pixels do quadro, em que a interface mostra qualquer personagem parado, igual para os dois modelos: cabe
+ * A janela, em pixels do quadro, em que a interface mostra qualquer personagem parado, igual para todos os modelos: cabe
  * o parado inteiro de cada um com o pé em `anchorX`, na linha de baixo. Os quadros do esqueleto são largos (a espada do
  * golpe), mas aqui só o parado aparece. `w`, `h` e `anchorX` (o pé, a partir da esquerda) em pixels do quadro.
  */

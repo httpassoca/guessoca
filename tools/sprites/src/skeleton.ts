@@ -1,7 +1,7 @@
 /**
  * A receita do esqueleto (ADR 0007, emenda): o cavaleiro esqueleto desenhado pelo dono do jogo, em `assets-src/skeleton/`
- * (fora do git como o pacote do herói). Quatro personagens iguais menos a cor da capa, numa folha por personagem com as
- * mesmas linhas do herói, e um atlas (`skeleton.json`) que vale para os quatro.
+ * (fora do git como o pacote do herói). Três personagens iguais menos a cor da capa, numa folha por personagem com as
+ * mesmas linhas do herói, e um atlas (`skeleton.json`) que vale para os três.
  *
  * A arte tem parado, andar e golpes, mas não tem correr, pular nem cair: esses são desenhados aqui, a partir dos quadros
  * que existem (inclinar, achatar, esticar, recortar a capa de um golpe e girá-la). O empurrão é o golpe para a frente
@@ -9,8 +9,8 @@
  *
  * Entra: `assets-src/skeleton/<NOME>.png` (os de `SHEETS`; cada um uma linha de células de 170×125, o esqueleto olhando
  * para a direita com os pés na linha `FEET_Y`). Os números de pixel abaixo são todos em pixels da célula, medidos olhando
- * a arte; mudam se a arte mudar de lugar na célula. Sai, por `index.ts`: `apps/web/public/sprites/char-4.png` …
- * `char-7.png` (os lugares do esqueleto em `characters.ts`) e `apps/web/src/lib/sprites/skeleton.json`. Arte do dono:
+ * a arte; mudam se a arte mudar de lugar na célula. Sai, por `index.ts`: `apps/web/public/sprites/char-4.png`,
+ * `char-5.png` e `char-7.png` (os lugares do esqueleto em `characters.ts`) e `apps/web/src/lib/sprites/skeleton.json`. Arte do dono:
  * sem licença nem crédito (`credit: null`), mas fora do git do mesmo jeito (emenda da ADR 0007).
  *
  * Como mudar:
@@ -56,13 +56,12 @@ export const CAPE: readonly [Hex, Hex] = ['771818', '982b2b'];
 export const EYE: Hex = 'fe0707';
 
 /**
- * As quatro capas (sombra, base) dos personagens 4–7; a 0 é a original, as outras escolhidas no olho. A base é a cor do
+ * As três capas (sombra, base) dos personagens 4, 5 e 7 (o 6, que era a capa verde, é o Kratos); a 0 é a original, as outras escolhidas no olho. A base é a cor do
  * personagem na interface (`--gs-char-N` no CSS). A ordem é a dos lugares.
  */
 export const CAPES: readonly { name: string; ramp: readonly [Hex, Hex] }[] = [
   { name: 'vermelho', ramp: CAPE },
   { name: 'azul', ramp: ['1c2c6e', '2f50ad'] },
-  { name: 'verde', ramp: ['1c4f26', '2e7d3b'] },
   { name: 'roxo', ramp: ['45196b', '6c2fa3'] },
 ];
 
@@ -314,7 +313,7 @@ function feetX(idle: Image): number {
   return (min + max + 1) / 2;
 }
 
-/** Monta as quatro folhas (uma por capa, na ordem de `CAPES`) e o atlas a partir das folhas da arte (`sheets[NOME]`). */
+/** Monta as folhas (uma por capa, na ordem de `CAPES`) e o atlas a partir das folhas da arte (`sheets[NOME]`). */
 export function buildSkeleton(sheets: Readonly<Record<string, Image>>): { sheets: Image[]; atlas: Atlas } {
   const cells = skeletonCells(sheets);
   const rows = derive(cells);
