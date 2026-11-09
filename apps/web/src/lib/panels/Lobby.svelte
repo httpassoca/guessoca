@@ -8,7 +8,7 @@
   import { clockText, turnOptions, type RoomView } from '../room/view';
   import MemberActions from './MemberActions.svelte';
   import OrderList from './OrderList.svelte';
-  import Swatch from './Swatch.svelte';
+  import Hero from './Hero.svelte';
   import Who from './Who.svelte';
 
   /**
@@ -88,7 +88,7 @@
         {#each v.characters as taker, n (n)}
           {@const mine = taker?.id === room.you}
           <button class="gs-char" type="button" class:mine disabled={!!taker && !mine} title={taker ? taker.nickname : t('lobby.characterFree')} aria-pressed={mine} onclick={() => pickCharacter(n)}>
-            <Swatch {n} />
+            <Hero {n} animate={mine} />
             <span class="who">{taker ? (mine ? t('badge.you') : taker.nickname) : t('lobby.characterFree')}</span>
           </button>
         {/each}

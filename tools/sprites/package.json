@@ -1,0 +1,8 @@
+{
+  "name": "@guess/sprites",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": { "sprites": "bun src/index.ts", "test": "bun test", "check": "tsc --noEmit" },
+  "devDependencies": { "pngjs": "^7.0.0", "@types/pngjs": "^6.0.5", "typescript": "^5.9.0" }
+}

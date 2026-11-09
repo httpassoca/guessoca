@@ -1,0 +1,94 @@
+{
+  "frame": {
+    "w": 45,
+    "h": 51
+  },
+  "anchor": {
+    "x": 16,
+    "y": 51
+  },
+  "head": {
+    "x": 12,
+    "y": 14,
+    "size": 21
+  },
+  "animations": {
+    "idle": {
+      "row": 0,
+      "frames": 10,
+      "fps": 10,
+      "loop": true
+    },
+    "walk": {
+      "row": 1,
+      "frames": 10,
+      "fps": 12,
+      "loop": true
+    },
+    "run": {
+      "row": 2,
+      "frames": 10,
+      "fps": 14,
+      "loop": true
+    },
+    "jump": {
+      "row": 3,
+      "frames": 6,
+      "fps": 12,
+      "loop": false
+    },
+    "fall": {
+      "row": 4,
+      "frames": 4,
+      "fps": 12,
+      "loop": false
+    },
+    "fall_loop": {
+      "row": 5,
+      "frames": 3,
+      "fps": 10,
+      "loop": true
+    },
+    "shove": {
+      "row": 6,
+      "frames": 7,
+      "fps": 16,
+      "loop": false
+    }
+  },
+  "hairs": [
+    {
+      "name": "castanho",
+      "color": "#7d5556"
+    },
+    {
+      "name": "preto",
+      "color": "#2c2838"
+    },
+    {
+      "name": "loiro",
+      "color": "#d9a441"
+    },
+    {
+      "name": "ruivo",
+      "color": "#b9452a"
+    },
+    {
+      "name": "azul",
+      "color": "#3a5fd0"
+    },
+    {
+      "name": "verde",
+      "color": "#3f944f"
+    },
+    {
+      "name": "prata",
+      "color": "#aeb2c4"
+    },
+    {
+      "name": "lilás",
+      "color": "#8a5cd6"
+    }
+  ],
+  "credit": "Ozzbit Games"
+}
