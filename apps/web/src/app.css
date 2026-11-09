@@ -305,7 +305,7 @@ html, body { margin: 0; min-height: 100%; background: var(--ss-bg); }
 
 /* menu e aviso */
 .gs-backdrop { position: fixed; inset: 0; z-index: 30; display: grid; place-items: center; padding: 16px; background: rgb(0 0 0 / 0.55); }
-.gs-menu { width: min(520px, 100%); max-height: calc(100vh - 32px); overflow: auto; display: flex; flex-direction: column; animation: gs-rise var(--gs-dur) var(--gs-ease); }
+.gs-menu { background: var(--ss-bg); -webkit-backdrop-filter: none; backdrop-filter: none; width: min(520px, 100%); max-height: calc(100vh - 32px); overflow: auto; display: flex; flex-direction: column; animation: gs-rise var(--gs-dur) var(--gs-ease); }
 .gs-menu .gs-float-head { padding: 16px 20px 12px; }
 .gs-menu-body { display: flex; flex-direction: column; gap: 24px; padding: 4px 20px 20px; }
 .gs-float-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 20px; border-top: 1px solid var(--ss-line); }

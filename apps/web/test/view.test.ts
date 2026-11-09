@@ -159,6 +159,13 @@ describe('lobby: a escrita', () => {
   });
 });
 
+describe('lobby: sozinho na turma', () => {
+  test('o círculo de uma pessoa só não vira editor do próprio post-it', () => {
+    const solo = snapshot({ members: [member('m1', 'Zé')], order: ['m1'], authors: { m1: 'm1' }, postits: { m1: postit('m1', { text: null }) } });
+    expect(roomView(solo).writeFor).toBeNull();
+  });
+});
+
 describe('lobby: Começar', () => {
   const all = (extra = {}) => ({ m1: postit('m3', { text: null, written: true, ...extra }), m2: postit('m1', { text: 'Pelé', written: true, ...extra }), m3: postit('m2', { text: 'Xuxa', written: true, ...extra }) });
 
