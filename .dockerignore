@@ -1,0 +1,11 @@
+.git
+.github
+node_modules
+**/node_modules
+**/dist
+**/*.log
+**/*:Zone.Identifier
+.env
+docs
+deploy
+assets-src
