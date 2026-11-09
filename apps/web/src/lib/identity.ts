@@ -1,7 +1,8 @@
 /**
  * Quem esta aba é para o servidor, e o que o navegador lembra entre visitas (ADR 0003). O token vive na aba
  * (sessionStorage): sobrevive a refresh e queda de rede, e duas abas do mesmo navegador são duas pessoas na sala.
- * O apelido e o último personagem são lembrados pelo navegador inteiro (localStorage); o bloco, só pela aba.
+ * O apelido e o último personagem são lembrados pelo navegador inteiro (localStorage); o bloco (o texto e se está
+ * minimizado), a coluna recolhida e a entrada automática de quem acabou de criar a sala, só pela aba.
  */
 import { TOKEN_RE } from '@guess/protocol';
 import { CHARACTERS } from '@guess/rules';
@@ -10,11 +11,14 @@ const TOKEN_KEY = 'guess.token';
 const NICKNAME_KEY = 'guess.nickname';
 const CHARACTER_KEY = 'guess.character';
 const NOTEPAD_KEY = 'guess.notepad.';
+const NOTEPAD_MIN_KEY = 'guess.notepadMin';
+const SIDE_KEY = 'guess.sideCollapsed';
+const AUTO_JOIN_KEY = 'guess.autoJoin';
 
 /** O storage, ou nada (teste, modo privado): aí nada fica lembrado e segue sem quebrar. */
 export type MaybeStore = Pick<Storage, 'getItem' | 'setItem'> | null;
 export const local = (): MaybeStore => (typeof localStorage === 'undefined' ? null : localStorage);
-const session = (): MaybeStore => (typeof sessionStorage === 'undefined' ? null : sessionStorage);
+export const session = (): MaybeStore => (typeof sessionStorage === 'undefined' ? null : sessionStorage);
 
 /** Lê uma chave; nada guardado (ou storage bloqueado) é ''. */
 export function readKey(store: MaybeStore, key: string) { try { return store?.getItem(key) ?? ''; } catch { return ''; } }
@@ -51,3 +55,29 @@ export const rememberedCharacter = () => characterIn(local());
 export const rememberCharacter = (character: number) => rememberCharacterIn(local(), character);
 export const notepad = (code: string) => notepadIn(session(), code);
 export const rememberNotepad = (code: string, text: string) => rememberNotepadIn(session(), code, text);
+
+/** Bloco minimizado (só a aba presa embaixo) nesta aba. */
+export const notepadMinimizedIn = (store: MaybeStore) => read(store, NOTEPAD_MIN_KEY) === '1';
+export const rememberNotepadMinimizedIn = (store: MaybeStore, on: boolean) => write(store, NOTEPAD_MIN_KEY, on ? '1' : '0');
+/** A coluna da sala recolhida nesta aba. */
+export const sideCollapsedIn = (store: MaybeStore) => read(store, SIDE_KEY) === '1';
+export const rememberSideCollapsedIn = (store: MaybeStore, on: boolean) => write(store, SIDE_KEY, on ? '1' : '0');
+
+/**
+ * Quem cria a sala no pré-lobby entra nela sozinho ao chegar em `/sala/CODE`, com o apelido e o personagem lembrados:
+ * `rememberAutoJoinIn` marca a sala, `takeAutoJoinIn` usa a marca (uma vez só).
+ */
+export const autoJoinIn = (store: MaybeStore, code: string) => read(store, AUTO_JOIN_KEY) === code;
+export const rememberAutoJoinIn = (store: MaybeStore, code: string) => write(store, AUTO_JOIN_KEY, code);
+export function takeAutoJoinIn(store: MaybeStore, code: string): boolean {
+  if (!autoJoinIn(store, code)) return false;
+  write(store, AUTO_JOIN_KEY, '');
+  return true;
+}
+
+export const notepadMinimized = () => notepadMinimizedIn(session());
+export const rememberNotepadMinimized = (on: boolean) => rememberNotepadMinimizedIn(session(), on);
+export const sideCollapsed = () => sideCollapsedIn(session());
+export const rememberSideCollapsed = (on: boolean) => rememberSideCollapsedIn(session(), on);
+export const rememberAutoJoin = (code: string) => rememberAutoJoinIn(session(), code);
+export const takeAutoJoin = (code: string) => takeAutoJoinIn(session(), code);

@@ -11,4 +11,8 @@ The post-its are not drawn by Pixi. Each one is an HTML element positioned every
 
 ## Consequences
 
-The world and the post-its share one projection function in the client, tested headless. Post-its stay crisp, selectable and translatable, and the VHS filters never smear them. A character that walks off-screen takes its post-it with it; the roster strip in the HUD is where everyone's post-it is always visible.
+The world and the post-its share one projection function in the client, tested headless. Post-its stay crisp, selectable and translatable, and the VHS filters never smear them. A character that walks off-screen takes its post-it with it; the turma panel in the sidebar is where everyone's post-it is always visible.
+
+## Amendment: tooltips, not paper (issue #15)
+
+The post-its over the heads no longer imitate yellow paper. They are tooltips in the design system (dssoca surface, border and type), the current turn is marked with the accent, and one grows when the pointer is over it, so the overlay takes pointer events per tooltip, never as a layer. When two characters stand close, their tooltips would cover each other: a pure `declutter` step lifts the one further back until it sits above the one in front. The roster strip is gone; the sidebar's turma panel lists every post-it.

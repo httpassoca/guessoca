@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { CODE_RE, isWebp, parseClientMessage, parsePresence, TOKEN_RE, type Presence } from '../src';
+import { CODE_RE, isWebp, parseClientMessage, parsePresence, parseRoomInit, TOKEN_RE, type Presence } from '../src';
 
 describe('parseClientMessage', () => {
   test('aceita as mensagens válidas', () => {
@@ -44,7 +44,7 @@ describe('parseClientMessage: o jogo', () => {
   const p = (v: unknown) => parseClientMessage(JSON.stringify(v));
 
   test('aceita as mensagens sem campos', () => {
-    for (const type of ['shuffleAuthors', 'startWriting', 'ready', 'forceStart', 'claim', 'skip', 'giveUp', 'endGame', 'playAgain', 'addFake']) {
+    for (const type of ['shuffleAuthors', 'start', 'ready', 'claim', 'skip', 'giveUp', 'endGame', 'playAgain', 'addFake']) {
       expect(p({ type })).toEqual({ type } as never);
     }
   });
@@ -81,7 +81,8 @@ describe('parseClientMessage: o jogo', () => {
     expect(p({ type: 'kick', member: 'm3' })).toEqual({ type: 'kick', member: 'm3' });
     expect(p({ type: 'handOver', member: 'm3' })).toEqual({ type: 'handOver', member: 'm3' });
     expect(p({ type: 'vote', yes: 'sim' })).toBeNull();
-    expect(p({ type: 'swapAuthors', a: 'm1', b: 'm1' })).toBeNull();
+    expect(p({ type: 'swapAuthors', a: 'm1', b: 'm2' })).toBeNull(); // não existe mais
+    expect(p({ type: 'startWriting' })).toBeNull();
   });
 });
 
@@ -115,5 +116,20 @@ describe('presença e empurrão', () => {
     expect(p({ type: 'shove', target: 'm2', dir: -1 })).toEqual({ type: 'shove', target: 'm2', dir: -1 });
     expect(p({ type: 'shove', target: 'm2', dir: 2 })).toBeNull();
     expect(p({ type: 'shove', target: 'zé', dir: 1 })).toBeNull();
+  });
+});
+
+describe('pré-lobby: o corpo de criar a sala', () => {
+  test('leva só o que passa na validação', () => {
+    expect(parseRoomInit({ turnMs: 45_000, maxPlayers: 4, onlyModerate: true })).toEqual({ turnMs: 45_000, maxPlayers: 4, onlyModerate: true });
+    expect(parseRoomInit({ turnMs: 50_000, maxPlayers: 9, onlyModerate: 'sim', extra: 1 })).toEqual({});
+    expect(parseRoomInit({ maxPlayers: 1 })).toEqual({});
+    expect(parseRoomInit(null)).toEqual({});
+    expect(parseRoomInit([])).toEqual({});
+  });
+
+  test('quantas pessoas cabem: de 2 a 8', () => {
+    expect(parseClientMessage(JSON.stringify({ type: 'maxPlayers', n: 2 }))).toEqual({ type: 'maxPlayers', n: 2 });
+    for (const n of [1, 9, 2.5, '4']) expect(parseClientMessage(JSON.stringify({ type: 'maxPlayers', n }))).toBeNull();
   });
 });

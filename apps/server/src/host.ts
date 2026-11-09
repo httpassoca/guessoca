@@ -1,4 +1,4 @@
-import { CLOSE_KICKED, CLOSE_REPLACED, CLOSE_ROOM_ENDED, IMAGE_BYTES_MAX, isWebp, parseClientMessage, PRESENCE_INTERVAL, SOCKET_IDLE_TIMEOUT, type Presence } from '@guess/protocol';
+import { CLOSE_KICKED, CLOSE_REPLACED, CLOSE_ROOM_ENDED, IMAGE_BYTES_MAX, isWebp, parseClientMessage, PRESENCE_INTERVAL, SOCKET_IDLE_TIMEOUT, type Presence, type RoomInit } from '@guess/protocol';
 import type { ServerWebSocket } from 'bun';
 import type { Log } from './log';
 import { createRoom, referencedImages, ROOM_TTL, step, timerKey, type RoomInput, type RoomState } from './room';
@@ -12,9 +12,9 @@ export const IMAGES_PER_UPLOADER = 2;
  * `now`: hora de nascimento; `ttl`: quanto a sala vive sem atividade; `silence`: quanto um socket pode ficar sem
  * mandar nada antes de ser derrubado (os testes apressam os dois). `clock`: a hora (os testes fixam); `dev`: a sala
  * aceita jogadores falsos; `rng`: o sorteio da sala; `presenceInterval`: o mínimo entre duas presenças repassadas da mesma
- * pessoa.
+ * pessoa; `init`: o que o pré-lobby escolheu ao criar a sala.
  */
-export interface HostOptions { now?: number; ttl?: number; silence?: number; clock?: () => number; dev?: boolean; rng?: () => number; presenceInterval?: number }
+export interface HostOptions { now?: number; ttl?: number; silence?: number; clock?: () => number; dev?: boolean; rng?: () => number; presenceInterval?: number; init?: RoomInit }
 
 interface StoredImage {
   bytes: Uint8Array<ArrayBuffer>;
@@ -60,7 +60,7 @@ export class RoomHost {
     const now = opts.now ?? this.clock();
     this.silence = opts.silence ?? SOCKET_IDLE_TIMEOUT;
     this.presenceInterval = opts.presenceInterval ?? PRESENCE_INTERVAL;
-    this.state = createRoom(code, now, { ttl: opts.ttl ?? ROOM_TTL, dev: opts.dev ?? false });
+    this.state = createRoom(code, now, { ttl: opts.ttl ?? ROOM_TTL, dev: opts.dev ?? false, init: opts.init });
     this.syncTimers(now);
     log('room.created', { room: code });
   }

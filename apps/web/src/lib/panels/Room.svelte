@@ -1,29 +1,31 @@
 <script lang="ts">
   import type { RoomSnapshot } from '@guess/protocol';
+  import { MIN_PLAYERS } from '@guess/rules';
   import { onMount, untrack } from 'svelte';
-  import Kbd from '../hud/Kbd.svelte';
   import type { MsgKey } from '../i18n';
   import { t } from '../i18n.svelte';
-  import { rememberedCharacter } from '../identity';
+  import { notepadMinimized, rememberedCharacter, rememberNotepadMinimized, rememberSideCollapsed, sideCollapsed } from '../identity';
   import { isTextField, keyAction } from '../keys';
+  import { besideSide, EDGE, GAP, notepadBox, sideInset } from '../layout';
   import type { GameRequest, RemoteRoom, RemoteState } from '../room/remote';
   import { characterToClaim, countdown, devTools, roomView } from '../room/view';
+  import { roomPath } from '../route.svelte';
   import { playSfx } from '../sound/player';
   import { roomSoundsTracker } from '../sound/room';
-  import Ended from './Ended.svelte';
+  import World from '../world/World.svelte';
+  import Corner from './Corner.svelte';
+  import Game from './Game.svelte';
   import Lobby from './Lobby.svelte';
   import Menu from './Menu.svelte';
   import Notepad from './Notepad.svelte';
-  import Playing from './Playing.svelte';
-  import Roster from './Roster.svelte';
+  import Ranking from './Ranking.svelte';
   import TurnBar from './TurnBar.svelte';
-  import Writing from './Writing.svelte';
-  import World from '../world/World.svelte';
 
   /**
-   * A sala depois de entrar na turma: o telhado sempre ligado atrás de tudo (`World`), e por cima a barra, a vez e a
-   * votação no meio, o painel da fase (lobby, escrita, jogo, fim) numa coluna à direita que se recolhe, a faixa da turma
-   * embaixo, o bloco (N), o menu (Esc) e o teclado. Tudo o que é decidido vem de `roomView`; aqui só se desenha e se pede.
+   * A sala depois de entrar na turma: o telhado sempre ligado atrás de tudo (`World`) e, por cima, sem barra: os botões
+   * do canto de cima à esquerda (menu, coluna, link), a coluna da sala à esquerda (o lobby, ou a turma e a moderação no
+   * jogo; recolhível), a vez e a votação em cima no meio, o ranking no canto de cima à direita e o bloco preso embaixo
+   * ao lado da coluna (só no jogo e no fim). Tudo o que é decidido vem de `roomView`; aqui só se desenha e se pede.
    */
   let { remote, st, room, token, status }: { remote: RemoteRoom; st: RemoteState; room: RoomSnapshot; token: string; status: string } = $props();
 
@@ -36,13 +38,22 @@
   const voteLeft = $derived(v.vote ? countdown(v.vote.left, st.receivedAt, now) : 0);
 
   let menuOpen = $state(false);
-  let notepadOpen = $state(false);
-  /** a coluna da direita (o painel da fase); recolhida, o telhado fica inteiro */
-  let sideOpen = $state(true);
+  let notepadMin = $state(notepadMinimized());
+  let sideOpen = $state(!sideCollapsed());
   let sideWidth = $state(0);
-  const showRoster = $derived(room.phase !== 'lobby');
+  let cornerWidth = $state(0);
+  let viewportW = $state(typeof window === 'undefined' ? 1280 : window.innerWidth);
+  const side = $derived({ open: sideOpen, width: sideWidth });
+  const game = $derived(room.phase !== 'lobby');
   const dev = $derived(devTools(location, room.dev));
-  const PHASE: Record<RoomSnapshot['phase'], MsgKey> = { lobby: 'phase.lobby', writing: 'phase.writing', playing: 'phase.playing', ended: 'phase.ended' };
+  const link = $derived(location.origin + roomPath(room.code));
+  const pad = $derived(notepadBox(side, viewportW));
+  /** a vez e a votação centram no que sobra entre a coluna (ou os botões do canto) e o ranking */
+  const topLeft = $derived(sideOpen ? besideSide(side) : EDGE + cornerWidth + GAP);
+  const PHASE: Record<RoomSnapshot['phase'], MsgKey> = { lobby: 'phase.lobby', playing: 'phase.playing', ended: 'phase.ended' };
+
+  function setSide(open: boolean) { sideOpen = open; rememberSideCollapsed(!open); }
+  function setNotepadMin(on: boolean) { notepadMin = on; rememberNotepadMinimized(on); }
 
   // recusa do servidor: um aviso que some sozinho
   let refused = $state(false);
@@ -59,13 +70,13 @@
 
   function onKey(e: KeyboardEvent) {
     const el = document.activeElement as HTMLElement | null;
-    const action = keyAction(e, { inTextField: isTextField(el), canClaim: v.canClaim && !menuOpen, canSkip: v.canSkip && !menuOpen });
+    const action = keyAction(e, { inTextField: isTextField(el), canClaim: v.canClaim && !menuOpen, canSkip: v.canSkip && !menuOpen, canNotepad: game && !menuOpen });
     if (!action) return;
     e.preventDefault();
     switch (action) {
       case 'claim': send({ type: 'claim' }); break;
       case 'skip': send({ type: 'skip' }); break;
-      case 'notepad': notepadOpen = !notepadOpen; break;
+      case 'notepad': setNotepadMin(!notepadMin); break;
       case 'menu': menuOpen = !menuOpen; break;
       case 'blur': el?.blur(); break;
     }
@@ -78,7 +89,7 @@
   }
 
   onMount(() => {
-    // o personagem que este navegador escolheu da última vez, se estiver livre
+    // o personagem que este navegador escolheu (no pré-lobby, ou da última vez), se estiver livre
     const c = characterToClaim(v, rememberedCharacter());
     if (c !== null) send({ type: 'character', character: c });
     const tick = setInterval(() => (now = performance.now()), 200);
@@ -89,46 +100,60 @@
   });
 </script>
 
-<svelte:window onkeydown={onKey} onclick={onClick} />
+<svelte:window onkeydown={onKey} onclick={onClick} bind:innerWidth={viewportW} />
 
 <div class="gs-room">
-  <World {remote} {room} {v} blocked={menuOpen || notepadOpen} insetRight={sideOpen ? sideWidth + 24 : 0} />
+  <World {remote} {room} {v} blocked={menuOpen} insetLeft={sideInset(side)} />
 
-  <div class="gs-hud">
-    <header class="ss-card gs-bar">
-      <span class="gs-code small">{room.code}</span>
-      <span class="ss-badge brand">{t(PHASE[room.phase])}</span>
-      {#if v.isGhost}<span class="ss-badge info">{t('badge.ghost')}</span>{/if}
-      <span class="meta" class:gs-warn={st.status === 'reconnecting'}>{status}</span>
-      <span class="gs-spacer"></span>
-      {#if v.offline.length}<span class="gs-hint">{t('bar.offline', { names: v.offline.map((m) => m.nickname).join(', ') })}</span>{/if}
-      {#if dev}<button class="ss-btn ghost" type="button" onclick={() => send({ type: 'addFake' })}>{t('dev.addFake')}</button>{/if}
-      <button class="ss-btn ghost" type="button" aria-pressed={notepadOpen} onclick={() => (notepadOpen = !notepadOpen)}>{t('notepad.title')} <Kbd keys={['N']} /></button>
-      <button class="ss-btn ghost" type="button" aria-pressed={sideOpen} aria-controls="gs-side" onclick={() => (sideOpen = !sideOpen)}>{sideOpen ? t('side.hide') : t('side.show')}</button>
-      <button class="ss-btn ghost" type="button" onclick={() => (menuOpen = true)}>{t('menu.title')} <Kbd keys={['Esc']} /></button>
-    </header>
-
-    <div class="gs-mid">
-      <div class="gs-center">
-        {#if room.phase === 'playing'}<TurnBar {v} {room} {send} {turnLeft} {voteLeft} />{/if}
-      </div>
-      <aside id="gs-side" class="gs-side" hidden={!sideOpen} bind:offsetWidth={sideWidth} aria-label={t(PHASE[room.phase])}>
-        {#if room.phase === 'lobby'}
-          <Lobby {v} {room} {send} />
-        {:else if room.phase === 'writing'}
-          <Writing {v} {room} {token} {send} />
-        {:else if room.phase === 'playing'}
-          <Playing {v} {room} {send} />
-        {:else}
-          <Ended {v} {room} {send} />
-        {/if}
-      </aside>
-    </div>
-
-    {#if showRoster}<Roster {v} />{/if}
+  <div class="gs-corner-wrap" bind:offsetWidth={cornerWidth}>
+    <Corner {sideOpen} {link} onmenu={() => (menuOpen = true)} ontoggle={() => setSide(!sideOpen)} />
   </div>
 
-  {#if notepadOpen}<Notepad code={room.code} onclose={() => (notepadOpen = false)} />{/if}
-  {#if menuOpen}<Menu {v} {room} {send} onrename={(n) => remote.rename(n)} onclose={() => (menuOpen = false)} />{/if}
+  <aside id="gs-side" class="gs-side" hidden={!sideOpen} bind:offsetWidth={sideWidth} aria-label={t('side.label')}>
+    <header class="gs-side-head">
+      <span class="gs-code small" title={t('sala.title', { code: room.code })}>{room.code}</span>
+      <span class="ss-badge brand">{t(PHASE[room.phase])}</span>
+      {#if v.isGhost}<span class="ss-badge info">{t('badge.ghost')}</span>{/if}
+      <span class="gs-spacer"></span>
+      <span class="meta" class:gs-warn={st.status === 'reconnecting'}>{status}</span>
+    </header>
+    <div class="gs-side-body">
+      {#if room.phase === 'lobby'}
+        <Lobby {v} {room} {token} {send} />
+      {:else}
+        <Game {v} {room} {send} />
+      {/if}
+    </div>
+    <footer class="gs-side-foot">
+      {#if room.phase === 'lobby'}
+        {#if v.isModerator}
+          <button class="ss-btn primary full-width" type="button" disabled={!v.canStart} onclick={() => send({ type: 'start' })}>{t('lobby.start')}</button>
+          <p class="gs-hint">
+            {#if v.startBlock === 'players'}{t('lobby.needPlayers', { min: MIN_PLAYERS })}
+            {:else if v.startBlock === 'empty'}{t('lobby.startEmpty', { n: v.players.length - v.writtenCount })}
+            {:else if v.allReady}{t('lobby.allReady')}
+            {:else}{t('lobby.startAnyway', { n: v.readyCount, total: v.players.length })}{/if}
+          </p>
+        {:else}
+          <p class="gs-hint">{t('lobby.waitModerator')} · {t('writing.readyCount', { n: v.readyCount, total: v.players.length })}</p>
+        {/if}
+      {:else if room.phase === 'ended' && v.isModerator}
+        <button class="ss-btn primary full-width" type="button" onclick={() => send({ type: 'playAgain' })}>{t('end.playAgain')}</button>
+      {/if}
+      {#if dev}<button class="ss-btn ghost" type="button" data-size-variant="sm" onclick={() => send({ type: 'addFake' })}>{t('dev.addFake')}</button>{/if}
+    </footer>
+  </aside>
+
+  {#if room.phase === 'playing'}
+    <div class="gs-top" style:left="{topLeft}px">
+      <TurnBar {v} {room} {send} {turnLeft} {voteLeft} />
+    </div>
+  {/if}
+  {#if game}
+    <div class="gs-rank"><Ranking rows={v.ranking} {room} /></div>
+    <Notepad code={room.code} minimized={notepadMin} left={pad.left} width={pad.width} onminimize={setNotepadMin} />
+  {/if}
+
+  {#if menuOpen}<Menu code={room.code} onclose={() => (menuOpen = false)} />{/if}
   {#if refused}<div class="gs-toast" role="status">{t('error.refused')}</div>{/if}
 </div>

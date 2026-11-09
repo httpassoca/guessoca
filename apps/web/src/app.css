@@ -1,11 +1,20 @@
 html, body { margin: 0; min-height: 100%; background: var(--ss-bg); }
 [hidden] { display: none !important; }
 
-/* telas de painel: início e sala (o telhado em Pixi vem depois, por baixo) */
+/* telas de painel: o pré-lobby (criar ou entrar) e a sala antes de entrar na turma */
 .gs-screen { min-height: 100vh; box-sizing: border-box; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; padding: 16px; font-family: var(--ss-font-body); color: var(--ss-fg); }
 .gs-panel { width: min(460px, 100%); }
 .gs-panel .body { display: flex; flex-direction: column; gap: 16px; }
-.gs-panel .foot { justify-content: space-between; align-items: center; }
+.gs-panel .foot { justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+.gs-pre { width: min(560px, 100%); }
+.gs-create { display: flex; flex-direction: column; gap: 14px; }
+.gs-h { margin: 0; font-family: var(--ss-font-display); font-size: var(--ss-size-h3); font-weight: 600; }
+.gs-field { display: flex; flex-direction: column; gap: 6px; }
+.gs-lbl { font: var(--ss-ui-xs) var(--ss-font-mono); text-transform: uppercase; letter-spacing: 0.06em; color: var(--ss-fg-muted); }
+.gs-settings { display: flex; flex-direction: column; gap: 10px; padding: 10px 12px; border: 1px solid var(--ss-line); background: var(--ss-bg-inset); }
+.gs-two { display: flex; flex-direction: column; gap: 2px; }
+.gs-or { display: flex; align-items: center; gap: 10px; color: var(--ss-fg-faint); font: var(--ss-ui-xs) var(--ss-font-mono); text-transform: uppercase; letter-spacing: 0.08em; }
+.gs-or::before, .gs-or::after { content: ''; flex: 1; border-top: 1px dashed var(--ss-line-strong); }
 
 .gs-brand { margin: 0; font-family: var(--ss-font-display); font-size: var(--ss-size-h1); font-weight: 700; letter-spacing: 0.02em; }
 .gs-tagline { margin: 0; color: var(--ss-fg-muted); font-size: var(--ss-ui-sm); }
@@ -29,152 +38,148 @@ html, body { margin: 0; min-height: 100%; background: var(--ss-bg); }
 
 .gs-lang .ss-segmented { font-size: var(--ss-ui-xs); }
 
-/* os oito personagens: amostras de cor até os sprites chegarem (cor do cabelo) */
+/* os oito personagens: a cor do cabelo de cada um */
 :root {
   /* a cor do cabelo de cada personagem (tools/sprites/src/hero.ts, HAIRS) */
   --gs-char-0: #7d5556; --gs-char-1: #2c2838; --gs-char-2: #d9a441; --gs-char-3: #b9452a;
   --gs-char-4: #3a5fd0; --gs-char-5: #3f944f; --gs-char-6: #aeb2c4; --gs-char-7: #8a5cd6;
-  --gs-paper: #f6e27a; --gs-paper-edge: #e3c94f; --gs-ink: #2a2414;
 }
 .gs-swatch { display: inline-grid; place-items: center; width: 22px; height: 22px; flex: none; border-radius: var(--ss-radius-1); background-color: var(--ss-bg-inset); background-repeat: no-repeat; image-rendering: pixelated; color: var(--ss-fg-faint); font: 700 var(--ss-ui-xs) var(--ss-font-mono); box-shadow: inset 0 0 0 1px var(--c, var(--ss-line)); }
 .gs-swatch.none { background: var(--ss-bg-inset); color: var(--ss-fg-faint); }
 
-/* a sala depois de entrar: o telhado atrás de tudo; por cima, a barra, a vez no meio, a coluna da fase à direita e a turma embaixo */
-.gs-room { position: fixed; inset: 0; overflow: hidden; font-family: var(--ss-font-body); color: var(--ss-fg); }
+/*
+ * A sala depois de entrar: o telhado atrás de tudo; por cima, sem barra, os botões do canto de cima à esquerda, a coluna
+ * da sala à esquerda (recolhível), a vez no meio de cima, o ranking no canto de cima à direita e o bloco embaixo.
+ * As medidas batem com `layout.ts` (EDGE 12, GAP 12).
+ */
+.gs-room { --gs-edge: 12px; --gs-corner-h: 36px; --gs-side-w: 380px; --gs-rank-w: 240px;
+  position: fixed; inset: 0; overflow: hidden; font-family: var(--ss-font-body); color: var(--ss-fg); }
 .gs-world { position: absolute; inset: 0; z-index: 0; }
 .gs-world-canvas { display: block; width: 100%; height: 100%; image-rendering: pixelated; }
-.gs-world-failed { position: absolute; left: 16px; bottom: 140px; z-index: 1; max-width: 420px; margin: 0; color: var(--ss-fg-faint); font-size: var(--ss-ui-sm); }
-.gs-hud { position: absolute; inset: 0; z-index: 2; box-sizing: border-box; display: flex; flex-direction: column; gap: 10px; padding: 12px; pointer-events: none; }
-.gs-hud > *, .gs-center > *, .gs-side { pointer-events: auto; }
-.gs-bar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 8px 12px; flex: none; }
-.gs-bar .meta { color: var(--ss-fg-faint); font-size: var(--ss-ui-xs); }
+.gs-world-failed { position: absolute; right: 16px; bottom: 16px; z-index: 1; max-width: 420px; margin: 0; color: var(--ss-fg-faint); font-size: var(--ss-ui-sm); }
 .gs-spacer { flex: 1; }
 .gs-code.small { font-size: var(--ss-size-h3); }
-.gs-mid { flex: 1; min-height: 0; display: flex; gap: 12px; align-items: stretch; pointer-events: none; }
-.gs-center { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: center; pointer-events: none; }
-.gs-side { width: 440px; max-width: 45vw; flex: none; box-sizing: border-box; overflow: auto; overscroll-behavior: contain; padding: 10px; border-radius: var(--ss-radius-2);
-  background: color-mix(in srgb, var(--ss-bg) 88%, transparent); box-shadow: 0 0 0 1px var(--ss-line); }
-/* na coluna estreita, os painéis empilham */
-.gs-side .gs-cols { grid-template-columns: minmax(0, 1fr); }
-.gs-side .gs-cols .wide { grid-column: auto; }
-.gs-side .gs-board { grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); }
-.gs-side .gs-postit .paper { max-width: 130px; }
-.gs-side .gs-postit .text { font-size: 0.9rem; }
-.gs-side .gs-postit .paper.hidden .q { font-size: 2.5rem; }
-.gs-turnbar { width: min(620px, 100%); display: flex; flex-direction: column; gap: 10px; }
-.gs-turnbar .gs-block { background: color-mix(in srgb, var(--ss-bg-elev) 94%, transparent); }
+.gs-surface { background: color-mix(in srgb, var(--ss-bg-elev) 92%, transparent); }
 
-/* post-its sobre as cabeças (posicionados pelo WorldRuntime a cada quadro) */
-.gs-heads { position: absolute; inset: 0; z-index: 1; overflow: hidden; pointer-events: none; }
-.gs-head { position: absolute; left: 0; top: 0; visibility: hidden; will-change: transform; }
-.gs-head .inner { position: absolute; left: 0; bottom: 0; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: 3px; }
-.gs-head .paper { box-sizing: border-box; width: 78px; min-height: 52px; max-height: 96px; padding: 5px 4px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; overflow: hidden;
-  background: linear-gradient(180deg, var(--gs-paper) 0%, var(--gs-paper) 82%, var(--gs-paper-edge) 100%); color: var(--gs-ink); transform: rotate(var(--tilt, 0deg));
-  box-shadow: 0 3px 6px rgb(0 0 0 / 0.45); font: 700 11px/1.1 var(--ss-font-display); text-align: center; }
-.gs-head .paper img { max-width: 100%; max-height: 44px; object-fit: contain; }
-.gs-head .paper .text { overflow-wrap: anywhere; }
-.gs-head .paper .blank { color: rgb(0 0 0 / 0.35); }
-.gs-head .paper.hidden .q { font-size: 28px; color: rgb(0 0 0 / 0.55); }
-.gs-head .tag { padding: 1px 6px; border-radius: 3px; background: rgb(0 0 0 / 0.6); color: #fff; font: 600 11px/1.3 var(--ss-font-body); white-space: nowrap; max-width: 120px; overflow: hidden; text-overflow: ellipsis; }
-.gs-head .mine .tag { background: var(--ss-accent); color: var(--ss-fg-on-primary); }
+/* os botões do canto */
+.gs-corner-wrap { position: absolute; top: var(--gs-edge); left: var(--gs-edge); z-index: 12; }
+.gs-corner { display: flex; gap: 6px; }
+.gs-corner-btn { height: var(--gs-corner-h); min-width: var(--gs-corner-h); justify-content: center; padding-inline: 10px;
+  background: color-mix(in srgb, var(--ss-bg-elev) 94%, transparent); box-shadow: var(--ss-shadow-1); }
+.gs-corner-btn .ss-kbd { opacity: 0.7; }
+.gs-corner-btn:focus-visible { outline: 2px solid var(--ss-accent); outline-offset: 2px; }
+.gs-corner-btn.copied { color: var(--ss-green); border-color: var(--ss-green); }
+.gs-corner-msg { font-size: var(--ss-ui-xs); margin-left: 6px; }
 
-/* a faixa da turma, embaixo */
-.gs-roster { flex: none; align-self: center; max-width: 100%; box-sizing: border-box; display: flex; align-items: flex-end; gap: 16px; padding: 8px 12px; overflow-x: auto; background: color-mix(in srgb, var(--ss-bg) 85%, transparent); }
-.gs-roster .cards { list-style: none; margin: 0; padding: 4px 0 0; display: flex; gap: 12px; align-items: flex-end; }
-.gs-mini { display: flex; flex-direction: column; align-items: center; gap: 4px; flex: none; }
-.gs-mini .paper { position: relative; box-sizing: border-box; width: 64px; height: 56px; padding: 4px; display: flex; flex-direction: column; align-items: center; justify-content: center; overflow: hidden;
-  background: linear-gradient(180deg, var(--gs-paper) 0%, var(--gs-paper) 82%, var(--gs-paper-edge) 100%); color: var(--gs-ink); transform: rotate(var(--tilt, 0deg));
-  box-shadow: 0 2px 5px rgb(0 0 0 / 0.4); font: 700 10px/1.1 var(--ss-font-display); text-align: center; }
-.gs-mini .paper img { max-width: 100%; max-height: 30px; object-fit: contain; }
-.gs-mini .paper .text { overflow-wrap: anywhere; }
-.gs-mini .paper.hidden .q { font-size: 24px; color: rgb(0 0 0 / 0.55); }
-.gs-mini .paper .blank { color: rgb(0 0 0 / 0.35); }
-.gs-mini .mark { position: absolute; right: 2px; top: 2px; padding: 0 3px; border-radius: 3px; font: 700 10px/1.3 var(--ss-font-mono); }
-.gs-mini .mark.got { background: var(--ss-green); color: #fff; }
-.gs-mini .mark.gaveup { background: rgb(0 0 0 / 0.55); color: #fff; }
-.gs-mini .name { display: inline-flex; align-items: center; gap: 4px; max-width: 90px; font-size: var(--ss-ui-xs); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.gs-mini.turn .paper { outline: 3px solid var(--ss-accent); outline-offset: 3px; }
-.gs-mini.turn .name { color: var(--ss-accent); font-weight: 700; }
-.gs-mini.got .paper { filter: saturate(0.6); }
-.gs-mini.gaveup .paper { filter: grayscale(0.7); opacity: 0.8; }
-.gs-mini.off { opacity: 0.45; }
-.gs-roster .ghosts { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding-left: 16px; border-left: 1px dashed var(--ss-line-strong); font-size: var(--ss-ui-xs); color: var(--ss-fg-muted); }
-.gs-roster .ghosts .lbl { font-family: var(--ss-font-mono); text-transform: uppercase; letter-spacing: 0.06em; color: var(--ss-fg-faint); }
-.gs-ghost { display: inline-flex; align-items: center; gap: 4px; }
-.gs-ghost.off { opacity: 0.45; }
-.gs-stack { display: flex; flex-direction: column; gap: 12px; }
-.gs-cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 12px; align-items: start; }
-.gs-cols .wide { grid-column: span 2; }
-@media (max-width: 700px) { .gs-cols .wide { grid-column: auto; } }
-.gs-block .body { display: flex; flex-direction: column; gap: 12px; }
-.gs-block .head { gap: 12px; }
-.gs-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
-.gs-line { display: flex; align-items: center; justify-content: space-between; gap: 12px; font-size: var(--ss-ui-sm); }
-.gs-banner { margin: 0; padding: 8px 12px; border: 1px dashed var(--ss-line-strong); border-radius: var(--ss-radius-1); color: var(--ss-fg-muted); font-size: var(--ss-ui-sm); }
-.gs-icon-btn { min-width: 0; padding-inline: 8px; }
-.gs-clock { font-family: var(--ss-font-mono); font-variant-numeric: tabular-nums; }
-.gs-clock.big { font-size: var(--ss-size-h2); }
-.gs-stepper { display: inline-flex; align-items: center; gap: 6px; }
+/* a coluna da sala, à esquerda: cabeça, corpo que rola e pé com a ação principal */
+.gs-side { position: absolute; z-index: 10; left: var(--gs-edge); top: calc(var(--gs-edge) + var(--gs-corner-h) + 8px); bottom: var(--gs-edge);
+  width: min(var(--gs-side-w), calc(100vw - 2 * var(--gs-edge))); box-sizing: border-box; display: flex; flex-direction: column; padding: 0;
+  border: 1px solid var(--ss-line); background: color-mix(in srgb, var(--ss-bg) 90%, transparent); backdrop-filter: blur(3px); box-shadow: var(--ss-shadow-1); }
+.gs-side-head { flex: none; display: flex; align-items: center; gap: 8px; padding: 10px 14px; border-bottom: 1px solid var(--ss-line); }
+.gs-side-head .meta { color: var(--ss-fg-faint); font-size: var(--ss-ui-xs); }
+.gs-side-body { flex: 1; min-height: 0; overflow: auto; overscroll-behavior: contain; display: flex; flex-direction: column; gap: 18px; padding: 14px; }
+.gs-side-foot { flex: none; display: flex; flex-direction: column; align-items: stretch; gap: 6px; padding: 12px 14px; border-top: 1px solid var(--ss-line); }
+.gs-side-foot:empty { display: none; }
+.gs-side-foot .gs-hint { text-align: center; }
+.gs-sec { display: flex; flex-direction: column; gap: 10px; }
+.gs-sec-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.gs-sec-head h3 { margin: 0; font: 600 var(--ss-ui-sm) var(--ss-font-mono); text-transform: uppercase; letter-spacing: 0.06em; color: var(--ss-fg-muted); }
+
+/* a turma, uma linha por pessoa na ordem das vezes */
+.gs-turma { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.gs-turma > li { display: flex; gap: 10px; align-items: flex-start; padding: 8px 10px; border: 1px solid var(--ss-line); background: var(--ss-bg-elev); font-size: var(--ss-ui-sm); }
+.gs-turma > li.turn { border-color: var(--ss-accent); box-shadow: inset 3px 0 0 var(--ss-accent); }
+.gs-turma > li.off { opacity: 0.55; }
+.gs-turma .pos { flex: none; width: 1.4em; padding-top: 3px; color: var(--ss-fg-faint); font: var(--ss-ui-xs) var(--ss-font-mono); text-align: right; }
+.gs-turma .main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 5px; }
+.gs-turma .top { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.gs-turma .top .gs-who { flex: 1 1 auto; min-width: 0; flex-wrap: wrap; }
+.gs-turma .sub { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; color: var(--ss-fg-muted); font-size: var(--ss-ui-xs); }
+.gs-turma .writes { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.gs-turma .act, .gs-members li .act { margin-left: auto; display: inline-flex; gap: 2px; flex-wrap: nowrap; align-items: center; flex: none; }
+.gs-turma .act.mark { margin-left: 0; flex-wrap: wrap; }
+.gs-ghosts h4 { margin-bottom: 6px; }
+/* o post-it de alguém dentro da linha: um tooltip pequeno do dssoca */
+.gs-chip { align-self: flex-start; display: inline-flex; align-items: center; gap: 6px; max-width: 100%; box-sizing: border-box; padding: 3px 8px; border: 1px solid var(--ss-line-strong);
+  background: var(--ss-bg-inset); color: var(--ss-fg); font: 500 var(--ss-ui-xs) var(--ss-font-mono); }
+.gs-chip img { width: 20px; height: 20px; object-fit: contain; flex: none; }
+.gs-chip .text { overflow-wrap: anywhere; }
+.gs-chip.hidden { color: var(--ss-fg-faint); }
+.gs-chip.hidden .q { font-weight: 700; }
+.gs-chip.turn { border-color: var(--ss-accent); }
 
 /* uma pessoa numa linha */
 .gs-who { display: inline-flex; align-items: center; gap: 6px; flex: 1 0 auto; }
 .gs-who .name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .gs-who.off { opacity: 0.5; }
-.gs-members li .act, .gs-order li .act { margin-left: auto; display: inline-flex; gap: 4px; flex-wrap: wrap; justify-content: flex-end; align-items: center; }
-.gs-members li { flex-wrap: wrap; }
+.gs-members li { flex-wrap: wrap; font-size: var(--ss-ui-sm); }
 
-/* a ordem das vezes: o moderador arrasta */
-.gs-order { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
-.gs-order li { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 6px 8px; border: 1px solid var(--ss-line); border-radius: var(--ss-radius-1); background: var(--ss-bg-elev); }
-.gs-order .pos { width: 1.5em; color: var(--ss-fg-faint); font-family: var(--ss-font-mono); font-size: var(--ss-ui-xs); }
-.gs-order.editable li { cursor: grab; }
-.gs-order .grip { color: var(--ss-fg-faint); }
-.gs-order li.dragging { opacity: 0.4; }
-.gs-order li.over { box-shadow: inset 0 3px 0 var(--ss-accent); }
-.gs-order li.end { justify-content: center; color: var(--ss-fg-faint); font-size: var(--ss-ui-xs); border-style: dashed; }
+/* a vez e a votação, em cima no meio do que sobra */
+.gs-top { position: absolute; z-index: 9; top: var(--gs-edge); right: calc(var(--gs-edge) + var(--gs-rank-w) + 12px); display: flex; justify-content: center; pointer-events: none; }
+.gs-top > * { pointer-events: auto; }
+.gs-turnbar { width: min(560px, 100%); display: flex; flex-direction: column; gap: 10px; }
+.gs-turnbar .gs-block { background: color-mix(in srgb, var(--ss-bg-elev) 94%, transparent); }
 
-/* quem escreve para quem */
-.gs-assign li > span { font-size: var(--ss-ui-sm); }
-.gs-assign { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
-.gs-pick { all: unset; display: block; font-size: var(--ss-ui-sm); box-sizing: border-box; width: 100%; padding: 6px 8px; border: 1px solid var(--ss-line); border-radius: var(--ss-radius-1); cursor: pointer; }
-.gs-pick:hover { background: var(--ss-hover); }
-.gs-pick:focus-visible { outline: 2px solid var(--ss-accent); }
-.gs-pick.picked { border-color: var(--ss-accent); background: var(--ss-primary-soft); }
+/* o ranking, no canto de cima à direita: meio transparente, inteiro com o mouse em cima */
+.gs-rank { position: absolute; z-index: 9; top: var(--gs-edge); right: var(--gs-edge); width: var(--gs-rank-w); max-height: calc(100vh - 2 * var(--gs-edge) - 60px); overflow: auto;
+  opacity: 0.8; transition: opacity var(--ss-dur) var(--ss-ease); }
+.gs-rank:hover, .gs-rank:focus-within { opacity: 1; }
+.gs-ranking-card { background: color-mix(in srgb, var(--ss-bg-elev) 94%, transparent); }
+.gs-ranking-card .body { padding-top: 0; }
 
-/* os oito personagens */
-.gs-chars { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 6px; }
-.gs-char { all: unset; box-sizing: border-box; min-width: 0; overflow: hidden; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 8px 4px; border: 1px solid var(--ss-line); border-radius: var(--ss-radius-1); cursor: pointer; font-size: var(--ss-ui-xs); color: var(--ss-fg-muted); }
-.gs-char .gs-hero { margin-top: -6px; }
+/* post-its sobre as cabeças (posicionados pelo WorldRuntime a cada quadro): tooltips do dssoca, que crescem com o mouse */
+.gs-heads { position: absolute; inset: 0; z-index: 1; overflow: hidden; pointer-events: none; }
+.gs-head { position: absolute; left: 0; top: 0; visibility: hidden; will-change: transform; }
+.gs-head:hover { z-index: 5000 !important; }
+.gs-head .inner { position: absolute; left: 0; bottom: 0; width: max-content; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.gs-head .tip { box-sizing: border-box; width: max-content; max-width: 132px; min-width: 28px; padding: 4px 8px; display: flex; flex-direction: column; align-items: center; gap: 3px;
+  background: var(--ss-bg-elev); color: var(--ss-fg); border: 1px solid var(--ss-line-strong); box-shadow: var(--ss-shadow-pop);
+  font: 500 var(--ss-ui-xs)/1.25 var(--ss-font-mono); text-align: center; pointer-events: auto; cursor: default;
+  transform-origin: 50% 100%; transition: transform var(--ss-dur) var(--ss-ease), box-shadow var(--ss-dur) var(--ss-ease); }
+.gs-head .tip:hover { transform: scale(1.7); }
+.gs-head .tip img { max-width: 100%; max-height: 40px; object-fit: contain; image-rendering: auto; }
+.gs-head .tip .text { overflow-wrap: anywhere; }
+.gs-head .tip .blank { color: var(--ss-fg-faint); }
+.gs-head .tip.hidden { min-width: 32px; color: var(--ss-fg-muted); }
+.gs-head .tip.hidden .q { font: 700 18px/1 var(--ss-font-mono); }
+/* a vez de agora: a cor de destaque */
+.gs-head .turn .tip { border-color: var(--ss-accent); box-shadow: 0 0 0 1px var(--ss-accent), var(--ss-shadow-glow); }
+.gs-head .turn .tag { background: var(--ss-accent); color: var(--ss-fg-on-primary); }
+.gs-head .done .tip { opacity: 0.8; }
+.gs-head .tag { padding: 1px 6px; background: rgb(0 0 0 / 0.6); color: #fff; font: 600 11px/1.3 var(--ss-font-body); white-space: nowrap; max-width: 120px; overflow: hidden; text-overflow: ellipsis; }
+.gs-head .mine .tag { outline: 1px solid var(--ss-accent); }
+
+.gs-stack { display: flex; flex-direction: column; gap: 12px; }
+.gs-block .body { display: flex; flex-direction: column; gap: 12px; }
+.gs-block .head { gap: 12px; }
+.gs-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.gs-line { display: flex; align-items: center; justify-content: space-between; gap: 12px; font-size: var(--ss-ui-sm); }
+.gs-line h4 { margin: 0; font-size: var(--ss-ui-sm); font-weight: 500; }
+.gs-banner { margin: 0; padding: 8px 12px; border: 1px dashed var(--ss-line-strong); color: var(--ss-fg-muted); font-size: var(--ss-ui-sm); }
+.gs-icon-btn { min-width: 0; padding-inline: 7px; justify-content: center; }
+.gs-clock { font-family: var(--ss-font-mono); font-variant-numeric: tabular-nums; }
+.gs-clock.big { font-size: var(--ss-size-h2); }
+.gs-stepper { display: inline-flex; align-items: center; gap: 4px; }
+.gs-stepper .gs-clock { min-width: 3.2em; text-align: center; }
+
+/* os oito personagens para escolher */
+.gs-chars { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 4px; }
+@media (max-width: 520px) { .gs-chars { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+.gs-char { all: unset; box-sizing: border-box; min-width: 0; overflow: hidden; display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 4px 2px 6px; border: 1px solid var(--ss-line); cursor: pointer; font-size: var(--ss-ui-xs); color: var(--ss-fg-muted); }
+.gs-char .gs-hero { margin-top: -8px; }
 .gs-char .who { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .gs-char:hover:not(:disabled) { background: var(--ss-hover); }
 .gs-char:focus-visible { outline: 2px solid var(--ss-accent); }
-.gs-char.mine { border-color: var(--ss-accent); color: var(--ss-fg); }
-.gs-char:disabled { cursor: not-allowed; opacity: 0.55; }
+.gs-char.mine { border-color: var(--ss-accent); background: var(--ss-primary-soft); color: var(--ss-fg); }
+.gs-char:disabled { cursor: not-allowed; opacity: 0.4; }
 
-/* post-it: papel amarelo, meio torto, com uma fita em cima (só CSS) */
-.gs-board { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 18px 14px; }
-.gs-postit { margin: 0; display: flex; flex-direction: column; align-items: center; gap: 8px; }
-.gs-postit .paper { position: relative; box-sizing: border-box; width: 100%; max-width: 180px; aspect-ratio: 1; padding: 14px 10px 10px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; overflow: hidden;
-  background: linear-gradient(180deg, var(--gs-paper) 0%, var(--gs-paper) 85%, var(--gs-paper-edge) 100%); color: var(--gs-ink);
-  transform: rotate(var(--tilt, 0deg)); box-shadow: 0 6px 12px rgb(0 0 0 / 0.35), 0 1px 0 rgb(0 0 0 / 0.2); font-family: var(--ss-font-display); text-align: center; }
-.gs-postit .paper::before { content: ''; position: absolute; top: -6px; left: 50%; width: 46px; height: 16px; transform: translateX(-50%) rotate(-3deg); background: rgb(255 255 255 / 0.35); }
-.gs-postit .paper img { max-width: 100%; max-height: 60%; object-fit: contain; border-radius: 2px; }
-.gs-postit .text { font-size: 1.05rem; font-weight: 700; line-height: 1.15; overflow-wrap: anywhere; }
-.gs-postit .blank { color: rgb(0 0 0 / 0.35); }
-.gs-postit .paper.hidden .q { font-size: 3.5rem; font-weight: 700; color: rgb(0 0 0 / 0.55); }
-.gs-postit figcaption { display: flex; align-items: center; justify-content: center; gap: 6px; flex-wrap: wrap; font-size: var(--ss-ui-sm); }
-.gs-postit.turn .paper { outline: 3px solid var(--ss-accent); outline-offset: 4px; }
-.gs-postit.got .paper { filter: saturate(0.6); }
-.gs-postit.gaveup .paper { filter: grayscale(0.6); opacity: 0.8; }
-.gs-postit.off figcaption { opacity: 0.6; }
-
-/* o editor: o próprio post-it é o campo */
-.gs-editor { display: flex; gap: 16px; align-items: flex-start; flex-wrap: wrap; }
-.gs-editor .gs-postit .paper { width: 200px; max-width: 200px; }
-.gs-postit-input { all: unset; box-sizing: border-box; width: 100%; resize: none; text-align: center; font: 700 1.1rem var(--ss-font-display); color: var(--gs-ink); field-sizing: content; min-height: 2.4em; }
-.gs-postit-input::placeholder { color: rgb(0 0 0 / 0.35); }
-.gs-postit-input:disabled { cursor: default; }
-.gs-editor-side { display: flex; flex-direction: column; gap: 8px; align-items: flex-start; }
+/* o editor do post-it */
+.gs-editor { display: flex; flex-direction: column; gap: 6px; }
+.gs-editor-box { display: flex; gap: 8px; align-items: stretch; }
+.gs-editor-box .ss-textarea { flex: 1; }
+.gs-editor-img { width: 56px; height: 56px; object-fit: contain; flex: none; border: 1px solid var(--ss-line); background: var(--ss-bg-inset); }
+.gs-postit-input { width: 100%; box-sizing: border-box; resize: none; font-family: var(--ss-font-mono); }
+.gs-count { font-family: var(--ss-font-mono); }
 
 /* jogo */
 .gs-turn.mine { box-shadow: 0 0 0 2px var(--ss-accent); }
@@ -183,13 +188,23 @@ html, body { margin: 0; min-height: 100%; background: var(--ss-bg); }
 .gs-voters { list-style: none; margin: 0; padding: 0; display: flex; gap: 10px; flex-wrap: wrap; font-size: var(--ss-ui-sm); color: var(--ss-fg-faint); }
 .gs-voters li.done { color: var(--ss-fg); }
 .gs-ranking { font-size: var(--ss-ui-sm); list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
-.gs-ranking li { display: flex; align-items: center; gap: 8px; }
+.gs-ranking li { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.gs-ranking .gs-who { flex: 1 1 auto; min-width: 0; }
 .gs-ranking .place { width: 2em; font-family: var(--ss-font-mono); color: var(--ss-fg-muted); }
 .gs-ranking li.gaveup { opacity: 0.7; }
 
-/* bloco, menu e aviso */
-.gs-notepad { position: fixed; right: 16px; bottom: 16px; width: min(340px, calc(100vw - 32px)); z-index: 20; }
+/* o bloco: preso embaixo ao lado da coluna; minimizado, uma aba que sobe um pouco com o mouse em cima */
+/* `.ss-card` vem num @scope do dssoca, que ganha de uma classe solta por proximidade: duas classes ganham por especificidade */
+.gs-notepad.ss-card { position: absolute; z-index: 11; bottom: var(--gs-edge); box-sizing: border-box; }
 .gs-notepad .body textarea { width: 100%; box-sizing: border-box; }
+.gs-notepad-tab { all: unset; position: absolute; z-index: 11; bottom: 0; box-sizing: border-box; display: inline-flex; align-items: center; gap: 8px; padding: 8px 14px 20px;
+  background: var(--ss-bg-elev); color: var(--ss-fg); border: 1px solid var(--ss-line-strong); border-bottom: 0; box-shadow: var(--ss-shadow-pop);
+  font: 600 var(--ss-ui-sm) var(--ss-font-body); cursor: pointer; transform: translateY(12px); transition: transform var(--ss-dur) var(--ss-ease), border-color var(--ss-dur) var(--ss-ease); }
+.gs-notepad-tab:hover, .gs-notepad-tab:focus-visible { transform: translateY(2px); border-color: var(--ss-accent); }
+.gs-notepad-tab:focus-visible { outline: 2px solid var(--ss-accent); }
+.gs-notepad-tab .dot { width: 6px; height: 6px; background: var(--ss-accent); }
+
+/* menu e aviso */
 .gs-backdrop { position: fixed; inset: 0; z-index: 30; display: grid; place-items: center; padding: 16px; background: rgb(0 0 0 / 0.55); }
 .gs-menu { width: min(520px, 100%); max-height: calc(100vh - 32px); overflow: auto; }
 .gs-menu .body { display: flex; flex-direction: column; gap: 14px; }
@@ -201,5 +216,8 @@ html, body { margin: 0; min-height: 100%; background: var(--ss-bg); }
 .gs-mute { display: inline-flex; align-items: center; gap: 6px; color: var(--ss-fg-muted); }
 .gs-keys { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; font-size: var(--ss-ui-sm); }
 .gs-keys li { display: flex; justify-content: space-between; align-items: center; }
-.gs-toast { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); z-index: 40; padding: 8px 14px; border-radius: var(--ss-radius-1); background: var(--ss-danger); color: var(--ss-fg-on-danger); font-size: var(--ss-ui-sm); box-shadow: var(--ss-shadow-pop); }
-.gs-order li, .gs-members li { font-size: var(--ss-ui-sm); }
+.gs-toast { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); z-index: 40; padding: 8px 14px; background: var(--ss-danger); color: var(--ss-fg-on-danger); font-size: var(--ss-ui-sm); box-shadow: var(--ss-shadow-pop); }
+
+@media (prefers-reduced-motion: reduce) {
+  .gs-head .tip, .gs-notepad-tab, .gs-rank { transition: none; }
+}

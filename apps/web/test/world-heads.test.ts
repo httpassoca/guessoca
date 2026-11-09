@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 import { roomView } from '../src/lib/room/view';
-import { heads, tiltOf } from '../src/lib/world/heads';
+import { heads } from '../src/lib/world/heads';
 import { member, postit, snapshot } from './snapshots';
 
 const members = [member('m1', 'Zé', { character: 0 }), member('m2', 'Ana', { character: 1 }), member('m3', 'Bia', { character: null }), member('m4', 'Gasparzinho', { character: 3, ghost: true }), member('m5', 'Fake', { character: 4, fake: true })];
@@ -14,7 +14,12 @@ describe('o que vai sobre cada cabeça', () => {
     expect(h[0]).toMatchObject({ nickname: 'Zé', mine: true });
   });
 
-  test('a partir da escrita, o post-it de cada jogador; o meu como "?" até revelar; fantasma sem post-it', () => {
+  test('no lobby, só o apelido mesmo com os post-its sendo escritos', () => {
+    const s = snapshot({ members, order: ['m1', 'm2', 'm5'], postits: { m1: postit('m2', { text: null }), m2: postit('m5', { text: 'Pelé' }), m5: postit('m1', { text: 'Xuxa' }) } });
+    expect(heads(s, roomView(s)).every((x) => x.card === null)).toBe(true);
+  });
+
+  test('no jogo, o post-it de cada jogador; o meu como "?" até revelar; fantasma sem post-it', () => {
     const postits = { m1: postit('m2', { text: null, written: true }), m2: postit('m1', { text: 'Pelé' }), m5: postit('m4', { text: 'Xuxa', ready: true }) };
     const s = snapshot({ members, order: ['m1', 'm2', 'm5'], phase: 'playing', postits });
     const h = heads(s, roomView(s));
@@ -23,8 +28,10 @@ describe('o que vai sobre cada cabeça', () => {
     expect(h.find((x) => x.id === 'm4')?.card).toBeNull();
   });
 
-  test('cada dono tem o seu ângulo torto, sempre o mesmo, pequeno', () => {
-    expect(tiltOf('m1')).toBe(tiltOf('m1'));
-    for (const id of ['m1', 'm2', 'm3', 'm12']) expect(Math.abs(tiltOf(id))).toBeLessThanOrEqual(3);
+  test('a vez de agora fica marcada no post-it de quem pergunta', () => {
+    const postits = { m1: postit('m2', { text: null, written: true }), m2: postit('m1', { text: 'Pelé' }) };
+    const s = snapshot({ members, order: ['m1', 'm2'], phase: 'playing', postits, turn: { owner: 'm2', left: 1000, running: true } });
+    const h = heads(s, roomView(s));
+    expect(h.filter((x) => x.card?.turn).map((x) => x.id)).toEqual(['m2']);
   });
 });

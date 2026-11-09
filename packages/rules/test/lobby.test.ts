@@ -58,12 +58,20 @@ describe('ajudantes', () => {
 });
 
 describe('lobby', () => {
-  test('o jogo nasce no lobby, vazio, com a vez padrão', () => {
+  test('o jogo nasce no lobby, vazio, com a vez padrão ou a escolhida ao criar a sala', () => {
     const g = createGame();
     expect(g.phase).toBe('lobby');
     expect(g.order).toEqual([]);
+    expect(g.postits).toEqual({});
     expect(g.turnMs).toBe(TURN_DEFAULT);
     expect(g.customAuthors).toBe(false);
+    expect(createGame({ turnMs: 45_000 }).turnMs).toBe(45_000);
+  });
+
+  test('cada pessoa da ordem já tem um post-it vazio no lobby', () => {
+    const s = new Sim('a', 'b', 'c');
+    const empty = { text: '', image: null, ready: false };
+    expect(s.game.postits).toEqual({ a: empty, b: empty, c: empty });
   });
 
   test('quem entra vai para o fim da ordem e ganha o primeiro personagem livre', () => {
@@ -100,31 +108,21 @@ describe('lobby', () => {
     s.refuse('a', { type: 'order', order: ['a', 'b', 'x'] }, 'invalid');
   });
 
-  test('trocar autores fixa a escolha: reordenar não desfaz', () => {
+  test('quem entra depois de sortear volta todo mundo ao círculo', () => {
     const s = new Sim('a', 'b', 'c', 'd');
-    // círculo: b←a, c←b, d←c, a←d
-    s.do('a', { type: 'swapAuthors', a: 'b', b: 'd' });
-    expect(s.game.authors).toEqual({ b: 'c', c: 'b', d: 'a', a: 'd' });
-    expect(s.game.customAuthors).toBe(true);
-    s.do('a', { type: 'order', order: ['d', 'c', 'b', 'a'] });
-    expect(s.game.authors).toEqual({ b: 'c', c: 'b', d: 'a', a: 'd' });
-  });
-
-  test('troca que faz alguém escrever para si é recusada', () => {
-    const s = new Sim('a', 'b', 'c');
-    // círculo: b←a, c←b, a←c; trocar a e b daria a←a
-    s.refuse('a', { type: 'swapAuthors', a: 'a', b: 'b' }, 'invalid');
-    s.refuse('a', { type: 'swapAuthors', a: 'a', b: 'a' }, 'invalid');
-    s.refuse('a', { type: 'swapAuthors', a: 'a', b: 'x' }, 'invalid');
-    s.refuse('b', { type: 'swapAuthors', a: 'b', b: 'c' }, 'notModerator');
-  });
-
-  test('quem entra depois de uma troca volta todo mundo ao círculo', () => {
-    const s = new Sim('a', 'b', 'c', 'd');
-    s.do('a', { type: 'swapAuthors', a: 'b', b: 'd' });
+    s.do('a', { type: 'shuffleAuthors' });
     s.join('e');
     expect(s.game.customAuthors).toBe(false);
     expect(s.game.authors).toEqual(circle(['a', 'b', 'c', 'd', 'e']));
+  });
+
+  test('reordenar depois de sortear não desfaz o sorteio', () => {
+    const s = new Sim('a', 'b', 'c', 'd');
+    s.do('a', { type: 'shuffleAuthors' });
+    const drawn = { ...s.game.authors };
+    s.do('a', { type: 'order', order: ['d', 'c', 'b', 'a'] });
+    expect(s.game.customAuthors).toBe(true);
+    expect(s.game.authors).toEqual(drawn);
   });
 
   test('sortear usa o sorteio de quem chama e ninguém escreve para si', () => {
@@ -164,54 +162,45 @@ describe('lobby', () => {
     s.refuse('b', { type: 'onlyModerate', on: true }, 'notModerator');
   });
 
-  test('só moderar com autores trocados volta ao círculo se a troca deixa de valer', () => {
+  test('só moderar depois de sortear volta ao círculo, porque o sorteio deixa de valer', () => {
     const s = new Sim('a', 'b', 'c', 'd');
-    s.do('a', { type: 'swapAuthors', a: 'b', b: 'd' });
+    s.do('a', { type: 'shuffleAuthors' });
     s.do('a', { type: 'onlyModerate', on: true });
     expect(s.game.customAuthors).toBe(false);
     expect(s.game.authors).toEqual(circle(['b', 'c', 'd']));
   });
 
-  test('a escrita precisa de pelo menos duas pessoas na ordem', () => {
-    const s = new Sim('a', 'b');
-    s.do('a', { type: 'onlyModerate', on: true });
-    s.refuse('a', { type: 'startWriting' }, 'invalid');
-    s.do('a', { type: 'onlyModerate', on: false });
-    s.refuse('b', { type: 'startWriting' }, 'notModerator');
-    expect(s.do('a', { type: 'startWriting' })).toEqual([{ type: 'writing' }]);
-    expect(s.game.phase).toBe('writing');
-    expect(s.game.postits).toEqual({
-      a: { text: '', image: null, ready: false },
-      b: { text: '', image: null, ready: false },
-    });
-  });
-
   test('ações do lobby fora do lobby são recusadas', () => {
     const s = new Sim('a', 'b');
-    s.do('a', { type: 'startWriting' });
-    s.refuse('a', { type: 'startWriting' }, 'wrongPhase');
-    s.refuse('a', { type: 'swapAuthors', a: 'a', b: 'b' }, 'wrongPhase');
+    s.start();
+    s.refuse('a', { type: 'start' }, 'wrongPhase');
     s.refuse('a', { type: 'shuffleAuthors' }, 'wrongPhase');
     s.refuse('a', { type: 'turnMs', ms: 90_000 }, 'wrongPhase');
     s.refuse('a', { type: 'onlyModerate', on: true }, 'wrongPhase');
+    s.refuse('b', { type: 'write', owner: 'a', text: 'x', image: null }, 'wrongPhase');
+    s.refuse('b', { type: 'ready' }, 'wrongPhase');
+    s.do('a', { type: 'endGame' });
     s.refuse('a', { type: 'order', order: ['b', 'a'] }, 'wrongPhase');
+    s.refuse('b', { type: 'write', owner: 'a', text: 'x', image: null }, 'wrongPhase');
   });
 
-  test('quem entra fora do lobby fica fantasma, com personagem', () => {
+  test('quem entra fora do lobby fica fantasma, com personagem, e os autores não mudam', () => {
     const s = new Sim('a', 'b');
-    s.do('a', { type: 'startWriting' });
+    s.start();
+    const before = structuredClone(s.game.postits);
     s.join('c');
     expect(s.game.order).toEqual(['a', 'b']);
     expect(s.game.characters.c).toBe(2);
-    expect(s.game.postits.c).toBeUndefined();
+    expect(s.game.authors).toEqual(circle(['a', 'b']));
+    expect(s.game.postits).toEqual(before);
   });
 
   test('ninguém muda o estado que recebeu', () => {
     const s = new Sim('a', 'b', 'c');
     const before = structuredClone(s.game);
     const frozen = s.game;
+    s.do('b', { type: 'write', owner: 'c', text: 'C', image: null });
     s.do('a', { type: 'shuffleAuthors' });
-    s.do('a', { type: 'startWriting' });
     expect(frozen).toEqual(before);
   });
 });

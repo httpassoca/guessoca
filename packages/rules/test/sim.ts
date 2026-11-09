@@ -97,22 +97,19 @@ export class Sim {
     return r.events;
   }
 
-  /** escreve e marca pronto todos os post-its, cada autor o seu */
+  /** cada autor escreve o post-it do seu dono e aperta "Pronto" (no lobby: o jogo não começa sozinho) */
   writeAll() {
     for (const owner of this.game.order) {
       const author = this.game.authors[owner];
       this.do(author, { type: 'write', owner, text: `quem é ${owner}`, image: null });
-    }
-    for (const owner of [...this.game.order]) {
-      if (this.game.phase !== 'writing') break;
-      this.do(this.game.authors[owner], { type: 'ready' });
+      this.do(author, { type: 'ready' });
     }
   }
 
-  /** do lobby até a primeira vez */
+  /** do lobby até a primeira vez: todos escrevem e ficam prontos, e o moderador começa */
   start() {
-    this.do(this.moderator!, { type: 'startWriting' });
     this.writeAll();
+    this.do(this.moderator!, { type: 'start' });
     expect(this.game.phase).toBe('playing');
   }
 

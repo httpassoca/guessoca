@@ -21,11 +21,20 @@ export function pickScale(width: number, height: number): number {
 const GROUND_AT = 0.8;
 
 /**
- * A vista de uma tela `width`×`height` com uma coluna de `insetRight` pixels cobrindo a direita: o centro da câmera
- * fica no meio do que se vê.
+ * A parte que se vê de uma tela `width`×`height` com uma coluna de `inset` pixels cobrindo um lado: a câmera segue e
+ * para nas pontas do mundo dentro dela. A escala é a da tela inteira (recolher a coluna não muda o tamanho do mundo).
  */
-export function makeView(width: number, height: number, insetRight = 0): View {
-  return { scale: pickScale(width, height), width: Math.max(1, width - insetRight), height, groundY: Math.round(height * GROUND_AT) };
+export function makeView(width: number, height: number, inset = 0): View {
+  return { scale: pickScale(width, height), width: Math.max(1, width - inset), height, groundY: Math.round(height * GROUND_AT) };
+}
+
+/**
+ * A vista para desenhar quando uma coluna de `insetLeft` pixels cobre a esquerda: a mesma escala de `visible` (a parte
+ * que se vê, de `makeView(w, h, insetLeft)`, onde a câmera segue e para nas pontas do mundo), larga o bastante para o
+ * meio cair no meio do que se vê. Tudo anda `insetLeft` para a direita e o telhado continua por baixo da coluna.
+ */
+export function renderView(visible: View, insetLeft: number): View {
+  return insetLeft > 0 ? { ...visible, width: visible.width + 2 * insetLeft } : visible;
 }
 
 /** a altura, acima dos pés, da base do post-it: um pouco acima do topo da cabeça */

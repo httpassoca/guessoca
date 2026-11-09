@@ -1,7 +1,8 @@
 /**
- * O que os painéis precisam saber, derivado de um `RoomSnapshot`, puro e testado: quem sou eu, para quem escrevo, de
- * quem é a vez e o que posso fazer nela, a votação como eu a vejo, os post-its como eu posso vê-los (o meu escondido
- * até ser revelado) e o ranking. Os painéis só desenham isto e mandam pedidos; quem decide é o servidor.
+ * O que os painéis precisam saber, derivado de um `RoomSnapshot`, puro e testado: quem sou eu, a turma linha a linha
+ * (a vez, para quem cada um escreve, o post-it e o estado), para quem eu escrevo no lobby e se o moderador já pode
+ * começar, de quem é a vez e o que posso fazer nela, a votação como eu a vejo, os post-its como eu posso vê-los (o meu
+ * escondido até ser revelado) e o ranking. Os painéis só desenham isto e mandam pedidos; quem decide é o servidor.
  */
 import type { MemberView, PostitView, RoomSnapshot } from '@guess/protocol';
 import { CHARACTERS, MIN_PLAYERS, TURN_MAX, TURN_MIN, TURN_STEP } from '@guess/rules';
@@ -29,7 +30,24 @@ export interface PostitCard {
   status: 'playing' | 'got' | 'gaveUp';
 }
 
-export interface Assignment { owner: MemberView; author: MemberView | null }
+/** Uma linha do painel da turma, na ordem das vezes. */
+export interface TurmaRow {
+  member: MemberView;
+  /** a vez, de 1 em diante */
+  pos: number;
+  /** de quem esta pessoa escreve o post-it; null = ninguém (ainda) */
+  writesFor: MemberView | null;
+  /** em que pé está o post-it que esta pessoa escreve */
+  writing: Progress;
+  /** o post-it desta pessoa, como eu posso vê-lo; null = ainda não tem */
+  card: PostitCard | null;
+  status: PostitCard['status'];
+  /** o lugar no ranking, se já acertou ou desistiu */
+  place: number | null;
+}
+
+/** Por que o moderador ainda não pode começar: falta gente jogando, ou algum post-it está sem texto. */
+export type StartBlock = 'players' | 'empty';
 
 export interface TurnInfo {
   owner: MemberView;
@@ -68,18 +86,30 @@ export interface RoomView {
   players: MemberView[];
   ghosts: MemberView[];
   offline: MemberView[];
-  /** lobby: quem escreve para quem, na ordem das vezes */
-  assignments: Assignment[];
+  /** a turma que joga, linha a linha, na ordem das vezes */
+  turma: TurmaRow[];
   /** quem pegou cada um dos oito personagens */
   characters: (MemberView | null)[];
-  canStartWriting: boolean;
-  /** escrita: o post-it que eu escrevo (sou o autor dele) */
+  /** os personagens que ninguém pegou (o visitante escolhe um destes para entrar) */
+  freeCharacters: number[];
+  /** o limite de pessoas não desce abaixo disto: a turma de agora (fantasmas também), e nunca menos de `MIN_PLAYERS` */
+  maxPlayersMin: number;
+  /** lobby: o post-it que eu escrevo (sou o autor dele) */
   writeFor: { owner: MemberView; postit: PostitView; progress: Progress } | null;
-  /** escrita, moderador: post-its sem autor ou sem texto que posso escrever (nem o meu nem o que já escrevo) */
-  moderatorEditors: PostitCard[];
-  /** escrita, moderador: o meu post-it está vazio e eu não posso escrevê-lo; "Começar já" fica recusado até alguém escrever */
+  /** lobby, moderador: os post-its ainda sem texto que posso escrever (nem o meu nem o que já escrevo) */
+  missing: PostitCard[];
+  /** lobby, moderador: os donos cujo post-it posso escrever agora (não prontos; nem o meu nem o que já escrevo) */
+  hostCanWrite: string[];
+  /** lobby, moderador: o meu post-it está vazio e eu não posso escrevê-lo; Começar espera o autor */
   ownPostitEmpty: boolean;
   readyCount: number;
+  /** post-its com texto (o meu também: o servidor diz se está escrito, sem dizer o quê) */
+  writtenCount: number;
+  allReady: boolean;
+  /** moderador, lobby: Começar vale (gente bastante e todo post-it com texto; não precisa estarem prontos) */
+  canStart: boolean;
+  /** por que ainda não dá para começar; null = dá (ou não é comigo) */
+  startBlock: StartBlock | null;
   /** todos os post-its, na ordem das vezes */
   postits: PostitCard[];
   turn: TurnInfo | null;
@@ -120,10 +150,12 @@ export function roomView(s: RoomSnapshot): RoomView {
     });
   }
 
+  const lobby = s.phase === 'lobby';
+  /** quem escreve o post-it de `owner`: o que vem no post-it, ou o plano de `authors` */
+  const authorOf = (owner: string): string | null => s.postits[owner]?.author ?? s.authors[owner] ?? null;
   let writeFor: RoomView['writeFor'] = null;
-  if (me && s.phase === 'writing') {
-    // o autor de cada post-it vem nele; `authors` é o plano do lobby
-    const ownerId = s.order.find((o) => s.postits[o]?.author === me.id);
+  if (me && lobby) {
+    const ownerId = s.order.find((o) => authorOf(o) === me.id && s.postits[o]);
     const owner = ownerId ? byId.get(ownerId) : undefined;
     if (ownerId && owner) writeFor = { owner, postit: s.postits[ownerId], progress: progressOf(s.postits[ownerId]) };
   }
@@ -149,20 +181,42 @@ export function roomView(s: RoomSnapshot): RoomView {
   const ranking: RankingRow[] = [...pick(s.got).map((member) => ({ member, gaveUp: false })), ...pick(s.gaveUp).map((member) => ({ member, gaveUp: true }))]
     .map((r, i) => ({ place: i + 1, ...r }));
 
+  const place = new Map(ranking.map((r) => [r.member.id, r.place]));
+  const cardOf = new Map(postits.map((c) => [c.owner.id, c]));
+  const turma: TurmaRow[] = players.map((member, i) => {
+    const target = s.order.find((o) => o !== member.id && authorOf(o) === member.id);
+    const tp = target ? s.postits[target] : undefined;
+    const card = cardOf.get(member.id) ?? null;
+    return {
+      member, pos: i + 1, writesFor: (target && byId.get(target)) || null, writing: tp ? progressOf(tp) : 'empty',
+      card, status: got.has(member.id) ? 'got' : gaveUp.has(member.id) ? 'gaveUp' : 'playing', place: place.get(member.id) ?? null,
+    };
+  });
+
   const writtenByMe = writeFor?.owner.id;
+  const hostLobby = isModerator && lobby;
+  const hostCards = hostLobby ? postits.filter((p) => !p.mine && p.owner.id !== writtenByMe && !p.ready) : [];
+  const writtenCount = players.filter((p) => s.postits[p.id]?.written || !!s.postits[p.id]?.text?.trim()).length;
+  const allWritten = players.length > 0 && writtenCount === players.length;
+  const startBlock: StartBlock | null = !hostLobby ? null : players.length < MIN_PLAYERS ? 'players' : !allWritten ? 'empty' : null;
+  const freeCharacters = characters.flatMap((m, n) => (m ? [] : [n]));
   return {
     me, isModerator, isPlayer, isGhost: !!me && !isPlayer, done, players,
     ghosts: s.members.filter((m) => !s.order.includes(m.id)),
     offline: s.members.filter((m) => !m.connected),
-    assignments: players.map((owner) => ({ owner, author: (s.authors[owner.id] && byId.get(s.authors[owner.id])) || null })),
+    turma,
     characters,
-    canStartWriting: isModerator && s.phase === 'lobby' && s.order.length >= MIN_PLAYERS,
+    freeCharacters,
+    maxPlayersMin: Math.max(MIN_PLAYERS, s.members.length),
     writeFor,
-    moderatorEditors: isModerator && s.phase === 'writing'
-      ? postits.filter((p) => !p.mine && p.owner.id !== writtenByMe && !p.ready && (p.author === null || p.progress === 'empty'))
-      : [],
-    ownPostitEmpty: isModerator && s.phase === 'writing' && !!me && !!s.postits[me.id] && !s.postits[me.id].written,
+    missing: hostCards.filter((p) => p.progress === 'empty'),
+    hostCanWrite: hostCards.map((p) => p.owner.id),
+    ownPostitEmpty: hostLobby && !!me && !!s.postits[me.id] && !s.postits[me.id].written,
     readyCount: postits.filter((p) => p.ready).length,
+    writtenCount,
+    allReady: postits.length > 0 && postits.length === players.length && postits.every((p) => p.ready),
+    canStart: hostLobby && startBlock === null,
+    startBlock,
     postits,
     turn,
     canClaim: playing && !!turn?.mine && turn.running && !s.vote && !s.paused,
@@ -192,14 +246,13 @@ export function turnOptions(): number[] {
   return out;
 }
 
-/** A ordem com `id` movido para antes de `before` (null = para o fim). Arrastar e soltar a turma. */
-export function moveBefore(order: readonly string[], id: string, before: string | null): string[] {
-  if (!order.includes(id) || id === before) return [...order];
-  const rest = order.filter((x) => x !== id);
-  const at = before === null ? rest.length : rest.indexOf(before);
-  if (at < 0) return [...order];
-  rest.splice(at, 0, id);
-  return rest;
+/** A ordem com `id` trocado com a vizinha de cima (`-1`) ou de baixo (`1`); nas pontas, como está. Os ↑ ↓ do moderador. */
+export function moveBy(order: readonly string[], id: string, delta: -1 | 1): string[] {
+  const out = [...order];
+  const i = out.indexOf(id), j = i + delta;
+  if (i < 0 || j < 0 || j >= out.length) return out;
+  [out[i], out[j]] = [out[j], out[i]];
+  return out;
 }
 
 /** Ao entrar: o personagem lembrado pelo navegador, se está livre e não é o que já tenho; senão null. */

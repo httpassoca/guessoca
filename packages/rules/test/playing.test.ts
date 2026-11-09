@@ -432,7 +432,7 @@ describe('fim', () => {
     expect(s.back('b')).toEqual([{ type: 'turn', owner: 'b' }]);
   });
 
-  test('o moderador encerra na escrita ou no jogo', () => {
+  test('o moderador encerra o jogo; no lobby e no fim não há o que encerrar', () => {
     const s = playing();
     s.refuse('b', { type: 'endGame' }, 'notModerator');
     expect(s.do('a', { type: 'endGame' })).toEqual([{ type: 'ended' }]);
@@ -440,10 +440,8 @@ describe('fim', () => {
     expect(s.game.turn).toBeNull();
     s.refuse('a', { type: 'endGame' }, 'wrongPhase');
     const w = new Sim('a', 'b');
+    w.writeAll();
     w.refuse('a', { type: 'endGame' }, 'wrongPhase');
-    w.do('a', { type: 'startWriting' });
-    w.do('a', { type: 'endGame' });
-    expect(w.game.phase).toBe('ended');
   });
 
   test('ações do jogo fora do jogo são recusadas', () => {
@@ -458,18 +456,20 @@ describe('fim', () => {
 });
 
 describe('jogar de novo', () => {
-  test('qualquer pessoa leva a turma de volta ao lobby, com o fantasma que chegou depois', () => {
+  test('o moderador leva a turma de volta ao lobby, com o fantasma que chegou depois e post-its vazios', () => {
     const s = playing();
     s.join('d');
     s.do('a', { type: 'endGame' });
-    expect(s.do('c', { type: 'playAgain' })).toEqual([{ type: 'lobby' }]);
+    s.refuse('c', { type: 'playAgain' }, 'notModerator');
+    expect(s.do('a', { type: 'playAgain' })).toEqual([{ type: 'lobby' }]);
+    const empty = { text: '', image: null, ready: false };
     expect(s.game).toEqual({
       ...s.game,
       phase: 'lobby',
       order: ['a', 'b', 'c', 'd'],
       authors: circle(['a', 'b', 'c', 'd']),
       customAuthors: false,
-      postits: {},
+      postits: { a: empty, b: empty, c: empty, d: empty },
       turn: null,
       vote: null,
       paused: false,
@@ -487,8 +487,9 @@ describe('jogar de novo', () => {
     s.start();
     s.do('a', { type: 'pause', on: true });
     s.do('a', { type: 'endGame' });
-    s.do('b', { type: 'playAgain' });
+    s.do('a', { type: 'playAgain' });
     expect(s.game.order).toEqual(['b', 'c', 'd']);
+    expect(Object.keys(s.game.postits).sort()).toEqual(['b', 'c', 'd']);
     expect(s.game.onlyModerate).toEqual(['a']);
     expect(s.game.customAuthors).toBe(false);
     expect(s.game.authors).toEqual(circle(['b', 'c', 'd']));
@@ -514,9 +515,9 @@ describe('expulsar', () => {
     expect(s.game.authors).toEqual(circle(['a', 'c']));
   });
 
-  test('no lobby, com autores trocados que deixam de valer: volta ao círculo', () => {
+  test('no lobby, depois de sortear: o sorteio deixa de valer e volta ao círculo', () => {
     const s = new Sim('a', 'b', 'c', 'd');
-    s.do('a', { type: 'swapAuthors', a: 'b', b: 'd' });
+    s.do('a', { type: 'shuffleAuthors' });
     s.kick('c');
     expect(s.game.customAuthors).toBe(false);
     expect(s.game.authors).toEqual(circle(['a', 'b', 'd']));
@@ -529,29 +530,12 @@ describe('expulsar', () => {
     expect(s.game.onlyModerate).toEqual([]);
   });
 
-  test('na escrita: o post-it dele some e o dono para quem escrevia fica sem autor', () => {
-    const s = new Sim('a', 'b', 'c', 'd');
-    s.do('a', { type: 'startWriting' });
-    s.do('b', { type: 'write', owner: 'c', text: 'C', image: null });
-    s.kick('c'); // c escrevia para d; b escrevia para c
+  test('no jogo: o post-it dele some e o dono para quem escrevia fica sem autor', () => {
+    const s = playing('a', 'b', 'c', 'd');
+    s.kick('c'); // c escrevia para d
     expect(Object.keys(s.game.postits).sort()).toEqual(['a', 'b', 'd']);
     expect(s.game.authors).toEqual({ b: 'a', a: 'd' });
-    s.refuse('b', { type: 'ready' }, 'invalid');
-    s.do('a', { type: 'write', owner: 'd', text: 'D', image: null });
-    s.do('a', { type: 'write', owner: 'b', text: 'B', image: null });
-    s.do('d', { type: 'write', owner: 'a', text: 'A', image: null });
-    s.do('a', { type: 'forceStart' });
-    expect(s.game.phase).toBe('playing');
-  });
-
-  test('na escrita: expulsar o único que faltava ficar pronto começa o jogo', () => {
-    const s = new Sim('a', 'b', 'c');
-    s.do('a', { type: 'startWriting' });
-    s.do('a', { type: 'write', owner: 'b', text: 'B', image: null });
-    s.do('a', { type: 'ready' });
-    s.do('c', { type: 'write', owner: 'a', text: 'A', image: null });
-    s.do('c', { type: 'ready' });
-    expect(s.kick('c')).toEqual([{ type: 'started' }, { type: 'turn', owner: 'a' }]);
+    expect(s.game.postits.d.text).toBe('quem é d');
   });
 
   test('no jogo: se era a vez dele, a próxima da ordem começa', () => {

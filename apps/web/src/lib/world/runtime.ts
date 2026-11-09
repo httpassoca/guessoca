@@ -15,7 +15,8 @@ import { crowd, othersOf, type CrowdBody } from './crowd';
 import { fixedSteps, STEP_MS } from './loop';
 import { PresenceSender, presenceOfBody, type Emote } from './presence';
 import type { Scene, SceneBody } from './scene';
-import { headAnchor, makeView } from './view';
+import { declutter, type Tag } from './declutter';
+import { headAnchor, makeView, renderView } from './view';
 
 export type SceneStatus = 'loading' | 'ready' | 'failed';
 
@@ -37,7 +38,7 @@ const spawnOffset = (index: number) => ((index % 5) - 2) * 14;
 export class WorldRuntime {
   private room: RoomSnapshot | null = null;
   private blocked = false;
-  private insetRight = 0;
+  private insetLeft = 0;
   private lang: Lang;
   private body: Body | null = null;
   private cam: Camera | null = null;
@@ -60,8 +61,8 @@ export class WorldRuntime {
   setRoom(room: RoomSnapshot) { this.room = room; }
   /** um modal (menu, bloco) está aberto: o telhado não ouve, e nada fica segurado */
   setBlocked(blocked: boolean) { if (blocked && !this.blocked) this.controls.releaseAll(); this.blocked = blocked; }
-  /** quanto da direita da tela a coluna cobre: a câmera centra no resto */
-  setInsetRight(px: number) { this.insetRight = px; }
+  /** quanto da esquerda da tela a coluna cobre: a câmera centra no resto */
+  setInsetLeft(px: number) { this.insetLeft = px; }
   setLang(lang: Lang) { this.lang = lang; }
 
   start() {
@@ -155,10 +156,12 @@ export class WorldRuntime {
       }
     }
 
-    const view = makeView(window.innerWidth, window.innerHeight, this.insetRight);
+    // a câmera segue dentro do que se vê (à direita da coluna); desenha-se na vista larga, que põe o meio no meio dele
+    const visible = makeView(window.innerWidth, window.innerHeight, this.insetLeft);
+    const view = renderView(visible, this.insetLeft);
     const body = this.body;
     // a primeira vez, já em cima do corpo (dt 0 só aplica os limites do mundo)
-    try { this.cam = followCamera(this.cam ?? { x: body.x }, body, view, this.cam ? elapsed / 1000 : 0); }
+    try { this.cam = followCamera(this.cam ?? { x: body.x }, body, visible, this.cam ? elapsed / 1000 : 0); }
     catch { this.cam = { x: body.x }; }
     const cam = this.cam;
 
@@ -184,12 +187,20 @@ export class WorldRuntime {
   /** Cada post-it vai sobre a cabeça do seu dono, com `translate3d`; quem não está no telhado some. */
   private placeHeads(list: readonly SceneBody[], cam: Camera, view: ReturnType<typeof makeView>) {
     const at = new Map(list.map((b) => [b.id, b]));
+    // primeiro lê onde cada um quer ficar e o tamanho, depois escreve (sem intercalar leitura e escrita de layout)
+    const shown: { el: HTMLElement; tag: Tag }[] = [];
     for (const el of this.opts.heads.children as HTMLCollectionOf<HTMLElement>) {
       const b = el.dataset.member ? at.get(el.dataset.member) : undefined;
       if (!b) { if (el.style.visibility !== 'hidden') el.style.visibility = 'hidden'; continue; }
       const p = headAnchor(b, cam, view);
-      el.style.transform = `translate3d(${Math.round(p.x)}px, ${Math.round(p.y)}px, 0)`;
-      el.style.zIndex = String(Math.round(1000 - b.z));
+      // o `.gs-head` não tem tamanho (o conteúdo é absoluto, ancorado embaixo no meio): mede-se o de dentro
+      const box = (el.firstElementChild as HTMLElement | null) ?? el;
+      shown.push({ el, tag: { id: b.id, x: p.x, y: p.y, w: box.offsetWidth, h: box.offsetHeight, z: b.z } });
+    }
+    const lift = declutter(shown.map((s) => s.tag));
+    for (const { el, tag } of shown) {
+      el.style.transform = `translate3d(${Math.round(tag.x)}px, ${Math.round(tag.y - (lift.get(tag.id) ?? 0))}px, 0)`;
+      el.style.zIndex = String(Math.round(1000 - tag.z));
       if (el.style.visibility !== 'visible') el.style.visibility = 'visible';
     }
   }

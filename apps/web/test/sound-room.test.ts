@@ -55,7 +55,7 @@ describe('os sons da sala, entre dois snapshots', () => {
   });
 
   test('o jogo acabou de começar: a primeira vez não é fim de vez', () => {
-    expect(roomSounds(snapshot({ phase: 'writing' }), playing('m1', {}, 60_000), 'm1')).toEqual([]);
+    expect(roomSounds(snapshot({ phase: 'lobby' }), playing('m1', {}, 60_000), 'm1')).toEqual([]);
   });
 
   test('o jogo acabou: sem turnEnd', () => {
