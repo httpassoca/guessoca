@@ -31,11 +31,12 @@ html, body { margin: 0; min-height: 100%; background: var(--ss-bg); }
 
 /* os oito personagens: amostras de cor até os sprites chegarem (cor do cabelo) */
 :root {
-  --gs-char-0: #e8c547; --gs-char-1: #e2603f; --gs-char-2: #4fb3e8; --gs-char-3: #9b6ef3;
-  --gs-char-4: #5ccf7a; --gs-char-5: #ef6fb0; --gs-char-6: #d9d9d9; --gs-char-7: #8a5a3c;
+  /* a cor do cabelo de cada personagem (tools/sprites/src/hero.ts, HAIRS) */
+  --gs-char-0: #7d5556; --gs-char-1: #2c2838; --gs-char-2: #d9a441; --gs-char-3: #b9452a;
+  --gs-char-4: #3a5fd0; --gs-char-5: #3f944f; --gs-char-6: #aeb2c4; --gs-char-7: #8a5cd6;
   --gs-paper: #f6e27a; --gs-paper-edge: #e3c94f; --gs-ink: #2a2414;
 }
-.gs-swatch { display: inline-grid; place-items: center; width: 22px; height: 22px; flex: none; border-radius: var(--ss-radius-1); background: var(--c); color: #111; font: 700 var(--ss-ui-xs) var(--ss-font-mono); box-shadow: inset 0 0 0 1px rgb(0 0 0 / 0.25); }
+.gs-swatch { display: inline-grid; place-items: center; width: 22px; height: 22px; flex: none; border-radius: var(--ss-radius-1); background-color: var(--ss-bg-inset); background-repeat: no-repeat; image-rendering: pixelated; color: var(--ss-fg-faint); font: 700 var(--ss-ui-xs) var(--ss-font-mono); box-shadow: inset 0 0 0 1px var(--c, var(--ss-line)); }
 .gs-swatch.none { background: var(--ss-bg-inset); color: var(--ss-fg-faint); }
 
 /* a sala depois de entrar: barra em cima, painel da fase embaixo */
@@ -85,9 +86,9 @@ html, body { margin: 0; min-height: 100%; background: var(--ss-bg); }
 .gs-pick.picked { border-color: var(--ss-accent); background: var(--ss-primary-soft); }
 
 /* os oito personagens */
-.gs-chars { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
-.gs-char { all: unset; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 8px 4px; border: 1px solid var(--ss-line); border-radius: var(--ss-radius-1); cursor: pointer; font-size: var(--ss-ui-xs); color: var(--ss-fg-muted); }
-.gs-char .gs-swatch { width: 32px; height: 32px; font-size: var(--ss-ui-sm); }
+.gs-chars { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 6px; }
+.gs-char { all: unset; box-sizing: border-box; min-width: 0; overflow: hidden; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 8px 4px; border: 1px solid var(--ss-line); border-radius: var(--ss-radius-1); cursor: pointer; font-size: var(--ss-ui-xs); color: var(--ss-fg-muted); }
+.gs-char .gs-hero { margin-top: -6px; }
 .gs-char .who { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .gs-char:hover:not(:disabled) { background: var(--ss-hover); }
 .gs-char:focus-visible { outline: 2px solid var(--ss-accent); }

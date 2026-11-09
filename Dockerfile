@@ -9,6 +9,7 @@ WORKDIR /app
 COPY package.json bun.lock ./
 COPY packages/rules/package.json packages/rules/
 COPY packages/world/package.json packages/world/
+COPY tools/sprites/package.json tools/sprites/
 COPY packages/protocol/package.json packages/protocol/
 COPY apps/web/package.json apps/web/
 COPY apps/server/package.json apps/server/
@@ -27,6 +28,7 @@ ENV PORT=3000
 COPY package.json bun.lock tsconfig.base.json ./
 COPY packages/rules/package.json packages/rules/
 COPY packages/world/package.json packages/world/
+COPY tools/sprites/package.json tools/sprites/
 COPY packages/protocol/package.json packages/protocol/
 COPY apps/web/package.json apps/web/
 COPY apps/server/package.json apps/server/

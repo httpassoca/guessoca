@@ -60,6 +60,7 @@ apps/web           Vite + Svelte 5 + dssoca (PixiJS v8 chega com o mundo)
   src/lib/room/view.ts     o snapshot visto por mim: quem sou, para quem escrevo, de quem é a vez, se posso acertar, passar,
                            desistir ou votar, os post-its como posso vê-los, o ranking, a contagem regressiva
   src/lib/image.ts         a imagem do post-it: reduz a 512 px, WebP baixando a qualidade até caber, sobe por POST
+  src/lib/sprites/         os atlas gerados (`hero.json`, `emotes.json`) e `hero.ts`, que diz onde está cada quadro
   src/lib/keys.ts          Enter = Acertei, Tab = passar, N = bloco, Esc = menu (fora de campo de texto)
   src/lib/panels/          Room (barra, fase, teclado), Lobby (ordem arrastável, autores, personagens, tamanho da vez), Writing
                            e PostitEditor (ao vivo, imagem, Pronto, moderador escreve os vazios), Playing (vez, votação, ranking),
@@ -68,6 +69,13 @@ apps/web           Vite + Svelte 5 + dssoca (PixiJS v8 chega com o mundo)
                            encerrada ou expulso)
   test/                    tradução, rotas, identidade, teclas, imagem, `RemoteRoom` com socket falso e contra o servidor de
                            verdade, e o modelo de vista
+
+tools/sprites      `bun run sprites` (@guess/sprites): as receitas que geram as folhas a partir do pacote (ver Sprites)
+  src/image.ts       imagens RGBA puras: recortar, colar, trocar e apagar cores, pedaços soltos, traços finos
+  src/grid.ts        pixel art escrita como texto (um caractere por pixel, `.` transparente)
+  src/hero.ts        o personagem: fatia as folhas do pacote, tira a espada do golpe, oito cores de cabelo, atlas
+  src/emotes.ts      os balões `?`, `!`, `haha`, "eu?"/"me?" com uma fonte 3×5 em texto
+  test/              as receitas com imagens de mentira (o pacote não é preciso para testar)
 
 Dockerfile         imagem oficial do Bun em duas etapas: builda o cliente, roda o servidor (ver Deploy)
 .github/workflows  deploy.yml: push na main → check, test, build da imagem no runner, scp do tar, docker load/stop/start, sonda
@@ -90,6 +98,38 @@ deploy/            wizard.sh (passos humanos do deploy) e guess.passoca.dev.ngin
 | Esc            | menu                        |
 
 O mouse é só para a interface.
+
+## Sprites
+
+O personagem é o "male hero" (versão grátis) da [Ozzbit Games](https://ozzbit-games.itch.io), com licença só para uso
+pessoal e não comercial, modificações permitidas e crédito obrigatório (ADR 0007). Por isso o pacote original não entra no
+git: fica em `assets-src/` (ignorado), e só as folhas que o pipeline gera são versionadas em `apps/web/public/sprites/`
+(os atlas em `apps/web/src/lib/sprites/`). O CI e o Docker usam o que está versionado e nunca precisam do pacote.
+
+```
+cp -r ~/dev/tmp/male_hero_free assets-src/   # uma vez, na máquina do dono
+bun run sprites                             # refaz as folhas e os atlas
+```
+
+O que sai:
+
+- `hero-0.png` … `hero-7.png`: os oito personagens, iguais menos o cabelo (castanho, preto, loiro, ruivo, azul, verde,
+  prata, lilás). Uma linha por animação: parado, andando, correndo, pulo, queda, queda em loop e empurrão. O empurrão é o
+  golpe do pacote sem a espada: as cores da lâmina e do cabo saem por cor, o rastro branco por ser uma mancha branca
+  grande, e o contorno fino da lâmina por estar à frente do corpo.
+- `emotes-pt-BR.png` e `emotes-en-US.png`: os balões das teclas 1–4; só o "eu?"/"me?" muda de uma para a outra.
+
+### Pedir um personagem ou objeto novo
+
+- **Outra cor de cabelo**: uma rampa a mais (sombra, base, brilho) em `HAIRS` em `tools/sprites/src/hero.ts`. Hoje são
+  oito porque a sala tem oito pessoas.
+- **Outra peça do personagem** (cachecol, camisa…): o mesmo jeito, trocando as cores dessa peça; diga qual peça e a cor.
+  Para achar as cores de uma peça, o pipeline tem `palette()`.
+- **Outro balão**: uma entrada em `EMOTES` e, se tiver letra nova, a letra em `FONT` (3×5) em `tools/sprites/src/emotes.ts`.
+- **Um objeto do telhado** (caixa-d'água, antena, placa…): uma grade de texto com a paleta, como as letras dos balões, num
+  módulo novo ao lado; diga o tamanho em pixels e as cores. Personagens de outro pacote precisam de licença que permita.
+
+Depois de mudar uma receita: `bun run sprites`, conferir as folhas e versionar o que mudou em `apps/web/`.
 
 ## Deploy
 
