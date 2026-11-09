@@ -1,0 +1,83 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+
+# Serializa os deploys: dois pushes seguidos não disputam o docker stop/build/start no mesmo servidor;
+# um push mais novo cancela o deploy em andamento (mesmo desenho do passoca-api).
+concurrency:
+  group: deploy-main
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.2
+
+      # Nada sobe quebrado: tipos e testes passam antes de copiar para o servidor.
+      - name: Install, check and test
+        run: |
+          bun install --frozen-lockfile
+          bun run check
+          bun test
+
+      # A imagem é buildada aqui, nunca no VPS: o `bun install` + Vite do build engasgaram o servidor inteiro
+      # (memória), derrubando até o passoca-api. O VPS só carrega o tar e roda.
+      - name: Build the image
+        run: |
+          bun run docker:build
+          docker save guessoca:latest | gzip -1 > guessoca.tar.gz
+          ls -lh guessoca.tar.gz
+
+      - name: Copy to server
+        uses: appleboy/scp-action@v1
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          source: 'guessoca.tar.gz,package.json'
+          target: '~/dev/guessoca'
+          overwrite: true
+          rm: true
+          timeout: 300s
+
+      - name: Load, restart and probe the container
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          command_timeout: 30m
+          # O servidor tem npm (passoca-api já sobe assim); os scripts docker:* ficam no package.json da raiz,
+          # com a porta do host (3003); a sonda abaixo e o bloco do nginx apontam para a mesma.
+          script: |
+            set -e
+            cd ~/dev/guessoca
+            npm run docker:load
+            npm run docker:stop || true
+            npm run docker:start
+            rm -f guessoca.tar.gz
+            # `docker run -d` volta antes do servidor subir: um container que morre na largada ainda
+            # pareceria um deploy verde. Sonda o /health e a raiz (503 quando o cliente não foi buildado).
+            ok=0
+            for i in $(seq 1 15); do
+              if curl -fsS --max-time 5 http://127.0.0.1:3003/health > /dev/null && curl -fsS --max-time 5 http://127.0.0.1:3003/ | grep -q '<div id="app">'; then
+                ok=1; break
+              fi
+              sleep 2
+            done
+            if [ "$ok" != 1 ]; then
+              echo "Container is not serving after start:"
+              docker ps -a --filter name=guessoca
+              docker logs --tail 100 guessoca || true
+              exit 1
+            fi
+            # Só as imagens penduradas deste app (LABEL no Dockerfile); as do passoca-api ficam.
+            docker image prune -f --filter label=app=guessoca > /dev/null

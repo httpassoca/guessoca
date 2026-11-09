@@ -1,0 +1,24 @@
+# Bloco do nginx no VPS para guess.passoca.dev: encaminha HTTP e WebSocket para o container
+# (porta 3003 do host, só no loopback; ver docker:start no package.json). O certbot (--nginx)
+# acrescenta o `listen 443 ssl` e o redirect de 80 → 443 por conta própria.
+server {
+    server_name guess.passoca.dev;
+
+    location / {
+        proxy_pass http://127.0.0.1:3003;
+        proxy_http_version 1.1;
+        # Upgrade do WebSocket em /ws; sem estes dois o handshake volta como 200 e o socket morre.
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        # O cliente pinga a cada 15 s e o servidor derruba após 30 s parado (protocol): 5 min sobra.
+        proxy_read_timeout 300s;
+        proxy_send_timeout 300s;
+    }
+
+    listen 80;
+    listen [::]:80;
+}
