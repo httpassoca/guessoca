@@ -31,3 +31,27 @@ describe('identidade', () => {
     expect(nicknameIn(browser)).toBe('Zé');
   });
 });
+
+describe('o que mais o navegador e a aba lembram', () => {
+  test('o último personagem, por navegador; fora de 0..7 é nenhum', async () => {
+    const { characterIn, rememberCharacterIn } = await import('../src/lib/identity');
+    const browser = fakeStorage();
+    expect(characterIn(browser)).toBeNull();
+    rememberCharacterIn(browser, 5);
+    expect(characterIn(browser)).toBe(5);
+    browser.setItem('guess.character', '9');
+    expect(characterIn(browser)).toBeNull();
+    browser.setItem('guess.character', 'x');
+    expect(characterIn(browser)).toBeNull();
+    expect(characterIn(null)).toBeNull();
+  });
+
+  test('o bloco, por aba e por sala', async () => {
+    const { notepadIn, rememberNotepadIn } = await import('../src/lib/identity');
+    const tab = fakeStorage();
+    expect(notepadIn(tab, 'ABCD')).toBe('');
+    rememberNotepadIn(tab, 'ABCD', 'sou bicho?\nnão');
+    expect(notepadIn(tab, 'ABCD')).toBe('sou bicho?\nnão');
+    expect(notepadIn(tab, 'WXYZ')).toBe('');
+  });
+});

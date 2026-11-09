@@ -1,7 +1,8 @@
 import { describe, expect, test } from 'bun:test';
-import { CLOSE_REPLACED, CLOSE_ROOM_ENDED, type ServerMessage } from '@guess/protocol';
-import { RoomHost, type Socket } from '../src/host';
+import { CLOSE_KICKED, CLOSE_REPLACED, CLOSE_ROOM_ENDED, IMAGE_BYTES_MAX, IMAGE_ID_RE, type ServerMessage } from '@guess/protocol';
+import { IMAGE_GRACE, IMAGES_PER_UPLOADER, RoomHost, type Socket } from '../src/host';
 import { silentLog } from '../src/log';
+import { webp } from './sim';
 
 /** O mínimo de um socket do Bun que o host usa, com o que ele fez guardado. */
 function fakeSocket(token: string) {
@@ -14,6 +15,19 @@ function fakeSocket(token: string) {
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const say = (host: RoomHost, ws: Socket, msg: object) => host.message(ws, JSON.stringify(msg));
 const received = (ws: { sent: string[] }) => ws.sent.map((d) => JSON.parse(d) as ServerMessage);
+
+const idOf = (r: ReturnType<RoomHost['addImage']>) => { if (!r.ok) throw new Error(r.error); return r.id; };
+
+/** um host com relógio de mentira e duas pessoas, Zé (moderador) e Dita */
+function hostWithTwo() {
+  let now = 1_000_000;
+  const clock = { advance: (ms: number) => { now += ms; } };
+  const host = new RoomHost('ABCD', silentLog, () => {}, { clock: () => now });
+  const a = fakeSocket('token-a'), b = fakeSocket('token-b');
+  host.connect(a); say(host, a, { type: 'join', nickname: 'Zé' });
+  host.connect(b); say(host, b, { type: 'join', nickname: 'Dita' });
+  return { host, a, b, clock };
+}
 
 describe('host: silêncio no socket', () => {
   test('quem fica em silêncio pelo tempo limite é derrubado como se tivesse caído; ping mantém vivo', async () => {
@@ -105,6 +119,116 @@ describe('host: morte da sala', () => {
     expect(b.closedWith).toBe(CLOSE_ROOM_ENDED);
     expect(host.connections).toBe(0);
     expect(dead).toEqual(['ABCD']);
+    host.dispose();
+  });
+});
+
+describe('host: expulsar', () => {
+  test('o socket do expulso fecha com 4403 e o mesmo token não entra de novo', () => {
+    const host = new RoomHost('ABCD', silentLog, () => {});
+    const a = fakeSocket('token-a'), b = fakeSocket('token-b');
+    host.connect(a); say(host, a, { type: 'join', nickname: 'Zé' });
+    host.connect(b); say(host, b, { type: 'join', nickname: 'Dita' });
+    say(host, a, { type: 'kick', member: 'm2' });
+    expect(b.closedWith).toBe(CLOSE_KICKED);
+    expect(host.connections).toBe(1);
+    host.disconnect(b); // o Bun avisa depois; nada muda
+    const again = fakeSocket('token-b');
+    host.connect(again);
+    expect(again.closedWith).toBe(CLOSE_KICKED);
+    expect(host.connections).toBe(1);
+    expect(host.state.members.map((m) => m.nickname)).toEqual(['Zé']);
+    host.dispose();
+  });
+});
+
+describe('host: imagens', () => {
+  test('guarda o WebP de um membro e devolve um id; recusa visitante, desconhecido, grande demais e não WebP', () => {
+    const { host } = hostWithTwo();
+    const visitor = fakeSocket('token-v');
+    host.connect(visitor);
+    const bytes = webp(100);
+    const r = host.addImage('token-a', bytes);
+    expect(r.ok).toBe(true);
+    const id = idOf(r);
+    expect(id).toMatch(IMAGE_ID_RE);
+    expect(host.image(id)).toEqual(bytes);
+    expect(host.addImage('token-v', webp())).toEqual({ ok: false, error: 'notMember' });
+    expect(host.addImage('token-zzz', webp())).toEqual({ ok: false, error: 'notMember' });
+    expect(host.addImage('token-a', webp(IMAGE_BYTES_MAX + 1))).toEqual({ ok: false, error: 'tooBig' });
+    expect(host.addImage('token-a', new Uint8Array(100))).toEqual({ ok: false, error: 'notWebp' });
+    expect(idOf(host.addImage('token-a', webp(IMAGE_BYTES_MAX)))).toMatch(IMAGE_ID_RE);
+    expect(host.image('0123456789abcdef')).toBeUndefined();
+    host.dispose();
+  });
+
+  test('o expulso não sobe imagem', () => {
+    const { host, a } = hostWithTwo();
+    say(host, a, { type: 'kick', member: 'm2' });
+    expect(host.addImage('token-b', webp())).toEqual({ ok: false, error: 'notMember' });
+    host.dispose();
+  });
+
+  test('uma imagem que nenhum post-it usa morre depois da tolerância; uma usada fica; a trocada morre na hora', () => {
+    expect(IMAGE_GRACE).toBe(2 * 60_000);
+    const { host, a, b, clock } = hostWithTwo();
+    const orphan = idOf(host.addImage('token-a', webp()));
+    clock.advance(IMAGE_GRACE - 1);
+    say(host, a, { type: 'ping' });
+    expect(host.image(orphan)).toBeDefined(); // ainda esperando o write
+    clock.advance(2);
+    say(host, a, { type: 'ping' });
+    expect(host.image(orphan)).toBeUndefined();
+
+    say(host, a, { type: 'startWriting' });
+    const used = idOf(host.addImage('token-a', webp()));
+    say(host, a, { type: 'write', owner: 'm2', text: 'Pelé', image: used });
+    clock.advance(10 * IMAGE_GRACE);
+    say(host, b, { type: 'ping' });
+    expect(host.image(used)).toBeDefined();
+
+    const replacement = idOf(host.addImage('token-a', webp()));
+    say(host, a, { type: 'write', owner: 'm2', text: 'Pelé', image: replacement });
+    expect(host.image(used)).toBeUndefined();
+    expect(host.image(replacement)).toBeDefined();
+    host.dispose();
+  });
+
+  test(`cada pessoa guarda no máximo ${IMAGES_PER_UPLOADER} imagens soltas: a mais velha sai`, () => {
+    expect(IMAGES_PER_UPLOADER).toBe(2);
+    const { host, clock } = hostWithTwo();
+    const first = idOf(host.addImage('token-a', webp()));
+    clock.advance(1);
+    const second = idOf(host.addImage('token-a', webp()));
+    clock.advance(1);
+    const other = idOf(host.addImage('token-b', webp()));
+    clock.advance(1);
+    const third = idOf(host.addImage('token-a', webp()));
+    expect(host.image(first)).toBeUndefined();
+    expect([second, third, other].map((id) => host.image(id) !== undefined)).toEqual([true, true, true]);
+    host.dispose();
+  });
+
+  test('um write com imagem que a sala não tem é recusado antes de chegar à sala', () => {
+    const { host, a } = hostWithTwo();
+    say(host, a, { type: 'startWriting' });
+    a.sent = [];
+    say(host, a, { type: 'write', owner: 'm2', text: 'Pelé', image: '0123456789abcdef' });
+    expect(received(a)).toEqual([{ type: 'error', error: 'refused' }]);
+    expect(host.state.game.postits.m2.text).toBe('');
+    say(host, a, { type: 'write', owner: 'm2', text: 'Pelé', image: null });
+    expect(host.state.game.postits.m2.text).toBe('Pelé');
+    host.dispose();
+  });
+
+  test('quando a sala morre, as imagens morrem junto', async () => {
+    const host = new RoomHost('ABCD', silentLog, () => {}, { ttl: 30 });
+    const a = fakeSocket('token-a');
+    host.connect(a); say(host, a, { type: 'join', nickname: 'Zé' });
+    const id = idOf(host.addImage('token-a', webp()));
+    await sleep(60);
+    expect(host.image(id)).toBeUndefined();
+    expect(host.addImage('token-a', webp())).toEqual({ ok: false, error: 'notMember' });
     host.dispose();
   });
 });

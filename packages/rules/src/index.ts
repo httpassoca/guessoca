@@ -7,8 +7,6 @@
 export const NICKNAME_MAX = 20;
 /** Uma sala tem no máximo esta turma, conectada ou não (o lugar de quem cai fica guardado até a sala morrer). */
 export const MAX_MEMBERS = 8;
-/** O jogo começa com pelo menos esta turma jogando. */
-export const MIN_PLAYERS = 2;
 /** Quem entra sem apelido aparece assim. */
 export const FALLBACK_NICKNAME = 'Alguém';
 
@@ -31,3 +29,5 @@ export function uniqueNickname(raw: string, taken: readonly string[]): string {
     if (!used.has(candidate.toLocaleLowerCase())) return candidate;
   }
 }
+
+export * from './game';

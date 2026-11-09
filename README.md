@@ -17,35 +17,57 @@ bun run sprites  # gera as folhas de sprites a partir do pacote em assets-src/ (
 ## Estrutura
 
 ```
-packages/rules     sala e jogo, puros (@guess/rules): apelido limpo e com sufixo, MAX_MEMBERS (8), MIN_PLAYERS (2)
+packages/rules     sala e jogo, puros (@guess/rules)
+  src/index.ts       apelido limpo e com sufixo; MAX_MEMBERS (8)
+  src/game.ts        o jogo (ADR 0008): `act(game, actor, moderador?, ação, ctx)`, `settle` (põe em dia com a hora e com quem
+                     está online), `nextDeadline`, `addMember`/`removeMember`. Lobby: ordem das vezes, autores em círculo
+                     (trocar, sortear sem ninguém escrever para si), personagens únicos, tamanho da vez, só moderar. Escrita:
+                     autor (ou moderador) escreve ao vivo até "Pronto"; todos prontos → jogo; "Começar já" sem post-it vazio.
+                     Jogo: vezes na ordem pulando quem caiu, jogador falso e quem já terminou; Acertei → votação de 15 s
+                     (maioria dos votos dados, empate e zero votos = sim; não = a vez volta com o que sobrava); desistir;
+                     moderador marca acertou/não (desfaz revelação), passa a vez, pausa, reordena, encerra. Fim quando nenhuma
+                     pessoa conectada ainda joga; "jogar de novo" volta ao lobby com os fantasmas entrando
+  test/              lobby, escrita e jogo com `Sim` e sorteio semeado
 packages/world     o telhado, puro (@guess/world): por enquanto só o sistema de coordenadas x, y, z (ADR 0005)
-packages/protocol  mensagens cliente ↔ servidor (@guess/protocol): `join`, `nickname`, `ping` e de volta `snapshot`,
-                   `error` (`roomFull`), `pong`; `RoomSnapshot` (código, fase, você, moderador, turma); `parseClientMessage`;
-                   formatos do token e do código; códigos de fechamento do WebSocket
+packages/protocol  mensagens cliente ↔ servidor (@guess/protocol): todas as ações do jogo e de volta `snapshot`, `error`
+                   (`roomFull`, `refused`), `pong`; `RoomSnapshot` com post-its como cada um os vê (o próprio vem sem texto e
+                   sem imagem até ser revelado, só com `written`), vez e votação com o tempo que sobra; `parseClientMessage`;
+                   `isWebp`, limites da imagem, `imageUrl`; códigos de fechamento (4404, 4410, 4409, 4403 expulso)
 
-apps/server        Bun.serve: `/health`, `POST /api/rooms` → `{ code }`, cliente estático com fallback SPA, WebSocket em
-                   `/ws?room=CODE&token=T` (sala inexistente fecha com 4404)
-  src/room.ts        máquina de estado da sala, pura: `step(state, input, now)` → estado novo, mensagens por token, eventos
-                     para o log; timers como dado (morte em 10 min sem ação de alguém da turma; conectar, cair e `ping` não
-                     contam). Entrar com apelido (repetido ganha sufixo), trocar apelido, nona pessoa recusada (`roomFull`),
-                     quem cai continua na turma até a sala morrer e volta com o mesmo token; quem entra primeiro é o moderador
-  src/host.ts        `RoomHost`: sockets por token (aba nova com o mesmo token assume, a velha fecha com 4409), agenda os timers
-                     que a sala pede, derruba o socket mudo por 30 s, fecha todo mundo com 4410 quando a sala morre
-  src/rooms.ts       `Rooms`: as salas vivas num mapa em memória (ADR 0003), códigos de 4 letras sem I nem O
-  test/              sala (entrar, sufixo, sala cheia, cair e voltar, morte), host (silêncio, aba substituída) e um servidor
-                     real numa porta livre (duas abas na mesma sala, 4404, estáticos)
+apps/server        Bun.serve: `/health`, `POST /api/rooms` → `{ code }`, `POST /api/rooms/CODE/images?token=T` (WebP até
+                   300 KB → `{ id }`; 404/403/413/415), `GET /api/rooms/CODE/images/ID`, cliente estático com fallback SPA,
+                   WebSocket em `/ws?room=CODE&token=T`. `dev` (fora de produção) aceita jogadores falsos
+  src/room.ts        máquina de estado da sala, pura: `step(state, input, now, { rng })` → estado novo, mensagens e
+                     fechamentos por token, eventos para o log; timers como dado (morte em 10 min sem ação de alguém da
+                     turma, tolerância do moderador, prazo do jogo). Turma: entrar, apelido, sala cheia, quem cai continua
+                     até a sala morrer; o moderador expulsa (4403, o token não volta) e passa o papel; offline por 20 s, o
+                     papel vai para a pessoa conectada mais antiga. Repassa as ações ao jogo e o põe em dia a cada entrada.
+                     Jogadores falsos escrevem uma identidade ao acaso e ficam prontos. `snapshotFor` esconde o post-it do
+                     próprio dono
+  src/host.ts        `RoomHost`: sockets por token, timers que a sala pede, silêncio de 30 s, e as imagens da sala em memória
+                     (ADR 0003): só de quem é da turma, liberadas quando nenhum post-it as usa (uma subida ainda sem post-it
+                     espera 2 min; no máximo 2 por pessoa)
+  src/rooms.ts       `Rooms`: as salas vivas num mapa em memória, códigos de 4 letras sem I nem O
+  test/              sala, jogo pela sala (visibilidade no fio, expulsar, passar o papel, sucessão, timers, falsos), host
+                     (imagens) e um servidor real numa porta livre: três abas jogam um jogo inteiro; subir e baixar imagem
 
 apps/web           Vite + Svelte 5 + dssoca (PixiJS v8 chega com o mundo)
   src/lib/route.ts         rotas: `/` início, `/sala/CODE`; `route.svelte.ts` é a rota reativa e `navigate`
-  src/lib/identity.ts      token por aba (sessionStorage), apelido por navegador (localStorage)
-  src/lib/i18n.ts          a tabela de tradução (pt-BR padrão, en-US), tipada para as duas terem as mesmas chaves;
-                           `i18n.svelte.ts` guarda a língua do navegador e acompanha o `<html lang>`
-  src/lib/rooms.ts         `openRoom()` (POST /api/rooms) e o endereço do WebSocket (ws/wss pela página)
-  src/lib/room/remote.ts   `RemoteRoom`: conecta com o token, aplica os snapshots, pinga, nota o silêncio do servidor, reconecta
-                           com espera crescente até 10 s, e para de vez em 4404/4410/4409 dizendo por quê
-  src/lib/screens/         Home (abrir sala, entrar com código, crédito) e Sala (código e link, apelido, turma com moderador e
-                           quem caiu, sala inexistente ou encerrada com "abrir uma sala nova")
-  test/                    tradução, rotas, identidade, `RemoteRoom` com socket falso e contra o servidor de verdade
+  src/lib/identity.ts      token e bloco por aba (sessionStorage); apelido e último personagem por navegador (localStorage)
+  src/lib/i18n.ts          a tabela de tradução (pt-BR padrão, en-US), tipada para as duas terem as mesmas chaves
+  src/lib/room/remote.ts   `RemoteRoom`: conecta com o token, aplica os snapshots, manda as ações, pinga, reconecta com espera
+                           crescente até 10 s, e para de vez em 4404/4410/4409/4403 dizendo por quê
+  src/lib/room/view.ts     o snapshot visto por mim: quem sou, para quem escrevo, de quem é a vez, se posso acertar, passar,
+                           desistir ou votar, os post-its como posso vê-los, o ranking, a contagem regressiva
+  src/lib/image.ts         a imagem do post-it: reduz a 512 px, WebP baixando a qualidade até caber, sobe por POST
+  src/lib/keys.ts          Enter = Acertei, Tab = passar, N = bloco, Esc = menu (fora de campo de texto)
+  src/lib/panels/          Room (barra, fase, teclado), Lobby (ordem arrastável, autores, personagens, tamanho da vez), Writing
+                           e PostitEditor (ao vivo, imagem, Pronto, moderador escreve os vazios), Playing (vez, votação, ranking),
+                           ModPanel, Ended, Notepad, Menu
+  src/lib/screens/         Home (abrir sala, entrar com código, crédito) e Sala (apelido, depois o jogo; sala inexistente,
+                           encerrada ou expulso)
+  test/                    tradução, rotas, identidade, teclas, imagem, `RemoteRoom` com socket falso e contra o servidor de
+                           verdade, e o modelo de vista
 
 Dockerfile         imagem oficial do Bun em duas etapas: builda o cliente, roda o servidor (ver Deploy)
 .github/workflows  deploy.yml: push na main → check, test, build da imagem no runner, scp do tar, docker load/stop/start, sonda

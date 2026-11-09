@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { CLOSE_REPLACED, CLOSE_ROOM_ENDED, CLOSE_ROOM_NOT_FOUND, PING_INTERVAL, type MemberView, type RoomSnapshot } from '@guess/protocol';
+import { CLOSE_KICKED, CLOSE_REPLACED, CLOSE_ROOM_ENDED, CLOSE_ROOM_NOT_FOUND, PING_INTERVAL, type MemberView, type RoomSnapshot } from '@guess/protocol';
 import { BACKOFF_MAX, BACKOFF_START, RemoteRoom, type RemoteState, type SocketLike } from '../src/lib/room/remote';
 import { ManualClock } from './manual-clock';
 
@@ -26,7 +26,7 @@ function setup() {
   const clock = new ManualClock();
   const sockets: FakeSocket[] = [];
   const states: RemoteState[] = [];
-  const room = new RemoteRoom({ url: 'ws://x/ws', room: 'abcd', token: 'tok-12345' }, { socket: (url) => { const s = new FakeSocket(url); sockets.push(s); return s; }, clock });
+  const room = new RemoteRoom({ url: 'ws://x/ws', room: 'abcd', token: 'tok-12345' }, { socket: (url) => { const s = new FakeSocket(url); sockets.push(s); return s; }, clock, now: () => clock.now });
   room.watch((s) => states.push(s));
   return { clock, sockets, states, room, last: () => sockets[sockets.length - 1] };
 }
@@ -229,5 +229,57 @@ describe('RemoteRoom: sala cheia', () => {
     last().receive({ type: 'error', error: 'roomFull' });
     last().receive({ type: 'snapshot', snapshot: snapshot([member('m9', 'Zé')], 'm9') });
     expect(room.state.error).toBeNull();
+  });
+});
+
+describe('RemoteRoom: o jogo', () => {
+  test('cada pedido do jogo vira a mensagem do protocolo, como está', () => {
+    const { room, last } = setup();
+    room.connect(); last().open();
+    const asks = [
+      { type: 'character', character: 3 }, { type: 'order', order: ['m2', 'm1'] }, { type: 'swapAuthors', a: 'm1', b: 'm2' }, { type: 'shuffleAuthors' },
+      { type: 'turnMs', ms: 45_000 }, { type: 'onlyModerate', on: true }, { type: 'startWriting' },
+      { type: 'write', owner: 'm2', text: 'Pelé', image: null }, { type: 'ready' }, { type: 'forceStart' },
+      { type: 'claim' }, { type: 'vote', yes: true }, { type: 'skip' }, { type: 'giveUp' },
+      { type: 'mark', member: 'm2', right: false }, { type: 'pause', on: true }, { type: 'kick', member: 'm3' }, { type: 'handOver', member: 'm2' },
+      { type: 'endGame' }, { type: 'playAgain' }, { type: 'addFake' },
+    ] as const;
+    for (const a of asks) room.send(a);
+    expect(last().sent).toEqual([...asks]);
+  });
+
+  test('expulso pela moderação: fecha de vez, diz por quê e não reconecta', () => {
+    const { room, last, clock, sockets } = setup();
+    room.connect(); last().open();
+    last().serverClose(CLOSE_KICKED);
+    expect(room.state).toMatchObject({ status: 'closed', reason: 'kicked' });
+    clock.run();
+    expect(sockets).toHaveLength(1);
+  });
+
+  test('pedido recusado: fica no estado por um momento, o snapshot continua valendo; some no próximo pedido ou snapshot', () => {
+    const { room, last } = setup();
+    room.connect(); last().open();
+    const inside = snapshot([member('m1', 'Zé')], 'm1');
+    last().receive({ type: 'snapshot', snapshot: inside });
+    room.send({ type: 'claim' });
+    last().receive({ type: 'error', error: 'refused' });
+    expect(room.state.error).toBe('refused');
+    expect(room.state.room).toEqual(inside);
+    const seq = room.state.errorSeq;
+    room.send({ type: 'skip' });
+    expect(room.state.error).toBeNull();
+    last().receive({ type: 'error', error: 'refused' });
+    expect(room.state.errorSeq).toBe(seq + 1); // cada recusa é uma recusa nova, mesmo repetida
+    last().receive({ type: 'snapshot', snapshot: inside });
+    expect(room.state.error).toBeNull();
+  });
+
+  test('guarda quando o snapshot chegou, para o relógio contar dali', () => {
+    const { room, last, clock } = setup();
+    room.connect(); last().open();
+    clock.now = 1234;
+    last().receive({ type: 'snapshot', snapshot: snapshot([], null) });
+    expect(room.state.receivedAt).toBe(1234);
   });
 });

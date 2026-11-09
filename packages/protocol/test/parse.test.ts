@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { CODE_RE, parseClientMessage, TOKEN_RE } from '../src';
+import { CODE_RE, isWebp, parseClientMessage, TOKEN_RE } from '../src';
 
 describe('parseClientMessage', () => {
   test('aceita as mensagens válidas', () => {
@@ -37,5 +37,59 @@ describe('formatos', () => {
     expect(TOKEN_RE.test('abcdEFGH_-12')).toBe(true);
     expect(TOKEN_RE.test('short')).toBe(false);
     expect(TOKEN_RE.test('com espaço aqui')).toBe(false);
+  });
+});
+
+describe('parseClientMessage: o jogo', () => {
+  const p = (v: unknown) => parseClientMessage(JSON.stringify(v));
+
+  test('aceita as mensagens sem campos', () => {
+    for (const type of ['shuffleAuthors', 'startWriting', 'ready', 'forceStart', 'claim', 'skip', 'giveUp', 'endGame', 'playAgain', 'addFake']) {
+      expect(p({ type })).toEqual({ type } as never);
+    }
+  });
+
+  test('personagem de 0 a 7', () => {
+    expect(p({ type: 'character', character: 7 })).toEqual({ type: 'character', character: 7 });
+    expect(p({ type: 'character', character: 8 })).toBeNull();
+    expect(p({ type: 'character', character: 1.5 })).toBeNull();
+  });
+
+  test('ordem: ids de membro sem repetir', () => {
+    expect(p({ type: 'order', order: ['m1', 'm2'] })).toEqual({ type: 'order', order: ['m1', 'm2'] });
+    expect(p({ type: 'order', order: ['m1', 'm1'] })).toBeNull();
+    expect(p({ type: 'order', order: ['x'] })).toBeNull();
+  });
+
+  test('vez: de 30 s a 3 min, de 15 em 15 s', () => {
+    expect(p({ type: 'turnMs', ms: 45_000 })).toEqual({ type: 'turnMs', ms: 45_000 });
+    for (const ms of [15_000, 50_000, 195_000, '60000']) expect(p({ type: 'turnMs', ms })).toBeNull();
+  });
+
+  test('post-it: dono, texto e imagem (id ou null)', () => {
+    expect(p({ type: 'write', owner: 'm2', text: 'Pelé', image: null })).toEqual({ type: 'write', owner: 'm2', text: 'Pelé', image: null });
+    expect(p({ type: 'write', owner: 'm2', text: 'Pelé', image: '0123456789abcdef' })).toEqual({ type: 'write', owner: 'm2', text: 'Pelé', image: '0123456789abcdef' });
+    expect(p({ type: 'write', owner: 'm2', text: 'Pelé', image: '../x' })).toBeNull();
+    expect(p({ type: 'write', owner: 'm2', text: 'x'.repeat(500), image: null })).toBeNull();
+    expect(p({ type: 'write', owner: 'm2', text: 'Pelé' })).toBeNull();
+  });
+
+  test('votar, marcar, pausar, expulsar, passar o papel', () => {
+    expect(p({ type: 'vote', yes: false })).toEqual({ type: 'vote', yes: false });
+    expect(p({ type: 'mark', member: 'm3', right: true })).toEqual({ type: 'mark', member: 'm3', right: true });
+    expect(p({ type: 'pause', on: true })).toEqual({ type: 'pause', on: true });
+    expect(p({ type: 'kick', member: 'm3' })).toEqual({ type: 'kick', member: 'm3' });
+    expect(p({ type: 'handOver', member: 'm3' })).toEqual({ type: 'handOver', member: 'm3' });
+    expect(p({ type: 'vote', yes: 'sim' })).toBeNull();
+    expect(p({ type: 'swapAuthors', a: 'm1', b: 'm1' })).toBeNull();
+  });
+});
+
+describe('isWebp', () => {
+  test('reconhece o cabeçalho RIFF…WEBP', () => {
+    const ok = new TextEncoder().encode('RIFF\0\0\0\0WEBPVP8 ');
+    expect(isWebp(ok)).toBe(true);
+    expect(isWebp(new TextEncoder().encode('\x89PNG\r\n\x1a\n0000'))).toBe(false);
+    expect(isWebp(new Uint8Array(4))).toBe(false);
   });
 });
