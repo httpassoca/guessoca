@@ -126,8 +126,10 @@ describe('as animações desenhadas', () => {
 
 const pack = join(import.meta.dir, '../../../assets-src/skeleton');
 describe.skipIf(!existsSync(pack))('a arte de verdade (só com o pacote em assets-src/)', () => {
-  const sheets = Object.fromEntries(SHEETS.map((name) => [name, readPng(join(pack, `${name}.png`))]));
-  const cells = skeletonCells(sheets);
+  // o bun registra os testes rodando o corpo do describe mesmo quando pula: sem o pacote (no CI), não lê nada
+  const loaded = existsSync(pack);
+  const sheets = loaded ? Object.fromEntries(SHEETS.map((name) => [name, readPng(join(pack, `${name}.png`))])) : {};
+  const cells = (loaded ? skeletonCells(sheets) : {}) as ReturnType<typeof skeletonCells>;
 
   test('tirar o rastro não mexe em quadro sem golpe: os ossos ficam todos', () => {
     for (const f of [...cells.IDLE, ...cells.WALK, cells.DOWN_SWING[1], cells.DOWN_SWING[2]]) expect(withoutSlash(f).data).toEqual(f.data);
