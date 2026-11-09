@@ -1,0 +1,30 @@
+html, body { margin: 0; min-height: 100%; background: var(--ss-bg); }
+[hidden] { display: none !important; }
+
+/* telas de painel: início e sala (o telhado em Pixi vem depois, por baixo) */
+.gs-screen { min-height: 100vh; box-sizing: border-box; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; padding: 16px; font-family: var(--ss-font-body); color: var(--ss-fg); }
+.gs-panel { width: min(460px, 100%); }
+.gs-panel .body { display: flex; flex-direction: column; gap: 16px; }
+.gs-panel .foot { justify-content: space-between; align-items: center; }
+
+.gs-brand { margin: 0; font-family: var(--ss-font-display); font-size: var(--ss-size-h1); font-weight: 700; letter-spacing: 0.02em; }
+.gs-tagline { margin: 0; color: var(--ss-fg-muted); font-size: var(--ss-ui-sm); }
+.gs-title { display: flex; flex-direction: column; gap: 8px; align-items: flex-start; }
+.gs-credit { margin: 0; color: var(--ss-fg-faint); font-size: var(--ss-ui-xs); }
+
+.gs-form { display: flex; gap: 8px; align-items: flex-end; }
+.gs-form .ss-field { flex: 1; }
+.gs-code-input { font-family: var(--ss-font-mono); text-transform: uppercase; letter-spacing: 0.2em; }
+.gs-share { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.gs-code { font-family: var(--ss-font-mono); font-size: var(--ss-size-h2); letter-spacing: 0.25em; }
+.gs-error { margin: 0; color: var(--ss-red); font-size: var(--ss-ui-sm); }
+.gs-warn { color: var(--ss-yellow); }
+.gs-hint { margin: 0; color: var(--ss-fg-faint); font-size: var(--ss-ui-xs); }
+
+.gs-section h4 { margin: 0 0 8px; font-family: var(--ss-font-mono); font-size: var(--ss-ui-sm); color: var(--ss-fg-faint); text-transform: uppercase; letter-spacing: 0.06em; font-weight: 400; }
+/* a turma: quem caiu fica apagado, o lugar continua guardado */
+.gs-members { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 6px; }
+.gs-members li { display: flex; align-items: center; gap: 8px; }
+.gs-members li.off { opacity: 0.45; }
+
+.gs-lang .ss-segmented { font-size: var(--ss-ui-xs); }

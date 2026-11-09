@@ -1,0 +1,20 @@
+{
+  "name": "guessoca",
+  "private": true,
+  "workspaces": ["packages/*", "apps/*"],
+  "scripts": {
+    "dev": "bun run --filter @guess/web --filter @guess/server dev",
+    "build": "bun run --filter @guess/web build",
+    "start": "bun apps/server/src/index.ts",
+    "check": "bun run --filter @guess/web --filter @guess/server --filter @guess/protocol --filter @guess/rules --filter @guess/world check",
+    "test": "bun test",
+    "preview": "bun run --filter @guess/web preview",
+    "docker:build": "docker build --tag guessoca .",
+    "docker:load": "gunzip -c guessoca.tar.gz | docker load",
+    "docker:start": "docker run --name guessoca -d --restart unless-stopped -p 127.0.0.1:3003:3000 guessoca",
+    "docker:stop": "docker stop guessoca && docker rm guessoca"
+  },
+  "devDependencies": {
+    "bun-types": "^1.4.2"
+  }
+}

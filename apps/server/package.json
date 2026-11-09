@@ -1,0 +1,17 @@
+{
+  "name": "@guess/server",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "bun --watch src/index.ts",
+    "start": "bun src/index.ts",
+    "test": "bun test",
+    "check": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@guess/protocol": "workspace:*",
+    "@guess/rules": "workspace:*"
+  },
+  "devDependencies": { "typescript": "^5.9.0" }
+}
