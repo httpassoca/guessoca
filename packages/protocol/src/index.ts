@@ -112,6 +112,8 @@ export interface PostitView {
   /** endereço da imagem (`imageUrl`), ou null */
   image: string | null;
   ready: boolean;
+  /** já tem texto; vai até para o dono, que não vê o texto (assim o moderador sabe que o próprio está vazio) */
+  written: boolean;
   /** já revelado ao dono (acertou, desistiu ou o jogo acabou) */
   revealed: boolean;
   /** quem escreve; null = ficou sem autor (expulso): o moderador escreve */

@@ -1,12 +1,15 @@
 /**
  * Quem esta aba é para o servidor, e o que o navegador lembra entre visitas (ADR 0003). O token vive na aba
  * (sessionStorage): sobrevive a refresh e queda de rede, e duas abas do mesmo navegador são duas pessoas na sala.
- * O apelido é lembrado pelo navegador inteiro (localStorage).
+ * O apelido e o último personagem são lembrados pelo navegador inteiro (localStorage); o bloco, só pela aba.
  */
 import { TOKEN_RE } from '@guess/protocol';
+import { CHARACTERS } from '@guess/rules';
 
 const TOKEN_KEY = 'guess.token';
 const NICKNAME_KEY = 'guess.nickname';
+const CHARACTER_KEY = 'guess.character';
+const NOTEPAD_KEY = 'guess.notepad.';
 
 /** O storage, ou nada (teste, modo privado): aí nada fica lembrado e segue sem quebrar. */
 type MaybeStore = Pick<Storage, 'getItem' | 'setItem'> | null;
@@ -28,3 +31,20 @@ export const rememberNicknameIn = (store: MaybeStore, nickname: string) => write
 export const token = () => tokenIn(session());
 export const rememberedNickname = () => nicknameIn(local());
 export const rememberNickname = (nickname: string) => rememberNicknameIn(local(), nickname);
+
+/** O último personagem escolhido neste navegador, ou null (nenhum, ou algo fora de 0..7). */
+export function characterIn(store: MaybeStore): number | null {
+  const s = read(store, CHARACTER_KEY);
+  const n = s === '' ? NaN : Number(s);
+  return Number.isInteger(n) && n >= 0 && n < CHARACTERS ? n : null;
+}
+export const rememberCharacterIn = (store: MaybeStore, character: number) => write(store, CHARACTER_KEY, String(character));
+
+/** O bloco desta aba nesta sala: pessoal, nunca sai da aba. */
+export const notepadIn = (store: MaybeStore, code: string) => read(store, NOTEPAD_KEY + code);
+export const rememberNotepadIn = (store: MaybeStore, code: string, text: string) => write(store, NOTEPAD_KEY + code, text);
+
+export const rememberedCharacter = () => characterIn(local());
+export const rememberCharacter = (character: number) => rememberCharacterIn(local(), character);
+export const notepad = (code: string) => notepadIn(session(), code);
+export const rememberNotepad = (code: string, text: string) => rememberNotepadIn(session(), code, text);

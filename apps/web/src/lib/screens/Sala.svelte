@@ -5,6 +5,7 @@
   import type { MsgKey } from '../i18n';
   import { t } from '../i18n.svelte';
   import { rememberNickname, rememberedNickname, token } from '../identity';
+  import Room from '../panels/Room.svelte';
   import { RemoteRoom, type ClosedReason, type RemoteState } from '../room/remote';
   import { openRoom, wsUrl } from '../rooms';
   import { navigate, roomPath } from '../route.svelte';
@@ -12,7 +13,8 @@
   let { code }: { code: string } = $props();
 
   // a rota recria esta tela a cada código novo (App faz {#key}); o código inicial basta
-  const remote = new RemoteRoom({ url: wsUrl(), room: untrack(() => code), token: token() });
+  const myToken = token();
+  const remote = new RemoteRoom({ url: wsUrl(), room: untrack(() => code), token: myToken });
   let st = $state.raw<RemoteState>(remote.state);
   let nickname = $state(rememberedNickname());
   let copied = $state(false);
@@ -37,7 +39,7 @@
   const link = $derived(location.origin + roomPath(code));
   const STATUS: Record<RemoteState['status'], MsgKey | null> = { idle: null, connecting: 'status.connecting', open: 'status.open', reconnecting: 'status.reconnecting', closed: null };
   const status = $derived.by(() => { const k = STATUS[st.status]; return k ? t(k) : ''; });
-  const GONE = { notFound: ['gone.notFound.title', 'gone.notFound.msg'], ended: ['gone.ended.title', 'gone.ended.msg'], replaced: ['gone.replaced.title', 'gone.replaced.msg'] } as const satisfies Record<NonNullable<ClosedReason>, [MsgKey, MsgKey]>;
+  const GONE = { notFound: ['gone.notFound.title', 'gone.notFound.msg'], ended: ['gone.ended.title', 'gone.ended.msg'], replaced: ['gone.replaced.title', 'gone.replaced.msg'], kicked: ['gone.kicked.title', 'gone.kicked.msg'] } as const satisfies Record<NonNullable<ClosedReason>, [MsgKey, MsgKey]>;
 
   function submit(e: SubmitEvent) {
     e.preventDefault();
@@ -71,6 +73,8 @@
       </div>
     </div>
   </div>
+{:else if room && me}
+  <Room {remote} {st} {room} token={myToken} {status} />
 {:else}
   <div class="gs-screen">
     <div class="ss-card elevated gs-panel">
@@ -96,6 +100,7 @@
           {/if}
         </form>
         {#if st.error === 'roomFull'}<p class="gs-error">{t('sala.full', { max: MAX_MEMBERS })}</p>{/if}
+        {#if st.error === 'refused'}<p class="gs-error">{t('error.refused')}</p>{/if}
 
         <div class="gs-section">
           <h4>{t('sala.turma', { count: room?.members.length ?? 0, max: MAX_MEMBERS })}</h4>

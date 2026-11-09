@@ -1,50 +1,21 @@
 import { describe, expect, test } from 'bun:test';
-import type { RoomSnapshot, ServerMessage } from '@guess/protocol';
-import { MAX_MEMBERS } from '@guess/rules';
-import { createRoom, ROOM_TTL, snapshotFor, step, type RoomEvent, type RoomInput, type RoomState } from '../src/room';
+import { MAX_MEMBERS, TURN_DEFAULT } from '@guess/rules';
+import type { RoomSnapshot } from '@guess/protocol';
+import { ROOM_TTL, snapshotFor, step } from '../src/room';
+import { Sim, T0 } from './sim';
 
-const T0 = 1_000_000;
-
-/** Enfileira entradas numa sala e guarda tudo o que saiu, para asserções no que a sala manda e no que ela vira. */
-class Sim {
-  state: RoomState;
-  out: { to: string; message: ServerMessage }[] = [];
-  events: RoomEvent[] = [];
-  constructor(public now = T0) { this.state = createRoom('ABCD', now); }
-  feed(input: RoomInput, at = this.now) {
-    this.now = at;
-    const r = step(this.state, input, at);
-    this.state = r.state; this.out.push(...r.out); this.events.push(...r.events);
-    return r;
-  }
-  connect(token: string, at?: number) { return this.feed({ kind: 'connect', token }, at); }
-  disconnect(token: string, at?: number) { return this.feed({ kind: 'disconnect', token }, at); }
-  join(token: string, nickname: string, at?: number) { return this.feed({ kind: 'message', token, message: { type: 'join', nickname } }, at); }
-  rename(token: string, nickname: string, at?: number) { return this.feed({ kind: 'message', token, message: { type: 'nickname', nickname } }, at); }
-  ping(token: string, at?: number) { return this.feed({ kind: 'message', token, message: { type: 'ping' } }, at); }
-  /** conecta e entra com apelido, como uma aba nova faz */
-  enter(token: string, nickname: string, at?: number) { this.connect(token, at); return this.join(token, nickname, at); }
-  /** dispara o timer de morte pendente, como o adaptador faria quando ele vence */
-  fireDeath() {
-    const t = this.state.timers.find((x) => x.kind === 'death')!;
-    return this.feed({ kind: 'timer', timer: t }, t.at);
-  }
-  deathAt() { return this.state.timers.filter((t) => t.kind === 'death').map((t) => t.at); }
-  /** último snapshot entregue a este token */
-  snapshotFor(token: string): RoomSnapshot | undefined {
-    for (let i = this.out.length - 1; i >= 0; i--) {
-      const o = this.out[i];
-      if (o.to === token && o.message.type === 'snapshot') return o.message.snapshot;
-    }
-  }
-  names(token: string) { return this.snapshotFor(token)?.members.map((m) => m.nickname); }
-}
+/** a sala vazia como um visitante a vê */
+const EMPTY: RoomSnapshot = {
+  code: 'ABCD', phase: 'lobby', you: null, moderator: null, dev: false, members: [], order: [], authors: {}, turnMs: TURN_DEFAULT,
+  postits: {}, turn: null, paused: false, vote: null, got: [], gaveUp: [],
+};
+const view = (id: string, nickname: string, character: number, connected = true) => ({ id, nickname, connected, character, ghost: false, fake: false });
 
 describe('sala: entrar', () => {
   test('quem conecta sem entrar recebe o snapshot da sala como visitante', () => {
     const s = new Sim();
     s.connect('t1');
-    expect(s.snapshotFor('t1')).toEqual({ code: 'ABCD', phase: 'lobby', you: null, moderator: null, members: [] });
+    expect(s.snapshotFor('t1')).toEqual(EMPTY);
   });
 
   test('entrar com apelido cria o membro e todo mundo recebe a lista nova', () => {
@@ -103,7 +74,7 @@ describe('sala: entrar', () => {
     expect(s.out).toEqual([{ to: 't9', message: { type: 'error', error: 'roomFull' } }]);
     expect(s.state.members).toHaveLength(MAX_MEMBERS);
     expect(s.state.visitors).toEqual(['t9']);
-    expect(s.events).toContainEqual({ type: 'refused', error: 'roomFull' });
+    expect(s.events).toContainEqual({ type: 'refused', error: 'roomFull', action: 'join' });
   });
 
   test('o primeiro a entrar é o moderador, e continua sendo quando outros entram', () => {
@@ -122,10 +93,10 @@ describe('sala: snapshot', () => {
     s.enter('t1', 'Zé');
     s.enter('t2', 'Dita');
     s.connect('t3');
-    const members = [{ id: 'm1', nickname: 'Zé', connected: true }, { id: 'm2', nickname: 'Dita', connected: true }];
-    expect(snapshotFor(s.state, 't1')).toEqual({ code: 'ABCD', phase: 'lobby', you: 'm1', moderator: 'm1', members });
-    expect(snapshotFor(s.state, 't2')).toEqual({ code: 'ABCD', phase: 'lobby', you: 'm2', moderator: 'm1', members });
-    expect(snapshotFor(s.state, 't3')).toEqual({ code: 'ABCD', phase: 'lobby', you: null, moderator: 'm1', members });
+    const lobby = { ...EMPTY, moderator: 'm1', members: [view('m1', 'Zé', 0), view('m2', 'Dita', 1)], order: ['m1', 'm2'], authors: { m1: 'm2', m2: 'm1' } };
+    expect(snapshotFor(s.state, 't1', s.now)).toEqual({ ...lobby, you: 'm1' });
+    expect(snapshotFor(s.state, 't2', s.now)).toEqual({ ...lobby, you: 'm2' });
+    expect(snapshotFor(s.state, 't3', s.now)).toEqual({ ...lobby, you: null });
   });
 
   test('uma mudança chega a todo token conectado, membro ou visitante', () => {
@@ -179,7 +150,7 @@ describe('sala: conexão', () => {
     expect(s.events).toContainEqual({ type: 'reconnected', id: 'm2', nickname: 'Dita' });
   });
 
-  test('o moderador que cai continua moderador (sucessão é outra história)', () => {
+  test('o moderador que cai continua moderador durante a tolerância', () => {
     const s = new Sim();
     s.enter('t1', 'Zé');
     s.enter('t2', 'Dita');

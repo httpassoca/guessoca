@@ -1,16 +1,23 @@
-import { CLOSE_REPLACED, CLOSE_ROOM_ENDED, CLOSE_ROOM_NOT_FOUND, PING_INTERVAL, type ClientMessage, type RoomError, type RoomSnapshot, type ServerMessage } from '@guess/protocol';
+import { CLOSE_KICKED, CLOSE_REPLACED, CLOSE_ROOM_ENDED, CLOSE_ROOM_NOT_FOUND, PING_INTERVAL, type ClientMessage, type RoomError, type RoomSnapshot, type ServerMessage } from '@guess/protocol';
 
 export type RemoteStatus = 'idle' | 'connecting' | 'open' | 'reconnecting' | 'closed';
 /** Por que a conexão fechou de vez (códigos 4xxx do servidor); null = ainda não fechou, ou fechou por `dispose`. */
-export type ClosedReason = 'notFound' | 'ended' | 'replaced' | null;
+export type ClosedReason = 'notFound' | 'ended' | 'replaced' | 'kicked' | null;
 
 export interface RemoteState {
   status: RemoteStatus;
   /** o último snapshot; continua valendo enquanto reconecta */
   room: RoomSnapshot | null;
   reason: ClosedReason;
-  /** o último pedido recusado (sala cheia); cai ao pedir de novo ou ao entrar na turma */
+  /**
+   * o último pedido recusado: sala cheia, ou um pedido que não vale agora (`refused`). Cai ao pedir de novo ou com o
+   * próximo snapshot de quem está na turma; é passageiro, a tela mostra e esquece.
+   */
   error: RoomError | null;
+  /** conta cada recusa que chegou, para a tela avisar de novo mesmo quando a recusa se repete */
+  errorSeq: number;
+  /** quando o último snapshot chegou (relógio de `now`): `turn.left` e `vote.left` contam a partir daqui */
+  receivedAt: number;
   /** tentativas de reconexão seguidas; zera quando abre */
   attempt: number;
 }
@@ -35,10 +42,13 @@ export type SocketFactory = (url: string) => SocketLike;
 export interface Clock { setTimeout(fn: () => void, ms: number): unknown; clearTimeout(handle: unknown): void }
 export const realClock: Clock = { setTimeout: (fn, ms) => setTimeout(fn, ms), clearTimeout: (h) => clearTimeout(h as ReturnType<typeof setTimeout>) };
 
+/** Os pedidos que a tela faz por `send`: tudo menos entrar/apelido (que têm método próprio) e o ping (da conexão). */
+export type GameRequest = Exclude<ClientMessage, { type: 'join' | 'nickname' | 'ping' }>;
+
 export const BACKOFF_START = 500;
 export const BACKOFF_MAX = 10_000;
 
-const CLOSE_REASONS: Record<number, NonNullable<ClosedReason>> = { [CLOSE_ROOM_NOT_FOUND]: 'notFound', [CLOSE_ROOM_ENDED]: 'ended', [CLOSE_REPLACED]: 'replaced' };
+const CLOSE_REASONS: Record<number, NonNullable<ClosedReason>> = { [CLOSE_ROOM_NOT_FOUND]: 'notFound', [CLOSE_ROOM_ENDED]: 'ended', [CLOSE_REPLACED]: 'replaced', [CLOSE_KICKED]: 'kicked' };
 /** 4xxx é da aplicação: o servidor fechou de propósito e reconectar não muda nada. Um código que não conhecemos vira "acabou". */
 const finalReason = (code: number): ClosedReason => CLOSE_REASONS[code] ?? (code >= 4000 && code < 5000 ? 'ended' : null);
 
@@ -48,7 +58,7 @@ const finalReason = (code: number): ClosedReason => CLOSE_REASONS[code] ?? (code
  * (a recusa fica em `state.error`, o snapshot que temos continua valendo).
  */
 export class RemoteRoom {
-  private st: RemoteState = { status: 'idle', room: null, reason: null, error: null, attempt: 0 };
+  private st: RemoteState = { status: 'idle', room: null, reason: null, error: null, errorSeq: 0, receivedAt: 0, attempt: 0 };
   private socket: SocketLike | null = null;
   private timer: unknown;
   private disposed = false;
@@ -60,10 +70,12 @@ export class RemoteRoom {
   private readonly watchers = new Set<(state: RemoteState) => void>();
   private readonly makeSocket: SocketFactory;
   private readonly clock: Clock;
+  private readonly now: () => number;
 
-  constructor(private readonly target: { url: string; room: string; token: string }, opts: { socket?: SocketFactory; clock?: Clock } = {}) {
+  constructor(private readonly target: { url: string; room: string; token: string }, opts: { socket?: SocketFactory; clock?: Clock; now?: () => number } = {}) {
     this.makeSocket = opts.socket ?? ((url) => new WebSocket(url));
     this.clock = opts.clock ?? realClock;
+    this.now = opts.now ?? (() => performance.now());
   }
 
   get state() { return this.st; }
@@ -103,6 +115,11 @@ export class RemoteRoom {
   join(nickname: string) { this.joinedAs = nickname; this.ask({ type: 'join', nickname }); }
   /** Troca o próprio apelido. */
   rename(nickname: string) { this.joinedAs = nickname; this.ask({ type: 'nickname', nickname }); }
+  /**
+   * Qualquer outro pedido do jogo (personagem, lobby, escrita, vez, votação, moderação, fim), como o protocolo o define.
+   * O servidor aplica (vem um snapshot) ou recusa (`state.error`).
+   */
+  send(message: GameRequest) { this.ask(message); }
 
   dispose() {
     this.disposed = true;
@@ -117,12 +134,13 @@ export class RemoteRoom {
     let msg: ServerMessage;
     try { msg = JSON.parse(raw); } catch { return; }
     this.heardSincePing = true;
-    if (msg.type === 'error') { this.set({ error: msg.error }); return; }
+    if (msg.type === 'error') { this.set({ error: msg.error, errorSeq: this.st.errorSeq + 1 }); return; }
     if (msg.type !== 'snapshot') return; // pong: só conta como resposta
     const { snapshot } = msg;
     const inside = snapshot.you !== null;
-    this.set(inside ? { room: snapshot, error: null } : { room: snapshot });
-    if (!inside && this.wasIn && this.joinedAs) this.send({ type: 'join', nickname: this.joinedAs }); // a sala nos esqueceu enquanto estávamos fora
+    const receivedAt = this.now();
+    this.set(inside ? { room: snapshot, receivedAt, error: null } : { room: snapshot, receivedAt });
+    if (!inside && this.wasIn && this.joinedAs) this.raw({ type: 'join', nickname: this.joinedAs }); // a sala nos esqueceu enquanto estávamos fora
     this.wasIn = inside;
   }
 
@@ -143,7 +161,7 @@ export class RemoteRoom {
       this.timer = undefined;
       if (!this.heardSincePing) { this.reconnect(); return; }
       this.heardSincePing = false;
-      this.send({ type: 'ping' });
+      this.raw({ type: 'ping' });
       this.schedulePing();
     }, PING_INTERVAL);
   }
@@ -151,10 +169,10 @@ export class RemoteRoom {
   /** Um pedido da pessoa: a recusa anterior deixa de valer. */
   private ask(message: ClientMessage) {
     if (this.st.error) this.set({ error: null });
-    this.send(message);
+    this.raw(message);
   }
 
-  private send(message: ClientMessage) { if (this.st.status === 'open') this.socket?.send(JSON.stringify(message)); }
+  private raw(message: ClientMessage) { if (this.st.status === 'open') this.socket?.send(JSON.stringify(message)); }
 
   private set(patch: Partial<RemoteState>) {
     this.st = { ...this.st, ...patch };
