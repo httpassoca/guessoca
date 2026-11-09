@@ -80,6 +80,9 @@ apps/web           Vite + Svelte 5 + PixiJS v8 + dssoca
                            (chuva e neblina da frente), film (os filtros só no mundo: brilho no cenário, aberração e VHS em
                            tudo), scene (Pixi: as camadas, corpos por profundidade, sombras, balões, câmera), runtime (o laço,
                            o empurrão de ida e de volta, os post-its em HTML sobre as cabeças) e World.svelte
+  src/lib/sound/           os efeitos sonoros: sfx (cinco sons como parâmetros do sfxr, gerados com o jsfxr; nenhum arquivo de
+                           áudio), room (os sons da sala tirados da diferença entre snapshots: votação, acertou, fim de vez),
+                           settings (volume e mudo por navegador) e player (um AudioContext, ligado na primeira interação)
   src/lib/keys.ts          Enter = Acertei, Tab = passar, N = bloco, Esc = menu (fora de campo de texto)
   src/lib/panels/          Room (o telhado atrás de tudo, a barra, a coluna da fase que recolhe, teclado), TurnBar (vez e votação
                            no alto), Roster (a tira de post-its embaixo), Lobby (ordem arrastável, autores, personagens, tamanho da vez), Writing
@@ -88,7 +91,7 @@ apps/web           Vite + Svelte 5 + PixiJS v8 + dssoca
   src/lib/screens/         Home (abrir sala, entrar com código, crédito) e Sala (apelido, depois o jogo; sala inexistente,
                            encerrada ou expulso)
   test/                    tradução, rotas, identidade, teclas, imagem, `RemoteRoom` com socket falso e contra o servidor de
-                           verdade, e o modelo de vista
+                           verdade, o modelo de vista, os sons da sala, volume e mudo, e os efeitos que rendem amostras
 
 tools/sprites      `bun run sprites` (@guess/sprites): as receitas que geram as folhas a partir do pacote (ver Sprites)
   src/image.ts       imagens RGBA puras: recortar, colar, trocar e apagar cores, pedaços soltos, traços finos

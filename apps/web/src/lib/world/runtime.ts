@@ -6,7 +6,7 @@
  * tem teste automático.
  */
 import { EMOTE_MS, EMOTES, type RoomSnapshot } from '@guess/protocol';
-import { applyShove, blinking, createBody, followCamera, MAP, stepBody, type Body, type Camera } from '@guess/world';
+import { applyShove, blinking, createBody, followCamera, MAP, stepBody, type Body, type Camera, type WorldEvent } from '@guess/world';
 import type { Lang } from '../i18n';
 import { isTextField, swallowsSpace, worldKey } from '../keys';
 import type { RemoteRoom, RemoteStatus } from '../room/remote';
@@ -27,6 +27,8 @@ export interface RuntimeOptions {
   heads: HTMLElement;
   lang: Lang;
   onStatus?: (status: SceneStatus, detail?: string) => void;
+  /** cada evento do meu corpo (pulo, empurrão, queda…), para os sons */
+  onEvent?: (ev: WorldEvent) => void;
 }
 
 /** onde meu corpo nasce em relação ao ponto de volta, pela minha posição na turma (para não nascer em cima de alguém) */
@@ -143,6 +145,7 @@ export class WorldRuntime {
           const r = stepBody(this.body, this.controls.take(), STEP_MS / 1000, { now: stepNow, platforms: MAP, others });
           this.body = r.body;
           for (const ev of r.events) if (ev.type === 'shove') for (const id of ev.targets) if (real.has(id)) remote.shove(id, this.body.facing);
+          for (const ev of r.events) this.opts.onEvent?.(ev);
         }
         const out = this.sender.tick(now, presenceOfBody(this.body, now, this.emote));
         if (out) remote.setPresence(out);

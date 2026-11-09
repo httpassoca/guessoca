@@ -4,6 +4,7 @@
   import { i18n, t } from '../i18n.svelte';
   import type { RemoteRoom } from '../room/remote';
   import type { RoomView } from '../room/view';
+  import { playSfx } from '../sound/player';
   import { heads, tiltOf } from './heads';
   import { WorldRuntime, type SceneStatus } from './runtime';
 
@@ -21,10 +22,15 @@
   const list = $derived(heads(room, v));
 
   onMount(() => {
-    runtime = new WorldRuntime({ remote, host: host!, heads: layer!, lang: untrack(() => i18n.lang), onStatus: (s, detail) => { status = s; if (detail) document.documentElement.dataset.renderer = detail; } });
+    runtime = new WorldRuntime({
+      remote, host: host!, heads: layer!, lang: untrack(() => i18n.lang),
+      onStatus: (s, detail) => { status = s; if (detail) document.documentElement.dataset.renderer = detail; },
+      onEvent: (ev) => { if (ev.type === 'jump' || ev.type === 'shove') playSfx(ev.type); },
+    });
+    const offShoved = remote.onShoved(() => playSfx('shove')); // levei um empurrão
     runtime.setRoom(untrack(() => room));
     runtime.start();
-    return () => { runtime?.dispose(); runtime = null; };
+    return () => { offShoved(); runtime?.dispose(); runtime = null; };
   });
   $effect(() => { runtime?.setRoom(room); });
   $effect(() => { runtime?.setBlocked(blocked); });

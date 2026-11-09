@@ -12,12 +12,15 @@ const CHARACTER_KEY = 'guess.character';
 const NOTEPAD_KEY = 'guess.notepad.';
 
 /** O storage, ou nada (teste, modo privado): aí nada fica lembrado e segue sem quebrar. */
-type MaybeStore = Pick<Storage, 'getItem' | 'setItem'> | null;
-const local = (): MaybeStore => (typeof localStorage === 'undefined' ? null : localStorage);
+export type MaybeStore = Pick<Storage, 'getItem' | 'setItem'> | null;
+export const local = (): MaybeStore => (typeof localStorage === 'undefined' ? null : localStorage);
 const session = (): MaybeStore => (typeof sessionStorage === 'undefined' ? null : sessionStorage);
 
-function read(store: MaybeStore, key: string) { try { return store?.getItem(key) ?? ''; } catch { return ''; } }
-function write(store: MaybeStore, key: string, value: string) { try { store?.setItem(key, value); } catch { /* modo privado ou bloqueado: segue sem lembrar */ } }
+/** Lê uma chave; nada guardado (ou storage bloqueado) é ''. */
+export function readKey(store: MaybeStore, key: string) { try { return store?.getItem(key) ?? ''; } catch { return ''; } }
+export function writeKey(store: MaybeStore, key: string, value: string) { try { store?.setItem(key, value); } catch { /* modo privado ou bloqueado: segue sem lembrar */ } }
+const read = readKey;
+const write = writeKey;
 
 /** O token guardado em `store`, ou um novo (UUID: 36 caracteres de `TOKEN_RE`) se não há um válido. */
 export function tokenIn(store: MaybeStore): string {
