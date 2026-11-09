@@ -11,7 +11,7 @@ import { Application, Assets, Container, Graphics, Rectangle, Sprite, Texture, T
 import { effectsOn, onEffects } from '../effects';
 import type { Lang } from '../i18n';
 import emoteAtlas from '../sprites/emotes.json';
-import { frameIndex, HERO, heroSheet } from '../sprites/hero';
+import { CHARACTER_ART, character, frameIndex } from '../sprites/characters';
 import { loadRooftopArt } from './art';
 import { Backdrop } from './backdrop';
 import { Film } from './film';
@@ -30,8 +30,7 @@ export interface SceneBody extends Vec3 {
   blink: boolean;
 }
 
-const CHARACTERS = HERO.hairs.length;
-const ANIMS = Object.keys(HERO.animations) as Anim[];
+const ANIMS: Anim[] = ['idle', 'walk', 'run', 'jump', 'fall', 'fall_loop', 'shove'];
 const emoteSheet = (lang: Lang) => `/sprites/emotes-${lang}.png`;
 const LANGS: Lang[] = ['pt-BR', 'en-US'];
 const BG = 0x0b0a14;
@@ -55,7 +54,7 @@ export class Scene {
   private readonly bodies = new Container({ sortableChildren: true });
   private readonly balloons = new Container();
   private readonly drawn = new Map<string, Drawn>();
-  /** quadros por personagem, animação e índice */
+  /** quadros por personagem, animação e índice (cada personagem no atlas do seu modelo) */
   private readonly frames: Texture[][][] = [];
   private readonly emotes = new Map<Lang, Record<EmoteName, Texture>>();
 
@@ -90,14 +89,14 @@ export class Scene {
   get renderer() { return this.app.renderer.name; }
 
   private async load() {
-    const sheets = await Promise.all(Array.from({ length: CHARACTERS }, (_, n) => Assets.load<Texture>(heroSheet(n))));
-    const { w, h } = HERO.frame;
-    for (const sheet of sheets) {
+    const sheets = await Promise.all(CHARACTER_ART.map((c) => Assets.load<Texture>(c.sheet)));
+    sheets.forEach((sheet, n) => {
+      const { frame: { w, h }, animations } = CHARACTER_ART[n].atlas;
       this.frames.push(ANIMS.map((anim) => {
-        const a = HERO.animations[anim];
+        const a = animations[anim];
         return Array.from({ length: a.frames }, (_, i) => new Texture({ source: sheet.source, frame: new Rectangle(i * w, a.row * h, w, h) }));
       }));
-    }
+    });
     for (const lang of LANGS) {
       const sheet = await Assets.load<Texture>(emoteSheet(lang));
       const map = {} as Record<EmoteName, Texture>;
@@ -129,11 +128,13 @@ export class Scene {
     sorted.forEach((b, i) => {
       seen.add(b.id);
       const d = this.drawn.get(b.id) ?? this.add(b.id);
-      const anim = HERO.animations[b.anim] ? b.anim : 'idle';
+      const anim = ANIMS.includes(b.anim) ? b.anim : 'idle';
       const frames = this.frames[b.character]?.[ANIMS.indexOf(anim)];
       if (!frames) { d.sprite.visible = false; d.shadow.visible = false; d.balloon.visible = false; return; }
+      const { atlas } = character(b.character);
       const at = project(b, cam, view);
-      d.sprite.texture = frames[frameIndex(anim, now - b.animSince)];
+      d.sprite.texture = frames[frameIndex(atlas, anim, now - b.animSince)];
+      d.sprite.anchor.set(atlas.anchor.x / atlas.frame.w, atlas.anchor.y / atlas.frame.h);
       d.sprite.position.set(at.x, at.y);
       d.sprite.scale.set(b.facing * s, s);
       d.sprite.zIndex = i;
@@ -170,7 +171,6 @@ export class Scene {
 
   private add(id: string): Drawn {
     const sprite = new Sprite();
-    sprite.anchor.set(HERO.anchor.x / HERO.frame.w, HERO.anchor.y / HERO.frame.h);
     const shadow = new Graphics().ellipse(0, 0, BODY_RX * 1.3, BODY_RZ * DEPTH_K * 1.8).fill({ color: 0x000000, alpha: 0.4 });
     const balloon = new Sprite();
     this.bodies.addChild(sprite);

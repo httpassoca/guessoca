@@ -169,3 +169,76 @@ export function trimThinAhead(img: Image, reach: number): Image {
   }
   return out;
 }
+
+/** Fica só com os pixels das cores `colors` (o resto vira transparente). */
+export function keepColors(img: Image, colors: Iterable<Hex>): Image {
+  const set = new Set([...colors].map((c) => c.toLowerCase()));
+  const out: Image = { ...img, data: img.data.slice() };
+  for (let i = 0; i < out.data.length; i += 4) {
+    if (out.data[i + 3] && !set.has(hexOf(out.data[i], out.data[i + 1], out.data[i + 2]))) out.data[i + 3] = 0;
+  }
+  return out;
+}
+
+/** Cola `src` em `dst` por baixo: só os pixels transparentes de `dst` recebem (o que já está desenhado fica na frente). */
+export function under(dst: Image, src: Image, x: number, y: number) {
+  for (let j = 0; j < src.height; j++) for (let i = 0; i < src.width; i++) {
+    const p = getPixel(src, i, j);
+    const dx = x + i, dy = y + j;
+    if (p[3] === 0 || dx < 0 || dy < 0 || dx >= dst.width || dy >= dst.height || dst.data[at(dst, dx, dy) + 3]) continue;
+    setPixel(dst, dx, dy, p);
+  }
+}
+
+/** A mesma imagem deslocada `(dx, dy)`, do mesmo tamanho; o que sai da borda some. */
+export function translate(img: Image, dx: number, dy: number): Image {
+  const out = blank(img.width, img.height);
+  blit(out, img, dx, dy);
+  return out;
+}
+
+/** Cada linha `y` reconstruída por `pick(y)`: devolve a linha de origem (ou null para vazia) e o deslocamento em x. */
+function remapRows(img: Image, pick: (y: number) => { from: number | null; dx: number }): Image {
+  const out = blank(img.width, img.height);
+  for (let y = 0; y < img.height; y++) {
+    const { from, dx } = pick(y);
+    if (from === null || from < 0 || from >= img.height) continue;
+    for (let x = 0; x < img.width; x++) {
+      const sx = x - dx;
+      if (sx < 0 || sx >= img.width) continue;
+      const p = getPixel(img, sx, from);
+      if (p[3]) setPixel(out, x, y, p);
+    }
+  }
+  return out;
+}
+
+/**
+ * Inclina para a frente (à direita): a linha `y` anda `⌊k · (pivotY − y)⌋` pixels, então a linha do pé (`pivotY`)
+ * fica e o topo vai mais longe. Com pixel art isso sai em degraus, como um desenhista faria à mão.
+ */
+export function shear(img: Image, k: number, pivotY: number): Image {
+  return remapRows(img, (y) => ({ from: y, dx: Math.trunc(k * (pivotY - y)) }));
+}
+
+/** Achata: tira `count` linhas a partir de `from` e desce o que estava em cima; o que está embaixo (os pés) fica. */
+export function squashRows(img: Image, from: number, count: number): Image {
+  return remapRows(img, (y) => ({ from: y >= from + count ? y : y - count, dx: 0 }));
+}
+
+/** Estica: repete a linha `at` mais `count` vezes e sobe o que estava em cima; o que está embaixo fica. */
+export function stretchRows(img: Image, at: number, count: number): Image {
+  return remapRows(img, (y) => ({ from: y > at ? y : y >= at - count ? at : y + count, dx: 0 }));
+}
+
+/** Gira 90° no sentido do relógio: o que apontava para a esquerda passa a apontar para cima. */
+export function rotate90(img: Image): Image {
+  const out = blank(img.height, img.width);
+  for (let y = 0; y < out.height; y++) for (let x = 0; x < out.width; x++) setPixel(out, x, y, getPixel(img, y, img.height - 1 - x));
+  return out;
+}
+
+/** Espelha de cima para baixo. */
+export function flipY(img: Image): Image {
+  return remapRows(img, (y) => ({ from: img.height - 1 - y, dx: 0 }));
+}

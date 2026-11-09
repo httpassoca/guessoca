@@ -4,4 +4,12 @@ The characters come from Ozzbit Games' free "male hero" pack, whose license read
 
 ## Consequences
 
-The game credits "Personagem: Ozzbit Games" in the README and in-game, carries no ads and stays non-commercial. A new character or prop is a recipe change plus a run of `bun run sprites` on a machine that has the pack; the README says how to ask for one. Anything drawn from a text grid (balloons, props) has no license strings attached and could be regenerated anywhere, but goes through the same command so there is one way to make art.
+The game credits "Personagem: Ozzbit Games" (now "Herói: Ozzbit Games", see the amendment) in the README and in-game, carries no ads and stays non-commercial. A new character or prop is a recipe change plus a run of `bun run sprites` on a machine that has the pack; the README says how to ask for one. Anything drawn from a text grid (balloons, props) has no license strings attached and could be regenerated anywhere, but goes through the same command so there is one way to make art.
+
+## Amendment: a second model, the skeleton knight
+
+A second character model, a skeleton knight, is the owner's own art: no license restriction and no credit needed. It follows the same path as the hero: the source sheets (and the `.ase`) live in gitignored `assets-src/skeleton/`, and `bun run sprites` turns them into committed sheets with a recipe (`tools/sprites/src/skeleton.ts`). The eight characters stay eight and the protocol is unchanged: 0–3 are the hero with four hair colours, 4–7 the skeleton with four cape colours (the cape ramp is the only part recoloured; the red eyes stay). Each character gets its own sheet (`char-N.png`), each model its own atlas (`hero.json`, `skeleton.json`, with `credit` null for the skeleton), and `characters.json` ties them together for the client.
+
+The skeleton art has idle, walk and sword swings but no run, jump or fall, so the recipe draws them from the existing frames: the walk leaned forward with the cape trailing for the run, the idle squashed into a crouch and an overhead-swing frame stretched with the cape pulled down and a leg tucked for the jump, and that body with the cape cut from the forward swing rotated to fly upward for the fall. The shove is the forward swing with its white slash trail erased (white blobs too large to be bone) and the sword kept. These drawn frames are a stand-in: a hand-drawn sheet from the owner in `assets-src/skeleton/` should replace them.
+
+Since the hero is no longer the only character, the in-game credit reads "Herói: Ozzbit Games".

@@ -53,21 +53,21 @@ describe('o golpe sem a espada', () => {
 
 describe('cabelo', () => {
   test('a rampa castanha vira a rampa pedida, e nada mais muda', () => {
-    const out = recolorHair(body(), HAIRS[4].ramp);
+    const out = recolorHair(body(), HAIRS[3].ramp);
     const pal = palette(out);
     for (const c of HAIR) expect(pal.has(c)).toBe(false);
-    for (const c of HAIRS[4].ramp) expect(pal.has(c)).toBe(true);
+    for (const c of HAIRS[3].ramp) expect(pal.has(c)).toBe(true);
     expect(pal.has('d2947f')).toBe(true);
   });
 
-  test('oito cabelos, todos diferentes, o primeiro é o original', () => {
-    expect(HAIRS).toHaveLength(8);
+  test('quatro cabelos, todos diferentes, o primeiro é o original', () => {
+    expect(HAIRS.map((h) => h.name)).toEqual(['castanho', 'preto', 'loiro', 'ruivo']);
     expect(HAIRS[0].ramp).toEqual(HAIR);
-    expect(new Set(HAIRS.map((h) => h.ramp[1])).size).toBe(8);
+    expect(new Set(HAIRS.map((h) => h.ramp[1])).size).toBe(4);
   });
 });
 
-describe('folhas do personagem', () => {
+describe('folhas do herói', () => {
   const counts: Record<string, number> = { idle: 10, walk: 10, run: 10, jump: 6, fall: 4, fall_loop: 3, combo_1: 3, combo_1_end: 4 };
   const sheets = Object.fromEntries(Object.entries(counts).map(([name, n]) => {
     const s = blank(n * CELL, CELL);
@@ -83,8 +83,8 @@ describe('folhas do personagem', () => {
     expect(atlas.animations.idle.row).toBe(0);
   });
 
-  test('oito folhas do mesmo tamanho, recortadas pelo menor retângulo comum', () => {
-    expect(out).toHaveLength(8);
+  test('uma folha por cabelo, do mesmo tamanho, recortadas pelo menor retângulo comum', () => {
+    expect(out).toHaveLength(HAIRS.length);
     expect(atlas.frame).toEqual({ w: 12, h: 34 });
     for (const s of out) expect([s.width, s.height]).toEqual([10 * 12, ANIMATIONS.length * 34]);
   });
@@ -101,8 +101,7 @@ describe('folhas do personagem', () => {
     expect(y).toBeLessThanOrEqual(1); // o cabelo é o topo do corpo de mentira
   });
 
-  test('o atlas leva a cor de cada cabelo e o crédito', () => {
-    expect(atlas.hairs.map((h) => h.color)).toEqual(HAIRS.map((h) => `#${h.ramp[1]}`));
+  test('o atlas leva o crédito do pacote', () => {
     expect(atlas.credit).toBe('Ozzbit Games');
   });
 

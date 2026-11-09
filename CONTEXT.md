@@ -81,7 +81,7 @@ O mundo sempre ligado: entrar na sala põe a pessoa no telhado. Lobby, jogo e fi
 _Evitar_: mapa, fase, level, cenário, cena
 
 **Personagem** (`character`):
-O corpo de cada pessoa no telhado. São oito, iguais menos a cor do cabelo; cada pessoa escolhe um no lobby, único na sala. Os corpos são sólidos: não se atravessa um grupo, pula-se por cima, e dá para ficar na cabeça de alguém e ser carregado.
+O corpo de cada pessoa no telhado. São oito, de dois modelos: o herói, com quatro cores de cabelo (castanho, preto, loiro, ruivo), e o cavaleiro esqueleto, com quatro capas (vermelha, azul, verde, roxa). Cada pessoa escolhe um no lobby, único na sala. Os corpos são sólidos: não se atravessa um grupo, pula-se por cima, e dá para ficar na cabeça de alguém e ser carregado.
 _Evitar_: avatar, boneco, skin, sprite (é o desenho), herói
 
 **Empurrão** (`shove`):

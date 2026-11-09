@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { HERO } from '../sprites/hero';
+  import { PORTRAIT } from '../sprites/characters';
   import Hero from './Hero.svelte';
   import Ledge from './Ledge.svelte';
 
@@ -9,8 +9,8 @@
    */
   let { n, nickname }: { n: number | null; nickname: string } = $props();
   const SCALE = 4;
-  /** o pé do personagem (a âncora) fica no meio da faixa, não o meio do quadro */
-  const shift = (HERO.frame.w / 2 - HERO.anchor.x) * SCALE;
+  /** o pé do personagem (a âncora) fica no meio da faixa, não o meio da janela */
+  const shift = (PORTRAIT.w / 2 - PORTRAIT.anchorX) * SCALE;
 </script>
 
 <div class="gs-stage" aria-hidden="true">

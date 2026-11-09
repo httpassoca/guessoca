@@ -18,9 +18,9 @@ html, body { margin: 0; min-height: 100%; background: var(--ss-bg); }
   --gs-float-blur: blur(4px);
   /* o anel de foco do teclado: neutro, visível */
   --gs-focus: color-mix(in srgb, var(--ss-fg) 55%, transparent);
-  /* a cor do cabelo de cada personagem (tools/sprites/src/hero.ts, HAIRS) */
+  /* a cor de cada personagem (src/lib/sprites/characters.json): 0–3 o cabelo do herói, 4–7 a capa do esqueleto */
   --gs-char-0: #7d5556; --gs-char-1: #2c2838; --gs-char-2: #d9a441; --gs-char-3: #b9452a;
-  --gs-char-4: #3a5fd0; --gs-char-5: #3f944f; --gs-char-6: #aeb2c4; --gs-char-7: #8a5cd6;
+  --gs-char-4: #982b2b; --gs-char-5: #2f50ad; --gs-char-6: #2e7d3b; --gs-char-7: #6c2fa3;
 }
 @media (prefers-reduced-motion: reduce) {
   :root { --gs-fast: 0ms; --gs-dur: 0ms; --gs-enter: 0ms; }
@@ -146,7 +146,8 @@ html, body { margin: 0; min-height: 100%; background: var(--ss-bg); }
 @media (max-width: 520px) { .gs-chars { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
 .gs-char { all: unset; box-sizing: border-box; min-width: 0; overflow: hidden; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 4px 2px 8px; border: 1px solid var(--ss-line); cursor: pointer; font-size: var(--ss-ui-xs); color: var(--ss-fg-muted);
   transition: background-color var(--gs-fast) var(--gs-ease), border-color var(--gs-fast) var(--gs-ease); }
-.gs-char .gs-hero { margin-top: -8px; }
+/* a janela do retrato é mais larga que a casa: o corte cai mais na ponta da espada e do cachecol, atrás, que no rosto */
+.gs-char .gs-hero { margin-top: -8px; translate: -7px 0; }
 .gs-char .who { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .gs-char:hover:not(:disabled) { background: var(--ss-hover); }
 .gs-char:focus-visible { outline: 2px solid var(--gs-focus); outline-offset: 2px; }

@@ -1,7 +1,10 @@
 import { describe, expect, test } from 'bun:test';
 import { project, type View } from '@guess/world';
-import { frameIndex, HERO } from '../src/lib/sprites/hero';
-import { EMOTE_GAP, emoteAnchor, HEAD_Y, headAnchor, makeView, pickScale } from '../src/lib/world/view';
+import { character, frameIndex } from '../src/lib/sprites/characters';
+import { EMOTE_GAP, emoteAnchor, emoteY, headAnchor, headY, makeView, pickScale } from '../src/lib/world/view';
+
+const HERO = character(0).atlas;
+const HEAD_Y = headY(0);
 
 describe('escala do telhado', () => {
   test('inteira: 3 numa janela 1080p, 4 numa 1440p, nunca menos de 2', () => {
@@ -25,26 +28,32 @@ describe('post-it sobre a cabeça', () => {
   const cam = { x: 400 };
 
   test('a mesma projeção do Pixi, um pouco acima da cabeça', () => {
-    const at = { x: 420, y: 24, z: 10 };
+    const at = { x: 420, y: 24, z: 10, character: 0 };
     expect(headAnchor(at, cam, view)).toEqual(project({ x: 420, y: 24 + HEAD_Y, z: 10 }, cam, view));
     // sx = (x - cam)·escala + largura/2; sy = chão - (y + z·0,6)·escala
     expect(headAnchor(at, cam, view)).toEqual({ x: 560, y: 600 - (24 + HEAD_Y + 6) * 3 });
   });
 
-  test('a cabeça fica acima do topo do quadro do personagem', () => {
-    expect(HEAD_Y).toBeGreaterThanOrEqual(HERO.anchor.y - HERO.head.y);
-    expect(HEAD_Y).toBeLessThan(HERO.frame.h);
+  test('o post-it fica acima do topo da cabeça de cada modelo, dentro do quadro', () => {
+    for (const n of [0, 4]) {
+      const { atlas } = character(n);
+      expect(headY(n)).toBeGreaterThanOrEqual(atlas.anchor.y - atlas.head.y);
+      expect(headY(n)).toBeLessThan(atlas.frame.h);
+    }
+    // o esqueleto é mais alto que o herói: o post-it dele vai mais alto
+    expect(headY(4)).toBeGreaterThan(headY(0));
+    expect(emoteY(4) - emoteY(0)).toBe(headY(4) - headY(0));
   });
 
   test('pular leva o post-it junto', () => {
-    const a = headAnchor({ x: 0, y: 0, z: 0 }, cam, view), b = headAnchor({ x: 0, y: 10, z: 0 }, cam, view);
+    const a = headAnchor({ x: 0, y: 0, z: 0, character: 0 }, cam, view), b = headAnchor({ x: 0, y: 10, z: 0, character: 0 }, cam, view);
     expect(a.y - b.y).toBe(30);
     expect(a.x).toBe(b.x);
   });
 
   test('o balão do emote fica ao lado da cabeça, para o lado em que olha', () => {
-    const r = emoteAnchor({ x: 400, y: 0, z: 0, facing: 1 }, cam, view);
-    const l = emoteAnchor({ x: 400, y: 0, z: 0, facing: -1 }, cam, view);
+    const r = emoteAnchor({ x: 400, y: 0, z: 0, facing: 1, character: 0 }, cam, view);
+    const l = emoteAnchor({ x: 400, y: 0, z: 0, facing: -1, character: 0 }, cam, view);
     expect(r.x - 500).toBe(EMOTE_GAP * 3);
     expect(l.x - 500).toBe(-EMOTE_GAP * 3);
     expect(r.y).toBeLessThan(600);
@@ -54,17 +63,17 @@ describe('post-it sobre a cabeça', () => {
 describe('quadro da animação pelo tempo', () => {
   test('conta quadros no fps da folha', () => {
     const { fps } = HERO.animations.walk;
-    expect(frameIndex('walk', 0)).toBe(0);
-    expect(frameIndex('walk', 999 / fps)).toBe(0);
-    expect(frameIndex('walk', 1000 / fps)).toBe(1);
-    expect(frameIndex('walk', (3.5 * 1000) / fps)).toBe(3);
+    expect(frameIndex(HERO, 'walk', 0)).toBe(0);
+    expect(frameIndex(HERO, 'walk', 999 / fps)).toBe(0);
+    expect(frameIndex(HERO, 'walk', 1000 / fps)).toBe(1);
+    expect(frameIndex(HERO, 'walk', (3.5 * 1000) / fps)).toBe(3);
   });
 
   test('em loop dá a volta; sem loop para no último', () => {
     const idle = HERO.animations.idle, shove = HERO.animations.shove;
-    expect(frameIndex('idle', (idle.frames * 1000) / idle.fps)).toBe(0);
-    expect(frameIndex('shove', 60_000)).toBe(shove.frames - 1);
+    expect(frameIndex(HERO, 'idle', (idle.frames * 1000) / idle.fps)).toBe(0);
+    expect(frameIndex(HERO, 'shove', 60_000)).toBe(shove.frames - 1);
   });
 
-  test('tempo negativo (relógio torto) é o primeiro quadro', () => expect(frameIndex('jump', -50)).toBe(0));
+  test('tempo negativo (relógio torto) é o primeiro quadro', () => expect(frameIndex(HERO, 'jump', -50)).toBe(0));
 });

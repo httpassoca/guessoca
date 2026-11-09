@@ -12,6 +12,12 @@
     "y": 14,
     "size": 21
   },
+  "stand": {
+    "x": 0,
+    "y": 14,
+    "w": 32,
+    "h": 37
+  },
   "animations": {
     "idle": {
       "row": 0,
@@ -56,39 +62,5 @@
       "loop": false
     }
   },
-  "hairs": [
-    {
-      "name": "castanho",
-      "color": "#7d5556"
-    },
-    {
-      "name": "preto",
-      "color": "#2c2838"
-    },
-    {
-      "name": "loiro",
-      "color": "#d9a441"
-    },
-    {
-      "name": "ruivo",
-      "color": "#b9452a"
-    },
-    {
-      "name": "azul",
-      "color": "#3a5fd0"
-    },
-    {
-      "name": "verde",
-      "color": "#3f944f"
-    },
-    {
-      "name": "prata",
-      "color": "#aeb2c4"
-    },
-    {
-      "name": "lilás",
-      "color": "#8a5cd6"
-    }
-  ],
   "credit": "Ozzbit Games"
 }
