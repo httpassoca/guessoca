@@ -2,7 +2,7 @@
  * A receita comum dos personagens que chegam **prontos, em sete folhas**: a arte que o dono pede a um modelo de imagem
  * (o pedido está em `docs/art.md`, "Art made by an image model"), uma folha por animação (`idle.png`, `walk.png`,
  * `run.png`, `jump.png`, `fall.png`, `fall_loop.png`, e `attack.png` ou `shove.png`, ver `packFiles`), cada uma uma linha de células iguais, o personagem
- * olhando para a direita. O Kratos (`kratos.ts`), o Vorcaro (`vorcaro.ts`), o Orelha (`orelha.ts`), o Bolsonaro (`bolsonaro.ts`) e o cavaleiro (`knight.ts`) são só os números de cada um (`PackConfig`).
+ * olhando para a direita. O Kratos (`kratos.ts`), o Vorcaro (`vorcaro.ts`), o Orelha (`orelha.ts`), o Bolsonaro (`bolsonaro.ts`), o cavaleiro (`knight.ts`) e o Old Snake (`oldsnake.ts`) são só os números de cada um (`PackConfig`).
  *
  * A regra: **a receita não muda nenhum pixel da arte**. Não encolhe, não recolore, não redesenha, não aumenta um quadro,
  * não tira quadro. Ela só **muda quadros inteiros de lugar** (o ponto mais baixo de cada um vai para a linha do chão; uma

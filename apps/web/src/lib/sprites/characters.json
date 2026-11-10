@@ -47,5 +47,12 @@
     "color": "#dfe3ee",
     "sheet": "/sprites/char-6.webp",
     "atlas": "knight"
+  },
+  {
+    "model": "oldsnake",
+    "name": "oldsnake",
+    "color": "#656a7c",
+    "sheet": "/sprites/char-7.webp",
+    "atlas": "oldsnake"
   }
 ]
