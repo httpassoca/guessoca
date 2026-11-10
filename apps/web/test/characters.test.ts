@@ -2,7 +2,7 @@ import { describe, expect, test } from 'bun:test';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { CHARACTERS } from '@guess/rules';
-import { character, CHARACTER_ART, frameAt, frameIndex, PORTRAIT, sheetSize } from '../src/lib/sprites/characters';
+import { artScale, character, CHARACTER_ART, frameAt, frameIndex, PORTRAIT, sheetSize } from '../src/lib/sprites/characters';
 
 describe('personagens', () => {
   test('um por personagem do protocolo: quatro heróis, três esqueletos, o Kratos no lugar 6 e o Vorcaro no 8', () => {
@@ -23,6 +23,12 @@ describe('personagens', () => {
   test('as cores do CSS (--gs-char-N) são as do characters.json', () => {
     const css = readFileSync(join(import.meta.dir, '../src/app.css'), 'utf8');
     CHARACTER_ART.forEach((c, n) => expect(css).toContain(`--gs-char-${n}: ${c.color};`));
+  });
+
+  test('só o Vorcaro é arte grande desenhada encolhida; os outros valem 1 unidade por pixel', () => {
+    expect(CHARACTER_ART.map((c) => artScale(c.atlas) < 1)).toEqual([false, false, false, false, false, false, false, false, true]);
+    const v = character(8).atlas;
+    expect(Math.round((v.anchor.y - v.stand.y) * artScale(v))).toBe(50);
   });
 
   test('fora da faixa cai no primeiro, sem quebrar', () => {
@@ -58,9 +64,10 @@ describe('personagens', () => {
     });
 
     test(`${model}: o retrato (a janela da interface) mostra o parado inteiro, com o pé no mesmo lugar`, () => {
-      expect(PORTRAIT.anchorX - (atlas.anchor.x - atlas.stand.x)).toBeGreaterThanOrEqual(0);
-      expect(PORTRAIT.w - PORTRAIT.anchorX).toBeGreaterThanOrEqual(atlas.stand.x + atlas.stand.w - atlas.anchor.x);
-      expect(PORTRAIT.h).toBeGreaterThanOrEqual(atlas.anchor.y - atlas.stand.y);
+      const k = artScale(atlas);
+      expect(PORTRAIT.anchorX - (atlas.anchor.x - atlas.stand.x) * k).toBeGreaterThanOrEqual(0);
+      expect(PORTRAIT.w - PORTRAIT.anchorX).toBeGreaterThanOrEqual((atlas.stand.x + atlas.stand.w - atlas.anchor.x) * k);
+      expect(PORTRAIT.h).toBeGreaterThanOrEqual((atlas.anchor.y - atlas.stand.y) * k);
     });
   }
 

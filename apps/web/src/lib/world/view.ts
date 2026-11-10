@@ -8,7 +8,7 @@
  * `apps/web/test/world-view.test.ts`.
  */
 import { project, type Camera, type Vec3, type View } from '@guess/world';
-import { character } from '../sprites/characters';
+import { artScale, character } from '../sprites/characters';
 
 /**
  * quanto mundo, no mínimo, cabe na tela (largura e altura, em pixels do mundo) antes de a escala subir: uns dois terços
@@ -71,8 +71,8 @@ export function renderView(visible: View, insetLeft: number): View {
  * isso sai do atlas e não de `BODY_H`.
  */
 export function headY(n: number): number {
-  const { anchor, head } = character(n).atlas;
-  return anchor.y - head.y + 3;
+  const { atlas } = character(n);
+  return Math.round((atlas.anchor.y - atlas.head.y) * artScale(atlas)) + 3;
 }
 
 /** Onde vai a base (o meio de baixo) do post-it de quem está em `p` (unidades do mundo), em pixels da tela. */

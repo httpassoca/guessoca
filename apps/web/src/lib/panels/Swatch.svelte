@@ -5,7 +5,7 @@
    * até `size` pixels da tela; a escala aqui não é inteira, e o `image-rendering: pixelated` do `.gs-swatch` (`app.css`)
    * evita o borrão. A cor (`--c`) é a de `characters.json`, igual a `--gs-char-N`.
    */
-  import { character, sheetSize } from '../sprites/characters';
+  import { artScale, character, sheetSize } from '../sprites/characters';
   let { n, size = 22 }: { n: number | null; size?: number } = $props();
   const art = $derived(n === null ? null : character(n));
   const scale = $derived(art ? size / art.atlas.head.size : 1);
@@ -17,6 +17,7 @@
 {:else}
   <span
     class="gs-swatch"
+    class:smooth={artScale(art.atlas) < 1}
     aria-hidden="true"
     style:--c={art.color}
     style:width="{size}px"

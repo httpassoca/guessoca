@@ -7,7 +7,8 @@
  * Entrada: os JSON ao lado, escritos por `tools/sprites/src/index.ts` (não editar à mão; `bun run sprites` refaz). As
  * folhas ficam em `apps/web/public/sprites/char-N.png`. Quem lê: `world/scene.ts` (os quadros), `world/view.ts` (a
  * altura da cabeça), `panels/Hero.svelte` e `panels/Swatch.svelte` (o retrato e o rosto). Coordenadas: tudo aqui está em
- * pixels do quadro (ou da folha, em `frameAt`), com a âncora entre os pés; 1 pixel do quadro = 1 unidade do mundo.
+ * pixels do quadro (ou da folha, em `frameAt`), com a âncora entre os pés; 1 pixel do quadro = `artScale(atlas)` unidades
+ * do mundo (1, menos no Vorcaro, cuja folha é a arte no tamanho em que foi feita).
  *
  * Como mudar: um modelo novo é um atlas novo (`<modelo>.json`, gerado), importado aqui, com o nome em `Model` e em
  * `ATLASES`; o `Model` de `tools/sprites/src/characters.ts` tem que ter o mesmo nome. `CHARACTER_ART` é indexado pelo
@@ -40,7 +41,15 @@ export interface Atlas {
   animations: Record<AnimationName, { row: number; frames: number; fps: number; loop: boolean }>;
   /** a quem dar o crédito da arte (o herói: "Ozzbit Games", ADR 0007), ou null */
   credit: string | null;
+  /** quantas unidades do mundo vale um pixel do quadro; sem isto, 1. Menor que 1: arte grande, desenhada encolhida (o Vorcaro) */
+  scale?: number;
 }
+
+/**
+ * Quantas unidades do mundo vale um pixel do quadro deste atlas (1 no pixel art feito no tamanho do jogo). Tudo o que
+ * desenha um personagem multiplica os números do atlas por isto: `world/scene.ts`, `world/view.ts`, `Hero.svelte`.
+ */
+export const artScale = (atlas: Atlas): number => atlas.scale ?? 1;
 
 /** Um atlas por modelo; `characters.json` diz qual cada personagem usa. */
 const ATLASES: Record<Model, Atlas> = { hero, skeleton, kratos, vorcaro };
@@ -88,14 +97,14 @@ export function frameIndex(atlas: Atlas, name: AnimationName, elapsed: number): 
 }
 
 /**
- * A janela, em pixels do quadro, em que a interface mostra qualquer personagem parado, igual para todos os modelos: cabe
+ * A janela, em unidades do mundo (pixels do quadro vezes `artScale`), em que a interface mostra qualquer personagem parado, igual para todos os modelos: cabe
  * o parado inteiro de cada um com o pé em `anchorX`, na linha de baixo. Os quadros do esqueleto são largos (a espada do
- * golpe), mas aqui só o parado aparece. `w`, `h` e `anchorX` (o pé, a partir da esquerda) em pixels do quadro.
+ * golpe), mas aqui só o parado aparece. `w`, `h` e `anchorX` (o pé, a partir da esquerda) em unidades do mundo, arredondados para cima.
  */
 export const PORTRAIT = (() => {
   const atlases = Object.values(ATLASES);
-  const left = Math.max(...atlases.map((a) => a.anchor.x - a.stand.x));
-  const right = Math.max(...atlases.map((a) => a.stand.x + a.stand.w - a.anchor.x));
-  const h = Math.max(...atlases.map((a) => a.anchor.y - a.stand.y));
+  const left = Math.ceil(Math.max(...atlases.map((a) => (a.anchor.x - a.stand.x) * artScale(a))));
+  const right = Math.ceil(Math.max(...atlases.map((a) => (a.stand.x + a.stand.w - a.anchor.x) * artScale(a))));
+  const h = Math.ceil(Math.max(...atlases.map((a) => (a.anchor.y - a.stand.y) * artScale(a))));
   return { w: left + right, h, anchorX: left };
 })();

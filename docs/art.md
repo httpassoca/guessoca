@@ -50,7 +50,7 @@ Pipeline, `tools/sprites/src/` (`@guess/sprites`, pure apart from `png.ts` and t
 | `hero.ts` | The hero recipe: slice 128×128 cells, remove the sword from the shove, four hair ramps. |
 | `skeleton.ts` | The skeleton recipe: slice 170×125 cells, remove slash trails, draw run/jump/fall, four cape ramps. |
 | `kratos.ts` | The Kratos recipe: takes the side frame of a turnaround GIF and draws all seven animations from it (legs swung from the hip, torso leaned and bobbed). |
-| `vorcaro.ts` | The Vorcaro recipe: takes seven large image-model sheets (256×384 cells), grounds every frame, fixes off-place frames and shrinks 6× with a dominant-colour filter. |
+| `vorcaro.ts` | The Vorcaro recipe: takes seven large image-model sheets (256×384 cells) and only moves frames into place (feet on one ground line). No pixel changes; the atlas carries `scale: 1/6` and the game draws it smaller. |
 | `gif.ts` | Decodes an animated GIF into frames and lays them out as a one-row sheet. |
 | `characters.ts` | The nine slots (0–3 hero, 4, 5, 7 skeleton, 6 Kratos, 8 Vorcaro) → `characters.json`. |
 | `emotes.ts` | The emote balloons, from a 3×5 text font, one sheet per language. |
@@ -96,8 +96,8 @@ World geometry the art must match: `packages/world/src/index.ts` (`MAP`, `DEPTH`
 
 There are four spaces. Comments say which one a value is in.
 
-1. **Source-sheet pixels**: the pack's cells. Hero cells are 128×128 (`CELL` in `hero.ts`); skeleton cells are 170×125 (`CELL_W`, `CELL_H`), and in them the feet rest on row `FEET_Y = 80`; Kratos cells are 64×64 with the feet on row 62, pasted into a padded 96×72 working canvas; Vorcaro cells are 256×384 with the ground at row 352, shrunk 6× before `layout()`. Every recipe works in cell coordinates until `layout()`.
-2. **Frame pixels**: after `layout()` crops all frames of a model to the smallest rectangle containing every opaque pixel of every animation. The hero is 45×51, the skeleton 120×61, Kratos 46×64 and Vorcaro 34×51. The **anchor** is the point between the feet on the ground: `x` is the middle of the idle's feet, `y` is the bottom row of the first idle frame (the frame height, in practice). Atlas `head` and `stand` are in frame pixels too.
+1. **Source-sheet pixels**: the pack's cells. Hero cells are 128×128 (`CELL` in `hero.ts`); skeleton cells are 170×125 (`CELL_W`, `CELL_H`), and in them the feet rest on row `FEET_Y = 80`; Kratos cells are 64×64 with the feet on row 62, pasted into a padded 96×72 working canvas; Vorcaro cells are 256×384 with the ground at row 352, kept at that size. Every recipe works in cell coordinates until `layout()`.
+2. **Frame pixels**: after `layout()` crops all frames of a model to the smallest rectangle containing every opaque pixel of every animation. The hero is 45×51, the skeleton 120×61, Kratos 46×64 and Vorcaro 192×305 (drawn at 1/6: an atlas may carry `scale`, world units per frame pixel, default 1; read it with `artScale(atlas)` wherever atlas numbers become world or screen sizes). The **anchor** is the point between the feet on the ground: `x` is the middle of the idle's feet, `y` is the bottom row of the first idle frame (the frame height, in practice). Atlas `head` and `stand` are in frame pixels too.
 3. **World units**: `x` along the roofs (right is positive), `y` up (0 = the lowest roof), `z` depth (0 = front edge, `DEPTH = 56` = back). **1 world unit = 1 sprite pixel**, so a 40-px-tall prop is 40 units tall.
 4. **Screen pixels**: `project(p, cam, view)` gives `sx = (x − cam.x)·scale + width/2`, `sy = groundY − (y + z·DEPTH_K)·scale`. `DEPTH_K = 0.6` is an oblique projection: one unit of depth rises 0.6 px on screen while height stays 1:1, so a box's lid is drawn `round(depth · 0.6)` rows tall.
 
@@ -308,12 +308,15 @@ Take screenshots in the middle of each animation (run, jump, fall off a roof edg
 
 ### Art made by an image model
 
-Vorcaro is the pattern: the owner sends reference pictures to an image model and asks for seven one-row sheets (`idle`, `walk`, `run`, `jump`, `fall`, `fall_loop`, `shove`), with the hero's counts and speeds (10@10, 10@12, 10@14, 6@12, 4@12, 3@10, 7@16), facing right, one cell size, transparent background, no shadows or effects. Expect it to come back large, with thousands of colours and a few frames out of place, so the recipe's job is to measure and repair, not to draw:
+Vorcaro is the pattern: the owner sends reference pictures to an image model and asks for seven one-row sheets (`idle`, `walk`, `run`, `jump`, `fall`, `fall_loop`, `shove`), with the hero's counts and speeds (10@10, 10@12, 10@14, 6@12, 4@12, 3@10, 7@16), facing right, one cell size, transparent background, no shadows or effects. It comes back large and with a few frames out of place.
 
-1. Put the sheets in `assets-src/<name>/` and measure each cell's opaque bounds: the ground row, where the feet sit against the idle, and any frame whose head is a different size.
-2. Copy `vorcaro.ts`: set the cell size, `GROUND`, `SCALE` (source height ÷ the height you want in game), `FIXES` for frames to shift or grow, and drop duplicate last frames from loops in the spec.
+**Don't change the art.** No shrinking, recolouring, redrawing, rescaling a frame or dropping frames in the recipe: the owner wants the pixels as delivered. The recipe may only move whole frames, and the game draws the sheet smaller:
+
+1. Put the sheets in `assets-src/<name>/` and measure each cell's opaque bounds: the ground row, and where the feet sit against the idle.
+2. Copy `vorcaro.ts`: set the cell size, `GROUND`, `SHIFTS` for animations that sit off the feet, and `WORLD_SCALE` (the height you want in game ÷ the source height).
 3. Every frame's lowest point goes to the ground line, including airborne ones, so the shoes are where the physics body is.
-4. Check `bun run sprites:preview` for sliding feet, size jumps and a muddy face; a larger `SCALE` gives a smaller character with less detail.
+4. The atlas gets `scale`; the client already honours it (`artScale`). Sheets with `scale < 1` are filtered smoothly, without mipmaps (with mipmaps the sprite disappeared under software WebGL).
+5. Check `bun run sprites:preview` and the game for sliding feet. If a frame is wrong (wrong size, duplicate), tell the owner and ask for new art instead of fixing it in code.
 
 ## Pitfalls
 
