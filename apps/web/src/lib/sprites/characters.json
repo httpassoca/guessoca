@@ -68,5 +68,12 @@
     "color": "#2bb8a3",
     "sheet": "/sprites/char-9.webp",
     "atlas": "eve"
+  },
+  {
+    "model": "katarina",
+    "name": "katarina",
+    "color": "#e0364f",
+    "sheet": "/sprites/char-10.webp",
+    "atlas": "katarina"
   }
 ]

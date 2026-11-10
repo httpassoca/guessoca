@@ -74,7 +74,7 @@ apps/web           Vite + Svelte 5 + PixiJS v8 + dssoca
                            desistir ou votar, os post-its como posso vê-los, o ranking, a contagem regressiva
   src/lib/image.ts         a imagem do post-it: reduz a 512 px, WebP baixando a qualidade até caber, sobe por POST
   src/lib/effects.ts       "efeitos de tela" (os filtros de filme) ligados ou não, por navegador (localStorage)
-  src/lib/sprites/         os atlas gerados (`characters.json`, `hero.json`, `skeleton.json`, `kratos.json`, `vorcaro.json`, `orelha.json`, `bolsonaro.json`, `knight.json`, `oldsnake.json`, `pinocchio.json`, `eve.json`, `emotes.json`, `rooftop.json`),
+  src/lib/sprites/         os atlas gerados (`characters.json`, `hero.json`, `skeleton.json`, `kratos.json`, `vorcaro.json`, `orelha.json`, `bolsonaro.json`, `knight.json`, `oldsnake.json`, `pinocchio.json`, `eve.json`, `katarina.json`, `emotes.json`, `rooftop.json`),
                            `characters.ts`, que diz de que modelo é cada personagem, a folha, a cor e onde está cada quadro
                            no atlas do modelo, e `rooftop.ts`, o mesmo para os objetos do telhado e as faixas da cidade
   src/lib/world/            o telhado no navegador: controls (teclas → `Input`), loop (60 passos por segundo), presence (manda
@@ -117,7 +117,8 @@ tools/sprites      `bun run sprites` (@guess/sprites): as receitas que geram as 
   src/oldsnake.ts    o Old Snake: os números dele para `pack.ts`
   src/pinocchio.ts   o Pinóquio: os números dele para `pack.ts`
   src/eve.ts         a Eve: os números dela para `pack.ts`
-  src/characters.ts  os dez personagens (0 herói, 1 esqueleto, 2 Kratos, 3 Vorcaro, 4 Orelha, 5 Bolsonaro, 6 cavaleiro, 7 Old Snake, 8 Pinóquio, 9 Eve), que viram `characters.json`
+  src/katarina.ts    a Katarina: os números dela para `pack.ts`
+  src/characters.ts  os onze personagens (0 herói, 1 esqueleto, 2 Kratos, 3 Vorcaro, 4 Orelha, 5 Bolsonaro, 6 cavaleiro, 7 Old Snake, 8 Pinóquio, 9 Eve, 10 Katarina), que viram `characters.json`
   src/emotes.ts      os balões `?`, `!`, `haha`, "eu?"/"me?" com uma fonte 3×5 em texto
   src/rooftop.ts     o telhado em grades de texto: a paleta, a prancheta (`Sketch`) que carimba grades, tampo, muretas,
                      fachadas, as três caixas do mapa (ar-condicionado, chaminé, caixa-d'água), antenas, letreiros de neon,
@@ -154,9 +155,9 @@ Como a arte funciona e como importar arte nova (personagens, animações, objeto
 [`docs/art.md`](docs/art.md). `bun run sprites:preview` gera folhas de contato ampliadas do que está versionado em
 `.preview/` (fora do git) para conferir no olho.
 
-Há dez modelos de personagem. O herói é o "male hero" (versão grátis) da [Ozzbit Games](https://ozzbit-games.itch.io),
+Há onze modelos de personagem. O herói é o "male hero" (versão grátis) da [Ozzbit Games](https://ozzbit-games.itch.io),
 com licença só para uso pessoal e não comercial, modificações permitidas e crédito obrigatório (ADR 0007). O cavaleiro
-esqueleto, o Kratos, o Vorcaro, o Orelha, o Bolsonaro, o cavaleiro, o Old Snake, o Pinóquio e a Eve são arte do dono do jogo, sem restrição nem crédito (emendas da ADR 0007). Os pacotes ficam fora do git, em
+esqueleto, o Kratos, o Vorcaro, o Orelha, o Bolsonaro, o cavaleiro, o Old Snake, o Pinóquio, a Eve e a Katarina são arte do dono do jogo, sem restrição nem crédito (emendas da ADR 0007). Os pacotes ficam fora do git, em
 `assets-src/` (ignorado), e só as folhas que o pipeline gera são versionadas em `apps/web/public/sprites/` (os atlas em
 `apps/web/src/lib/sprites/`). O CI e o Docker usam o que está versionado e nunca precisam dos pacotes.
 
@@ -171,6 +172,7 @@ cp <folhas do cavaleiro> assets-src/knight/        # as mesmas, com attack.png n
 cp <folhas do Old Snake> assets-src/oldsnake/      # idem
 cp <folhas do Pinóquio> assets-src/pinocchio/      # idem
 cp <folhas da Eve> assets-src/eve/                 # idem
+cp <folhas da Katarina> assets-src/katarina/       # idem
 bun run sprites                             # refaz as folhas e os atlas
 ```
 
@@ -179,7 +181,7 @@ com erro.
 
 O que sai:
 
-- `char-0.png`, `char-1.png` e `char-2.webp` … `char-9.webp` (a arte grande, em WebP sem perda): uma folha por personagem, com uma linha por animação, na mesma ordem em todos os modelos:
+- `char-0.png`, `char-1.png` e `char-2.webp` … `char-10.webp` (a arte grande, em WebP sem perda): uma folha por personagem, com uma linha por animação, na mesma ordem em todos os modelos:
   parado, andando, correndo, pulo, queda, queda em loop e empurrão.
   - `char-0`: o herói, de cabelo loiro (o pacote vem castanho; o jogo já teve também preto e ruivo). O empurrão é o golpe do pacote
     sem a espada: as cores da lâmina e do cabo saem por cor, o rastro branco por ser uma mancha branca grande, e o
@@ -212,8 +214,10 @@ O que sai:
   - `char-9`: a Eve, a espadachim de rabo de cavalo escuro e traje verde-esmeralda, com uma espada longa; um desenho
     novo que o dono mandou, pixel art de 33 cores. Células de 192×192, desenhada a 0,36 (50 de altura). O ataque é uma
     estocada.
-- `characters.json`: os dez, cada um com o modelo, o nome da cor, a cor na interface, a folha e o atlas. Um atlas por
-  modelo (`hero.json`, `skeleton.json`, `kratos.json`, `vorcaro.json`, `orelha.json`, `bolsonaro.json`, `knight.json`, `oldsnake.json`, `pinocchio.json`, `eve.json`): tamanho do quadro, âncora (entre os pés), a cabeça, o parado, as linhas das
+  - `char-10`: a Katarina, a assassina de cabelo vermelho comprido, com duas adagas; um desenho novo que o dono mandou,
+    pixel art de 48 cores. Células de 144×144, desenhada com 50 de altura (um adulto). O ataque é um golpe de adaga.
+- `characters.json`: os onze, cada um com o modelo, o nome da cor, a cor na interface, a folha e o atlas. Um atlas por
+  modelo (`hero.json`, `skeleton.json`, `kratos.json`, `vorcaro.json`, `orelha.json`, `bolsonaro.json`, `knight.json`, `oldsnake.json`, `pinocchio.json`, `eve.json`, `katarina.json`): tamanho do quadro, âncora (entre os pés), a cabeça, o parado, as linhas das
   animações com quadros, fps e loop, e o crédito (ou null).
 - `emotes-pt-BR.png` e `emotes-en-US.png`: os balões das teclas 1–4; só o "eu?"/"me?" muda de uma para a outra.
 - `rooftop.png` (atlas em `rooftop.json`): o telhado neon-noir, todo desenhado em grades de texto em
@@ -232,8 +236,8 @@ O que sai:
 ### Pedir um personagem ou objeto novo
 
 - **Outra cor de cabelo** ou **outra capa**: mais uma rampa (um lugar a mais) em `HAIRS` (sombra, base, brilho) em
-  `tools/sprites/src/hero.ts` ou em `CAPES` (sombra, base) em `tools/sprites/src/skeleton.ts`. São dez personagens
-  (não exclusivos; a sala tem até oito pessoas): o herói, o esqueleto, o Kratos, o Vorcaro, o Orelha, o Bolsonaro, o cavaleiro, o Old Snake, o Pinóquio e a Eve, na ordem de `characters.ts`. A cor do personagem na interface é
+  `tools/sprites/src/hero.ts` ou em `CAPES` (sombra, base) em `tools/sprites/src/skeleton.ts`. São onze personagens
+  (não exclusivos; a sala tem até oito pessoas): o herói, o esqueleto, o Kratos, o Vorcaro, o Orelha, o Bolsonaro, o cavaleiro, o Old Snake, o Pinóquio, a Eve e a Katarina, na ordem de `characters.ts`. A cor do personagem na interface é
   a base da rampa; atualize `--gs-char-N` em `apps/web/src/app.css` (o teste confere).
 - **Variantes do esqueleto**: a capa é `771818` (sombra) e `982b2b` (base), os únicos vermelhos da arte além do olho
   (`fe0707`, que fica). Diga a cor da capa nova, ou outra peça (a espada, os ossos) e a cor; uma animação nova ou
@@ -295,5 +299,5 @@ certbot) são guiados por `bash deploy/wizard.sh`, que termina provando HTTPS e 
 ## Créditos
 
 Herói: [Ozzbit Games](https://ozzbit-games.itch.io) (pacote "male hero", uso pessoal e não comercial). O pacote original
-não está no repositório; só as folhas geradas pelo pipeline (ADR 0007). O cavaleiro esqueleto, o Kratos, o Vorcaro, o Orelha, o Bolsonaro, o cavaleiro, o Old Snake, o Pinóquio e a Eve são arte do dono do jogo.
+não está no repositório; só as folhas geradas pelo pipeline (ADR 0007). O cavaleiro esqueleto, o Kratos, o Vorcaro, o Orelha, o Bolsonaro, o cavaleiro, o Old Snake, o Pinóquio, a Eve e a Katarina são arte do dono do jogo.
 Guessoca não é comercial e não tem anúncios.
