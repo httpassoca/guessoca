@@ -119,6 +119,10 @@ describe('personagem de sete folhas', () => {
     expect(prompt).toContain('"size"');
     expect(prompt).toContain('"standing_height_px"');
     expect(prompt).toContain('FOUR alternative designs');
+    // e os mesmos limites de quadros e de fps
+    expect(prompt).toContain(`at most ${MAX_FRAMES} for the attack`);
+    expect(prompt).toContain('any value up to 60');
+    expect(prompt).toContain('attack.png        18');
   });
 
   test('um pacote pode escolher os próprios quadros: o empurrão cabe no tempo do jogo e a queda dura o tempo dela', () => {
@@ -133,7 +137,7 @@ describe('personagem de sete folhas', () => {
     expect(specProblems(slow)).toEqual(['shove: dura 750 ms, e o jogo corta em 450 ms']);
     const long = packSpec({ ...timing(spec), fall: [8, 12] });
     expect(specProblems(long)[0]).toContain('fall: dura 667 ms');
-    const many = packSpec({ ...timing(spec), idle: [MAX_FRAMES + 1, 10], run: [10, 60] });
+    const many = packSpec({ ...timing(spec), idle: [MAX_FRAMES + 1, 10], run: [10, 61] });
     expect(specProblems(many)).toHaveLength(2);
     // e a receita recusa montar com tempos que não servem
     expect(() => buildPack(pack(), { ...C, spec: slow })).toThrow(/Boneco.*shove.*750 ms/);
@@ -141,6 +145,33 @@ describe('personagem de sete folhas', () => {
     const c = { ...C, spec };
     const { atlas } = buildPack(pack(0, c), c);
     expect(atlas.animations.shove).toMatchObject({ frames: 12, fps: 27 });
+  });
+
+  test('o ataque pode ter uma célula própria, maior: os pés ficam no mesmo lugar e o quadro cresce para caber', () => {
+    // o pedido novo: pelo menos 18 quadros de ataque (40 fps em 0,45 s), numa célula de 100×80 em vez de 40×60
+    const spec = packSpec({ idle: [8, 8], walk: [8, 10], run: [8, 14], jump: [8, 20], fall: [8, 24], fall_loop: [8, 16], shove: [18, 40] });
+    expect(specProblems(spec)).toEqual([]);
+    // na célula maior o boneco fica 20 pixels mais à direita e 20 mais abaixo; o braço estica 40 pixels no quadro 9
+    const wide = blank(18 * 100, 80);
+    for (let i = 0; i < 18; i++) {
+      fill(wide, i * 100 + 36, 28, 10, 14, 'aa7744');
+      fill(wide, i * 100 + 32, 42, 16, 30, '222244');
+      fill(wide, i * 100 + 32, 72, 16, 4, '221111');
+      if (i === 9) fill(wide, i * 100 + 48, 50, 40, 4, 'eeeeee');
+    }
+    const c: PackConfig = { ...C, padX: 20, spec, cells: { shove: { cellW: 100, cellH: 80, dx: -20 } } };
+    const sheets = { ...pack(0, c), shove: wide };
+    const rows = derive(sheets, c);
+    const idle = bounds(rows[0][0])!, first = bounds(rows[6][0])!, reach = bounds(rows[6][9])!;
+    expect([first.x, first.y + first.h]).toEqual([idle.x, idle.y + idle.h]); // os pés do ataque onde estão os do parado
+    expect(reach.x + reach.w).toBe(idle.x + idle.w + 40);
+    const { sheets: [out], atlas } = buildPack(sheets, c);
+    expect(atlas.animations.shove).toMatchObject({ frames: 18, fps: 40, loop: false });
+    expect(atlas.frame.w).toBe(16 + 40); // o boneco e o alcance do braço
+    expect(atlas.anchor.x).toBe(atlas.stand.x + 8);
+    expect(out.width).toBe(18 * atlas.frame.w);
+    // sem folga para andar a célula maior, a receita diz o que falta
+    expect(() => buildPack(sheets, { ...c, padX: 8 })).toThrow(/shove.*padX.*20/);
   });
 
   test('o empurrão do jogo vem de attack.png se o pacote tiver, senão de shove.png', () => {

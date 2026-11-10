@@ -82,3 +82,7 @@ Three packs made with the prompt that fixes the pixel density and lets the model
 
 All three are new drawings generated for the owner (the first two in the likeness of Marvel's Punisher and of Guido Mista from JoJo's Bizarre Adventure), not another game's or publisher's extracted art. `CHARACTERS` goes from 11 to 13, and the picker to rows of seven (fourteen in two rows).
 
+## Amendment: at least 8 frames, 18 for the attack, and an attack that may leave the cell
+
+The owner raised the prompt's minimums: every animation has at least 8 frames and the attack at least 18, and the attack may reach outside the character's cell. The game still shows the attack for `SHOVE_COOLDOWN_MS` (0.45 s), so 18 frames play at 40 fps; the limits in `pack.ts` moved to 24 frames and 60 fps. For the reach, `attack.png` may have a larger cell than the other sheets: `PackConfig.cells` gives an animation its own cell size and the offset that puts its feet where the idle's are. Because every frame of a model is cropped to one rectangle, a far-reaching attack widens all of them; `buildPack` rejects a sheet over 8192 px on a side instead of producing a texture some machines can't load. No existing pack uses either feature yet.
+

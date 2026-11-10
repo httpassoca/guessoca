@@ -18,35 +18,47 @@ WHAT TO DELIVER
   idle.png           8       0.8-1.6 s per cycle   yes    standing, breathing; small motion only
   walk.png           8       0.7-1.0 s per cycle   yes    one full walk cycle (both steps)
   run.png            8       0.5-0.8 s per cycle   yes    one full run cycle, body leaning forward
-  jump.png           5       0.3-0.5 s             no     crouch, push off, rise; last frame is held while going up
-  fall.png           3       exactly 0.33 s        no     turning from rising to falling; last frame is held
-  fall_loop.png      3       0.3-0.5 s per cycle   yes    falling, small flutter of limbs/cloth/hair
-  attack.png         6       at most 0.45 s        no     one attack forward, then recover to the idle pose
+  jump.png           8       0.3-0.5 s             no     crouch, push off, rise; last frame is held while going up
+  fall.png           8       exactly 0.33 s        no     turning from rising to falling; last frame is held
+  fall_loop.png      8       0.3-0.6 s per cycle   yes    falling, small flutter of limbs/cloth/hair
+  attack.png        18       at most 0.45 s        no     one attack forward, then recover to the idle pose
 
-   The frame counts are minimums, not targets. For each animation, decide how
-   many frames this character needs (at most 16):
+   The frame counts are minimums, not targets: no animation has fewer than 8
+   frames, and the attack has at least 18. For each animation, decide how many
+   frames this character needs (at most 16, and at most 24 for the attack):
    - start from the minimum and add frames where the motion would otherwise jump:
      a heavy or large body, four legs, a long weapon arc, a two-part attack, or
      cloth, hair, a tail or ears that follow through after the body stops;
-   - a simple, small or stiff character can stay at the minimum; do not pad an
-     animation with near-identical frames;
+   - every frame must be a real step of the motion: do not reach the minimum by
+     repeating a frame or by nudging one pixel. If an animation feels done in
+     fewer frames, add anticipation, overshoot, settle and follow-through;
    - more frames make the motion smoother, not longer: the duration stays inside
-     the range in the table, and fps = frames / duration (any value up to 36,
-     decimals allowed);
+     the range in the table, and fps = frames / duration (any value up to 60,
+     decimals allowed). An 18-frame attack in 0.45 s plays at 40 fps;
    - write down, per animation, the count you chose and one line of why.
 
    The attack: if the character has a weapon, it attacks WITH that weapon (a sword
    swings or thrusts, a gun fires, a staff strikes). With no weapon, it punches,
    kicks, shoves, bites or headbutts, whatever suits the character. Build it as
-   anticipation (1-2 frames), strike (1-2 frames, the widest pose), recovery back
-   to idle.
+   anticipation (4-6 frames: wind-up, weight shift), strike (4-6 frames: the
+   weapon or limb travelling, contact, the widest pose), recovery (the rest:
+   overshoot, settle, back to the idle pose).
+
+   The attack may leave the cell. attack.png, and only attack.png, may use its own
+   larger cell (wider, taller, or both, up to three times the normal cell width)
+   so a long weapon, a lunge, a projectile leaving a gun or a jumping strike has
+   room. The character still stands on the same ground line, and its feet in the
+   first and last attack frames are where they are in the idle. Every attack frame
+   uses that same larger cell.
 
    Also put a "sheet.json" in the folder with: the cell width and height, the y of
    the ground line in the cell, the x of the point between the feet in the idle,
    "size" (the character's standing height as a multiple of the reference human,
    see SIZE AND PROPORTIONS), "standing_height_px" (its height in pixels in the
    first idle frame, from the top of the head to the ground line), and for each
-   animation its file, frames, fps and loop, exactly as you drew it.
+   animation its file, frames, fps and loop, exactly as you drew it. If the attack
+   uses a larger cell, add under "attack": "cell_width", "cell_height", "ground_y"
+   and "feet_x" (the same two measures, taken in the attack cell).
 
 2. A preview page (see PREVIEW PAGE below), so I can judge the animations before
    importing.
@@ -130,8 +142,9 @@ This is frame-by-frame pixel-art animation, not an image that gets warped.
 
 RULES FOR EVERY FRAME
 1. Side view, facing RIGHT. The game mirrors the sprite for left.
-2. One cell size for all seven sheets, chosen to fit the character at its size
-   (see SIZE AND PROPORTIONS), identical everywhere.
+2. One cell size for the six sheets other than the attack, chosen to fit the
+   character at its size (see SIZE AND PROPORTIONS), identical everywhere. The
+   attack may have its own larger cell.
 3. Same character, same scale, same proportions, same colours and same outfit in
    every frame. No drifting details between frames or between sheets.
 4. Feet on the same ground line in every cell, and the body at the same horizontal
@@ -147,9 +160,9 @@ RULES FOR EVERY FRAME
    the weapon's own effect (a muzzle flash, a short blade arc) only if it is
    compact, hard-edged and gone by the recovery frames.
 8. Hard edges: every pixel is either fully opaque or fully transparent.
-9. Keep poses compact. Nothing should swing far outside the body (no long wind-up
-   behind the back in the attack), because the widest pose sets the frame size for
-   all animations.
+9. Keep poses compact in every animation except the attack: nothing should swing
+   far outside the body in idle, walk, run, jump or fall. The attack is the
+   exception (see its larger cell above).
 10. If the character carries something (a weapon, a bag), it stays in every
     animation, held the same way, and it is what the attack uses.
 11. Limited palette with clear shading steps, readable at small size on a dark
@@ -208,6 +221,10 @@ It must have every one of these features:
   a live frame counter (Frame 03 / 10), and whether it loops. Looping ones play
   forever; one-shot ones (jump, fall, attack) play once, hold the last frame for
   one second, then restart.
+- If the attack has a larger cell, its canvas is that size and the character's
+  feet line up with the other animations (same ground line on screen); in the
+  combined sequence the canvas is large enough for the attack and the other
+  states are drawn at the same feet position, so nothing jumps when it switches.
 - Canvases draw with nearest-neighbour scaling (image-rendering: pixelated, image
   smoothing off), on a dark background (#1a1028) unless the checkerboard is on.
 - Footer: a note that the PNGs are embedded and nothing is fetched, the ground y,

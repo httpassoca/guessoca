@@ -55,8 +55,10 @@ export const PACK_SPEC: ModelSpec = {
 /** Quais animações dão a volta; as outras tocam uma vez e param no último quadro. Igual para todo personagem. */
 const LOOPS: Record<AnimationName, boolean> = { idle: true, walk: true, run: true, jump: false, fall: false, fall_loop: true, shove: false };
 /** O maior número de quadros de uma animação, e o maior fps, que o pedido da arte aceita. */
-export const MAX_FRAMES = 16;
-export const MAX_FPS = 36;
+export const MAX_FRAMES = 24;
+export const MAX_FPS = 60;
+/** O maior lado de uma folha gerada, em pixels: o que qualquer placa de vídeo de computador aceita como textura. */
+export const MAX_SHEET = 8192;
 
 /**
  * A `ModelSpec` de um pacote que escolheu os próprios quadros: o pedido da arte dá um mínimo por animação e uma duração,
@@ -112,7 +114,22 @@ export interface PackConfig {
   headShift?: number;
   /** quantas linhas de baixo do parado são sola (para achar o meio dos pés) */
   feetRows: number;
+  /**
+   * Animações cuja folha tem uma célula própria, maior que a das outras: o pedido da arte deixa o ataque sair da célula
+   * (uma estocada comprida, um tiro, um golpe pulando). `cellW` e `cellH` são dessa folha; `dx` é quanto os quadros dela
+   * andam para os pés caírem no mesmo x dos pés do parado: o x dos pés na célula normal menos o x dos pés na célula
+   * maior (em geral negativo; `padX` tem que ser pelo menos `-dx`). O chão continua sendo o ponto mais baixo do quadro.
+   */
+  cells?: Partial<Record<AnimationName, { cellW: number; cellH: number; dx: number }>>;
 }
+
+/** A célula das folhas de uma animação: a própria (`cells`), ou a de todas. */
+const cellOf = (c: PackConfig, name?: AnimationName) => (name && c.cells?.[name]) || { cellW: c.cellW, cellH: c.cellH, dx: 0 };
+/** O tamanho da tela de trabalho: cabe a maior célula, com `padX` de folga de cada lado. */
+const canvasOf = (c: PackConfig) => {
+  const all = [{ cellW: c.cellW, cellH: c.cellH }, ...Object.values(c.cells ?? {})];
+  return { w: Math.max(...all.map((x) => x.cellW)) + 2 * c.padX, h: Math.max(...all.map((x) => x.cellH)) };
+};
 
 /**
  * O tamanho no jogo. A referência é um adulto comum de pé: `NORMAL_HEIGHT` unidades do mundo (a Eve, o Pinóquio e o
@@ -136,9 +153,10 @@ export const PACK_WORLD_SCALE = NORMAL_HEIGHT / NORMAL_ART_HEIGHT;
  */
 export const worldScaleFor = (size: number, artHeight: number): number => (size * NORMAL_HEIGHT) / artHeight;
 
-/** As células de uma folha, da esquerda para a direita, como vieram. */
-export function cellsOf(sheet: Image, c: PackConfig): Image[] {
-  return Array.from({ length: Math.floor(sheet.width / c.cellW) }, (_, i) => crop(sheet, i * c.cellW, 0, c.cellW, c.cellH));
+/** As células de uma folha, da esquerda para a direita, como vieram (`name`: a animação, se a folha dela tem célula própria). */
+export function cellsOf(sheet: Image, c: PackConfig, name?: AnimationName): Image[] {
+  const { cellW, cellH } = cellOf(c, name);
+  return Array.from({ length: Math.floor(sheet.width / cellW) }, (_, i) => crop(sheet, i * cellW, 0, cellW, cellH));
 }
 
 /**
@@ -147,8 +165,9 @@ export function cellsOf(sheet: Image, c: PackConfig): Image[] {
  */
 export function place(cell: Image, c: PackConfig, dx = 0): Image {
   const b = bounds(cell);
-  const out = blank(c.cellW + 2 * c.padX, c.cellH);
-  if (b) blit(out, cell, c.padX + dx, c.cellH - (b.y + b.h));
+  const { w, h } = canvasOf(c);
+  const out = blank(w, h);
+  if (b) blit(out, cell, c.padX + dx, h - (b.y + b.h));
   return out;
 }
 
@@ -157,10 +176,10 @@ export function derive(sheets: Readonly<Record<string, Image>>, c: PackConfig): 
   return ANIMATION_NAMES.map((name) => {
     const sheet = sheets[name];
     if (!sheet) throw new Error(`folha de ${c.name} faltando: ${name}`);
-    const cells = cellsOf(sheet, c);
+    const cells = cellsOf(sheet, c, name);
     const want = c.spec.animations[name].frames;
     if (cells.length < want) throw new Error(`${name}: a folha de ${c.name} tem ${cells.length} quadros, esperava ${want}`);
-    return cells.slice(0, want).map((cell) => place(cell, c, c.shifts[name] ?? 0));
+    return cells.slice(0, want).map((cell) => place(cell, c, (c.shifts[name] ?? 0) + cellOf(c, name).dx));
   });
 }
 
@@ -184,7 +203,13 @@ export function headBox(idle: Image, rows: number, side?: number, shift = 0): At
 export function buildPack(sheets: Readonly<Record<string, Image>>, c: PackConfig): { sheets: Image[]; atlas: Atlas } {
   const problems = specProblems(c.spec);
   if (problems.length) throw new Error(`os tempos de ${c.name} não servem: ${problems.join('; ')}`);
+  for (const [name, cell] of Object.entries(c.cells ?? {})) {
+    if (c.padX + cell.dx + (c.shifts[name as AnimationName] ?? 0) < 0) throw new Error(`${name} de ${c.name}: a célula própria anda ${cell.dx} pixels e sai da tela; padX tem que ser pelo menos ${-cell.dx}`);
+  }
   const rows = derive(sheets, c);
   const { sheet, atlas } = layout(rows, c.spec, { anchorX: feetX(rows[0][0], c.feetRows), head: (idle) => headBox(idle, c.headRows, c.headSize, c.headShift) });
+  if (sheet.width > MAX_SHEET || sheet.height > MAX_SHEET) {
+    throw new Error(`a folha de ${c.name} ficou com ${sheet.width}×${sheet.height} pixels, mais que ${MAX_SHEET}: o ataque alcança longe demais ou tem quadros demais para uma textura só`);
+  }
   return { sheets: [sheet], atlas: { ...atlas, scale: c.worldScale } };
 }
