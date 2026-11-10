@@ -12,8 +12,9 @@ owner's files ──cp──▶ assets-src/ (gitignored)         text grids in c
                          │   bun run sprites   (tools/sprites/src/index.ts)
                          ▼
    apps/web/public/sprites/*.png        apps/web/src/lib/sprites/*.json      (both committed)
-   char-0..8, rooftop, skyline-*,       hero, skeleton, kratos, vorcaro,
-   emotes-<lang>                        characters, rooftop, emotes
+   char-0..7.png, char-8.webp,          hero, skeleton, kratos, vorcaro,
+   rooftop, skyline-*,                  characters, rooftop, emotes
+   emotes-<lang>
                          │                        │
                          ▼                        ▼
         served as files (/sprites/…)    imported by apps/web/src/lib/sprites/{characters,rooftop}.ts
@@ -315,8 +316,9 @@ Vorcaro is the pattern: the owner sends reference pictures to an image model and
 1. Put the sheets in `assets-src/<name>/` and measure each cell's opaque bounds: the ground row, and where the feet sit against the idle.
 2. Copy `vorcaro.ts`: set the cell size, `GROUND`, `SHIFTS` for animations that sit off the feet, and `WORLD_SCALE` (the height you want in game ÷ the source height).
 3. Every frame's lowest point goes to the ground line, including airborne ones, so the shoes are where the physics body is.
-4. The atlas gets `scale`; the client already honours it (`artScale`). Sheets with `scale < 1` are filtered smoothly, without mipmaps (with mipmaps the sprite disappeared under software WebGL).
-5. Check `bun run sprites:preview` and the game for sliding feet. If a frame is wrong (wrong size, duplicate), tell the owner and ask for new art instead of fixing it in code.
+4. Give the model `'webp'` in `SHEET_FORMAT` (`characters.ts`): large sheets are written as **lossless** WebP with Bun's built-in encoder (`writeWebp` in `png.ts`), about a third smaller than PNG with identical visible pixels. Never lossy.
+5. The atlas gets `scale`; the client already honours it (`artScale`). Sheets with `scale < 1` are filtered smoothly, without mipmaps (with mipmaps the sprite disappeared under software WebGL).
+6. Check `bun run sprites:preview` and the game for sliding feet. If a frame is wrong (wrong size, duplicate), tell the owner and ask for new art instead of fixing it in code.
 
 ## Pitfalls
 

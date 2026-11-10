@@ -9,6 +9,7 @@ describe('personagens', () => {
     expect(CHARACTER_ART).toHaveLength(CHARACTERS);
     expect(CHARACTER_ART.map((c) => c.model)).toEqual(['hero', 'hero', 'hero', 'hero', 'skeleton', 'skeleton', 'kratos', 'skeleton', 'vorcaro']);
     expect(character(3).sheet).toBe('/sprites/char-3.png');
+    expect(character(8).sheet).toBe('/sprites/char-8.webp');
     expect(character(5).atlas).toBe(character(4).atlas);
     expect(character(7).atlas).toBe(character(4).atlas);
     expect(character(0).atlas).not.toBe(character(4).atlas);

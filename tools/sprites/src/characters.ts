@@ -22,6 +22,12 @@ import { VORCARO_COLOR } from './vorcaro';
 /** Os modelos de personagem; cada um tem uma receita, um pacote em `assets-src/` e um atlas `<modelo>.json`. */
 export type Model = 'hero' | 'skeleton' | 'kratos' | 'vorcaro';
 
+/**
+ * O formato da folha de cada modelo: PNG para o pixel art no tamanho do jogo; WebP sem perda para a arte grande que o
+ * jogo desenha encolhida (o Vorcaro: 2 MB em PNG, 1,3 MB em WebP, os mesmos pixels).
+ */
+export const SHEET_FORMAT: Record<Model, 'png' | 'webp'> = { hero: 'png', skeleton: 'png', kratos: 'png', vorcaro: 'webp' };
+
 /** O lugar do Kratos na lista. */
 export const KRATOS_SLOT = 6;
 
@@ -32,7 +38,7 @@ export interface CharacterEntry {
   name: string;
   /** a cor do personagem na interface, `#rrggbb`: a base da rampa (o mesmo valor de `--gs-char-N` no CSS) */
   color: string;
-  /** a folha, servida do `public`: `/sprites/char-N.png` */
+  /** a folha, servida do `public`: `/sprites/char-N.png` (ou `.webp`, conforme `SHEET_FORMAT`) */
   sheet: string;
   /** o atlas do modelo (`hero.json`, `skeleton.json`, `kratos.json` ou `vorcaro.json`) */
   atlas: Model;
@@ -49,5 +55,5 @@ export function characters(): CharacterEntry[] {
   ];
   list.splice(KRATOS_SLOT, 0, { model: 'kratos' as const, name: 'kratos', color: `#${KRATOS_COLOR}` });
   list.push({ model: 'vorcaro' as const, name: 'vorcaro', color: `#${VORCARO_COLOR}` });
-  return list.map((c, n) => ({ ...c, sheet: `/sprites/char-${n}.png`, atlas: c.model }));
+  return list.map((c, n) => ({ ...c, sheet: `/sprites/char-${n}.${SHEET_FORMAT[c.model]}`, atlas: c.model }));
 }

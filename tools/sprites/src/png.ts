@@ -25,3 +25,28 @@ export function writePng(path: string, img: Image) {
   mkdirSync(dirname(path), { recursive: true });
   writeFileSync(path, PNG.sync.write(png, { colorType: 6 }));
 }
+
+/**
+ * Grava a imagem como WebP **sem perda** (o codificador que vem no Bun, `Bun.Image`): os pixels visíveis voltam
+ * idênticos, e o arquivo sai uns 30 % menor que o PNG. Para as folhas grandes (arte de modelo de imagem, que o jogo
+ * desenha encolhida); o pixel art pequeno continua em PNG. O RGB por baixo de um pixel transparente não é guardado.
+ */
+export async function writeWebp(path: string, img: Image) {
+  const png = new PNG({ width: img.width, height: img.height });
+  png.data = Buffer.from(img.data);
+  mkdirSync(dirname(path), { recursive: true });
+  writeFileSync(path, await new Bun.Image(PNG.sync.write(png, { colorType: 6 })).webp({ lossless: true }).bytes());
+}
+
+/** Lê um WebP como `Image`; os pixels transparentes voltam com RGB zero. */
+export async function readWebp(path: string): Promise<Image> {
+  const png = PNG.sync.read(Buffer.from(await new Bun.Image(readFileSync(path)).png().bytes()));
+  const data = new Uint8Array(png.data);
+  for (let i = 0; i < data.length; i += 4) if (!data[i + 3]) data[i] = data[i + 1] = data[i + 2] = 0;
+  return { width: png.width, height: png.height, data };
+}
+
+/** Lê uma folha gerada pelo nome: `.webp` ou PNG. */
+export const readSheet = async (path: string): Promise<Image> => (path.endsWith('.webp') ? readWebp(path) : readPng(path));
+/** Grava uma folha gerada pelo nome: `.webp` (sem perda) ou PNG. */
+export const writeSheet = async (path: string, img: Image) => (path.endsWith('.webp') ? writeWebp(path, img) : writePng(path, img));

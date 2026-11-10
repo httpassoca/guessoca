@@ -1,6 +1,6 @@
 /**
  * `bun run sprites`: roda as receitas sobre os pacotes em `assets-src/` (fora do git, ADR 0007) e escreve as folhas que o
- * jogo usa em `apps/web/public/sprites/` (`char-0.png` … `char-8.png`, uma por personagem) e os atlas em
+ * jogo usa em `apps/web/public/sprites/` (`char-0.png` … `char-7.png` e `char-8.webp`, uma por personagem) e os atlas em
  * `apps/web/src/lib/sprites/` (`hero.json`, `skeleton.json`, `kratos.json`, `vorcaro.json` e `characters.json`, que liga cada personagem ao seu).
  * Só a saída vai para o git; o CI e o Docker nunca precisam dos pacotes.
  * O telhado (objetos em grade de texto e a cidade ao fundo) não usa o pacote e sai primeiro, mesmo sem ele.
@@ -22,7 +22,7 @@ import { buildSkeleton, SHEETS as SKELETON_SHEETS } from './skeleton';
 import { readGifStrip } from './gif';
 import { rooftopSheet } from './rooftop';
 import { SKYLINES, skyline } from './skyline';
-import { readPng, writePng } from './png';
+import { readPng, writePng, writeSheet } from './png';
 
 const root = resolve(import.meta.dir, '../../..');
 /** as folhas do pacote da Ozzbit que o herói usa */
@@ -94,7 +94,7 @@ for (const m of models) {
   }
   const built = m.build(Object.fromEntries(m.files.map(([name, file]) => [name, readSheet(join(m.pack, file))])));
   const slots = list.flatMap((c, n) => (c.model === m.model ? [n] : []));
-  slots.forEach((n, i) => writePng(join(out, `char-${n}.png`), built.sheets[i]));
+  for (const [i, n] of slots.entries()) await writeSheet(join(out, list[n].sheet.replace(/^\/sprites\//, '')), built.sheets[i]);
   writeFileSync(join(atlasOut, `${m.model}.json`), JSON.stringify(built.atlas, null, 2) + '\n');
   console.log(`${m.model}: personagens ${slots.join(', ')}, folhas de ${built.sheets[0].width}×${built.sheets[0].height}, quadro ${built.atlas.frame.w}×${built.atlas.frame.h}`);
 }
@@ -110,7 +110,7 @@ for (const lang of langs) {
 }
 writeFileSync(join(atlasOut, 'emotes.json'), JSON.stringify(emoteAtlas, null, 2) + '\n');
 // nomes de antes do esqueleto (os atlas moravam no `public`, as folhas eram `hero-N.png`): se ainda estão lá, saem
-for (const stale of ['hero.json', 'emotes.json', ...Array.from({ length: 8 }, (_, n) => `hero-${n}.png`)]) rmSync(join(out, stale), { force: true });
+for (const stale of ['hero.json', 'emotes.json', 'char-8.png', ...Array.from({ length: 8 }, (_, n) => `hero-${n}.png`)]) rmSync(join(out, stale), { force: true });
 if (missing.length) {
   console.error(`faltou o pacote de: ${missing.join(', ')}`);
   process.exitCode = 1;

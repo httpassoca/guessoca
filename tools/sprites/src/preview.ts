@@ -18,7 +18,7 @@ import { ANIMATION_NAMES, type Atlas } from './atlas';
 import type { CharacterEntry } from './characters';
 import type { EmoteAtlas } from './emotes';
 import { blank, blit, crop, getPixel, rgbOf, setPixel, type Hex, type Image } from './image';
-import { readPng, writePng } from './png';
+import { readPng, readSheet, writePng } from './png';
 import type { RooftopAtlas } from './rooftop';
 
 /** A ampliação das folhas de contato: 1 pixel da folha vira `SCALE × SCALE` pixels da imagem. */
@@ -122,7 +122,7 @@ if (import.meta.main) {
     writePng(path, img);
     written.push(`${relative(root, path)}  ${img.width}×${img.height}`);
   };
-  const sheetOf = (url: string) => readPng(join(sheets, url.replace(/^\/sprites\//, '')));
+  const sheetOf = (url: string) => readSheet(join(sheets, url.replace(/^\/sprites\//, '')));
 
   // os personagens: uma imagem por animação de cada modelo, e o parado dos nove
   const list = json<CharacterEntry[]>('characters.json');
@@ -131,7 +131,7 @@ if (import.meta.main) {
   const seen = new Set<string>();
   for (const c of list) {
     const atlas = json<Atlas>(`${c.atlas}.json`);
-    const sheet = sheetOf(c.sheet);
+    const sheet = await sheetOf(c.sheet);
     idles.push(animationFrames(sheet, atlas, 'idle')[0]);
     idleAnchors.push(atlas.anchor);
     if (seen.has(c.model)) continue;

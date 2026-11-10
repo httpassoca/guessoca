@@ -59,7 +59,7 @@
     "model": "vorcaro",
     "name": "vorcaro",
     "color": "#6f8fc0",
-    "sheet": "/sprites/char-8.png",
+    "sheet": "/sprites/char-8.webp",
     "atlas": "vorcaro"
   }
 ]
