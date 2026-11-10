@@ -54,5 +54,12 @@
     "color": "#6c2fa3",
     "sheet": "/sprites/char-7.png",
     "atlas": "skeleton"
+  },
+  {
+    "model": "vorcaro",
+    "name": "vorcaro",
+    "color": "#6f8fc0",
+    "sheet": "/sprites/char-8.png",
+    "atlas": "vorcaro"
   }
 ]

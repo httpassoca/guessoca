@@ -1,12 +1,12 @@
 /**
  * `bun run sprites`: roda as receitas sobre os pacotes em `assets-src/` (fora do git, ADR 0007) e escreve as folhas que o
- * jogo usa em `apps/web/public/sprites/` (`char-0.png` … `char-7.png`, uma por personagem) e os atlas em
- * `apps/web/src/lib/sprites/` (`hero.json`, `skeleton.json`, `kratos.json` e `characters.json`, que liga cada personagem ao seu).
+ * jogo usa em `apps/web/public/sprites/` (`char-0.png` … `char-8.png`, uma por personagem) e os atlas em
+ * `apps/web/src/lib/sprites/` (`hero.json`, `skeleton.json`, `kratos.json`, `vorcaro.json` e `characters.json`, que liga cada personagem ao seu).
  * Só a saída vai para o git; o CI e o Docker nunca precisam dos pacotes.
  * O telhado (objetos em grade de texto e a cidade ao fundo) não usa o pacote e sai primeiro, mesmo sem ele.
  *
  * Ordem: `rooftop.png` + `skyline-*.png` + `rooftop.json` (de `rooftop.ts` e `skyline.ts`); depois cada modelo de
- * `models` (`hero.ts`, `skeleton.ts`, `kratos.ts`), com as folhas nos lugares que `characters.ts` dá a ele; `characters.json`;
+ * `models` (`hero.ts`, `skeleton.ts`, `kratos.ts`, `vorcaro.ts`), com as folhas nos lugares que `characters.ts` dá a ele; `characters.json`;
  * `emotes-<língua>.png` e `emotes.json` (`emotes.ts`); e por fim apaga nomes antigos que não existem mais. É o único
  * arquivo que toca o disco (com `png.ts`); as receitas são puras. `bun run sprites:preview` (`preview.ts`) lê o que
  * sai daqui e amplia para conferir.
@@ -17,6 +17,7 @@ import { emoteSheet, type EmoteLang } from './emotes';
 import { characters } from './characters';
 import { buildHero, ANIMATIONS } from './hero';
 import { buildKratos } from './kratos';
+import { buildVorcaro, SHEETS as VORCARO_SHEETS } from './vorcaro';
 import { buildSkeleton, SHEETS as SKELETON_SHEETS } from './skeleton';
 import { readGifStrip } from './gif';
 import { rooftopSheet } from './rooftop';
@@ -71,6 +72,13 @@ const models = [
     how: 'Copie o kratos.gif (o giro de 8 quadros de 64×64) para assets-src/kratos/ (ver README).',
     files: [['ROTATION', 'kratos.gif'] as const],
     build: buildKratos,
+  },
+  {
+    model: 'vorcaro' as const,
+    pack: join(root, 'assets-src/vorcaro'),
+    how: 'Copie as sete folhas do Vorcaro (idle.png, walk.png, ... de células de 256×384) para assets-src/vorcaro/ (ver README).',
+    files: VORCARO_SHEETS.map((n) => [n, `${n}.png`] as const),
+    build: buildVorcaro,
   },
 ];
 /** lê uma folha do pacote: PNG, ou GIF como folha de uma linha (um quadro por célula) */

@@ -16,9 +16,9 @@ describe('criar a sala', () => {
     expect(long.ok && long.nickname.length).toBe(NICKNAME_MAX);
   });
 
-  test('o personagem tem de ser um dos oito', () => {
+  test('o personagem tem de ser um dos nove', () => {
     expect(checkCreate(form({ character: null }))).toEqual({ ok: false, problems: ['character'] });
-    expect(checkCreate(form({ character: 8 }))).toEqual({ ok: false, problems: ['character'] });
+    expect(checkCreate(form({ character: 9 }))).toEqual({ ok: false, problems: ['character'] });
     expect(checkCreate(form({ character: -1 }))).toEqual({ ok: false, problems: ['character'] });
   });
 
