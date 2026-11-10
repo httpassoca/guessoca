@@ -12,7 +12,7 @@ owner's files ──cp──▶ assets-src/ (gitignored)         text grids in c
                          │   bun run sprites   (tools/sprites/src/index.ts)
                          ▼
    apps/web/public/sprites/*.png        apps/web/src/lib/sprites/*.json      (both committed)
-   char-N.png, char-6/8/9/10.webp,      hero, skeleton, kratos, vorcaro, orelha,
+   char-0/1.png, char-2..5.webp,        hero, skeleton, kratos, vorcaro, orelha,
                                         bolsonaro,
    rooftop, skyline-*,                  characters, rooftop, emotes
    emotes-<lang>
@@ -49,11 +49,11 @@ Pipeline, `tools/sprites/src/` (`@guess/sprites`, pure apart from `png.ts` and t
 | `image.ts` | Pure RGBA `Image` operations: crop, blit, colour swap/erase/keep, connected components, solidify, bounds, shear, squash, stretch, rotate, `under`. |
 | `grid.ts` | Pixel art written as text: one character per pixel, `.` is transparent. |
 | `atlas.ts` | What the two models share: `ANIMATION_NAMES` (row order) and `layout()`, which crops all frames to one rectangle and builds the sheet and `Atlas`. |
-| `hero.ts` | The hero recipe: slice 128×128 cells, remove the sword from the shove, four hair ramps. |
-| `skeleton.ts` | The skeleton recipe: slice 170×125 cells, remove slash trails, draw run/jump/fall, four cape ramps. |
+| `hero.ts` | The hero recipe: slice 128×128 cells, remove the sword from the shove, one sheet per hair ramp in `HAIRS` (only blonde today). |
+| `skeleton.ts` | The skeleton recipe: slice 170×125 cells, remove slash trails, draw run/jump/fall, one sheet per cape ramp in `CAPES` (only red today). |
 | `pack.ts` | The recipe for characters that arrive complete as seven sheets (image-model art). Changes no pixel: grounds every frame, optionally shifts an animation sideways, writes the sheet at the art's size with `scale` in the atlas. |
 | `kratos.ts`, `vorcaro.ts`, `orelha.ts`, `bolsonaro.ts` | One `PackConfig` each for `pack.ts`: cell size, shifts, world scale, head rows (and `headSize` for the dog and the dinosaur rider), feet rows. |
-| `characters.ts` | The eleven slots (0–3 hero, 4, 5, 7 skeleton, 6 Kratos, 8 Vorcaro, 9 Orelha, 10 Bolsonaro) → `characters.json`. |
+| `characters.ts` | The six slots (0 hero, 1 skeleton, 2 Kratos, 3 Vorcaro, 4 Orelha, 5 Bolsonaro) → `characters.json`. |
 | `emotes.ts` | The emote balloons, from a 3×5 text font, one sheet per language. |
 | `rooftop.ts` | The rooftop palette, the `Sketch` stamping board, every prop/texture/sign as a text grid, and the shelf-packed `rooftop.png` + atlas. |
 | `skyline.ts` | The two seeded, seamlessly tiling city strips. |
@@ -135,15 +135,15 @@ Every model's sheet has one row per animation, in this exact order (`ANIMATION_N
 - All of a model's frames share one size, the union of every frame's opaque bounds (`layout()`). **The widest pose sets the frame size for everything.** A big wind-up (a sword swung behind) widens every frame of that model: the sheets grow and the empty space shows in the preview, though the anchor keeps the feet in place. Trim wind-ups, or choose shove frames that stay compact. The skeleton's 120-px-wide frame comes from its swing.
 - The anchor is between the feet on the ground line of the first idle frame. Every other animation must keep the feet at the same place in the cell (the recipes shift frames to make that so; `shove()` in `skeleton.ts` lines the back heel up with the idle's).
 - `head` is a square around the face in the first idle frame (`heroHead`, `skeletonHead`). It drives `Swatch.svelte` (the face square in the UI) and `headY` (the post-it height), so **each model keeps its own head box**. Don't reuse one model's numbers for another.
-- `stand` is the idle frame's opaque rectangle. `PORTRAIT` in `apps/web/src/lib/sprites/characters.ts` is the smallest window that fits every model's idle with the feet at one `anchorX`; `Hero.svelte` uses it so all eleven line up in the picker.
+- `stand` is the idle frame's opaque rectangle. `PORTRAIT` in `apps/web/src/lib/sprites/characters.ts` is the smallest window that fits every model's idle with the feet at one `anchorX`; `Hero.svelte` uses it so all six line up in the picker.
 - Pixel art has no half-alpha: recipes call `solidify` on every cell first, which makes every non-zero alpha fully opaque. **Anti-aliased or soft-shadowed source art gets a hard halo.** Clean it in the source, or erase those colours in the recipe.
 
-### The eleven slots
+### The six slots
 
-`CHARACTERS = 11` in `@guess/rules` (characters aren't exclusive; a room still has up to eight people). `tools/sprites/src/characters.ts` lists them, hero variants (`HAIRS`) first and then skeleton variants (`CAPES`), with Kratos spliced in at `KRATOS_SLOT = 6` (the slot the green cape had) and Vorcaro, Orelha and Bolsonaro appended as slots 8, 9 and 10; the index is the slot. `characters.json` maps each slot to:
+`CHARACTERS = 6` in `@guess/rules` (characters aren't exclusive; a room still has up to eight people, so two can pick the same one). `tools/sprites/src/characters.ts` lists them in slot order: the hero variants in `HAIRS` (only blonde today), the skeleton variants in `CAPES` (only red today), then Kratos, Vorcaro, Orelha and Bolsonaro. The cast once had eleven, with four hair colours and three capes; the owner cut it to one per model. Changing the count renumbers what each browser remembers, which is harmless: an out-of-range number falls back to slot 0. `characters.json` maps each slot to:
 
 ```json
-{ "model": "skeleton", "name": "azul", "color": "#2f50ad", "sheet": "/sprites/char-5.png", "atlas": "skeleton" }
+{ "model": "skeleton", "name": "vermelho", "color": "#982b2b", "sheet": "/sprites/char-1.png", "atlas": "skeleton" }
 ```
 
 - `index.ts` writes the `i`-th sheet a model's `build()` returns to the `i`-th slot of that model, so variant order = slot order.
@@ -195,7 +195,7 @@ The skeleton's run, jump, fall and fall_loop are drawn by code from idle/walk/sw
    - a `head()` that finds the face in the cropped idle, and an `anchorX` (the middle of the feet in the first idle cell);
    - a `VARIANTS` list of ramps and a `build<Model>(sheets)` returning `{ sheets: one per variant, atlas }` via `layout()`.
 3. Add the model to `Model` and to `characters()` in `tools/sprites/src/characters.ts`, and an entry to `models` in `index.ts` (pack folder, missing-pack hint, file list, build).
-4. **Slots**: there are eleven, and characters aren't exclusive. Either take existing slots (for example 2 hero + 2 skeleton + new ones) or append one: raise `CHARACTERS` in `@guess/rules`, add a `--gs-char-N` in `app.css` (the picker, `.gs-chars`, is rows of six and wraps by itself), and update the range tests (rules, protocol, create, identity). The order in `characters()` is the slot order, and `@guess/rules` doesn't care which model a slot is. Existing rooms keep their numbers, so changing what a number looks like is a visual change only.
+4. **Slots**: there are six, and characters aren't exclusive. Either take existing slots (for example 2 hero + 2 skeleton + new ones) or append one: raise `CHARACTERS` in `@guess/rules`, add a `--gs-char-N` in `app.css` (the picker, `.gs-chars`, is rows of six and wraps by itself; a seventh character starts a second row), and update the range tests (rules, protocol, create, identity). The order in `characters()` is the slot order, and `@guess/rules` doesn't care which model a slot is. Existing rooms keep their numbers, so changing what a number looks like is a visual change only.
 5. **Client**: in `apps/web/src/lib/sprites/characters.ts`, import `<model>.json`, add it to `Model` and `ATLASES`. Update `--gs-char-N` in `app.css` and the model list in `apps/web/test/characters.test.ts`.
 6. **Credit**: if the pack needs credit, add it to the `credit.*` i18n keys (both languages), the menu and home footer, the README and the ADR. Credit strings are i18n'd; names of characters aren't.
 7. Add recipe tests with fake images (see `tools/sprites/test/skeleton.test.ts`), plus real-art tests guarded by `existsSync`, as in the pitfalls below.
@@ -272,7 +272,7 @@ All of these are client-side constants, tuned by eye at 1080p (scale 3). No `bun
 This reads only the committed output (no pack needed) and writes to `.preview/` (gitignored), printing every path:
 
 - `<model>-<animation>.png`: that animation's frames side by side (wrapping at 2400 px) at 4×, on a checker background (transparent pixels show), each frame bordered. Red ticks below and to the left of each frame mark the anchor column and row; the feet should sit on them in every frame.
-- `characters-idle.png`: the first idle frame of all eleven slots, in slot order. Check the colours and that the feet line up.
+- `characters-idle.png`: the first idle frame of all six slots, in slot order. Check the colours and that the feet line up.
 - `rooftop.png`: every rooftop frame with its anchor; `emotes-pt-BR.png` and `emotes-en-US.png` with the tail tip as anchor; `skyline-far.png` and `skyline-near.png` each tiled twice side by side, so you can see the seam.
 
 Open them with any image viewer (an agent can `Read` the PNG).
@@ -318,7 +318,7 @@ Importing one, start to finish:
 1. Copy the seven PNGs (and `sheet.json`) to `assets-src/<name>/`. If the folder has GIFs or "preview" sheets instead, use the PNG sheets and say so.
 2. Look at every sheet and measure each cell's opaque bounds with a throwaway script: the cell size, the row under the idle's feet, where the feet sit against the idle in each animation, how tall he is. Trust the measurement over `sheet.json`.
 3. Write `tools/sprites/src/<name>.ts`: a `PackConfig` (`cellW`, `cellH`, `shifts` for an animation whose feet sit off the idle's, `padX` ≥ the largest shift, `worldScale` = the height wanted in game ÷ the art's height, `headRows`, `feetRows`), a UI colour, and `build<Name> = (sheets) => buildPack(sheets, CONFIG)`. `kratos.ts` is the shortest example; `orelha.ts` is the one for an animal (wider than tall, head at the front: set `headSize`).
-4. Register it: `Model`, `SHEET_FORMAT` (`'webp'`, always lossless) and `characters()` in `tools/sprites/src/characters.ts`; an entry in `models` in `index.ts`; and in the client `apps/web/src/lib/sprites/characters.ts` (import the JSON, `Model`, `ATLASES`). Replacing a character keeps its slot and needs none of the slot steps; a new slot follows "The eleven slots" above (raise `CHARACTERS`, add `--gs-char-N`, bump the range tests in rules, protocol, create and identity).
+4. Register it: `Model`, `SHEET_FORMAT` (`'webp'`, always lossless) and `characters()` in `tools/sprites/src/characters.ts`; an entry in `models` in `index.ts`; and in the client `apps/web/src/lib/sprites/characters.ts` (import the JSON, `Model`, `ATLASES`). Replacing a character keeps its slot and needs none of the slot steps; a new slot follows "The six slots" above (raise `CHARACTERS`, add `--gs-char-N`, bump the range tests in rules, protocol, create and identity).
 5. `bun run sprites`, then add the character to the real-art list at the end of `tools/sprites/test/pack.test.ts` and update the model lists in `tools/sprites/test/atlas.test.ts` and `apps/web/test/characters.test.ts`.
 6. Look at it: `bun run sprites:preview`, then the game in a headless browser (the home screen picker and stage, and idle, walk, run, jump, shove on the roof). Check the feet don't slide, the name tag sits just above the head, and the neighbours in the picker aren't clipped (`.gs-char .gs-hero` in `app.css` centres the window).
 7. Update the README, `CONTEXT.md` if the cast changed, and add an amendment to ADR 0007. Commit on a branch, open a PR, and merge when the owner says so.

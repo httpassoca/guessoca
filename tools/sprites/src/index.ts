@@ -124,7 +124,8 @@ for (const lang of langs) {
 }
 writeFileSync(join(atlasOut, 'emotes.json'), JSON.stringify(emoteAtlas, null, 2) + '\n');
 // nomes de antes do esqueleto (os atlas moravam no `public`, as folhas eram `hero-N.png`): se ainda estão lá, saem
-for (const stale of ['hero.json', 'emotes.json', 'char-6.png', 'char-8.png', ...Array.from({ length: 8 }, (_, n) => `hero-${n}.png`)]) rmSync(join(out, stale), { force: true });
+// e as folhas dos lugares que saíram quando o elenco passou de onze para seis (e as que mudaram de formato no lugar)
+for (const stale of ['hero.json', 'emotes.json', 'char-2.png', 'char-3.png', 'char-4.png', 'char-5.png', 'char-6.png', 'char-6.webp', 'char-7.png', 'char-8.png', 'char-8.webp', 'char-9.webp', 'char-10.webp', ...Array.from({ length: 8 }, (_, n) => `hero-${n}.png`)]) rmSync(join(out, stale), { force: true });
 if (missing.length) {
   console.error(`faltou o pacote de: ${missing.join(', ')}`);
   process.exitCode = 1;

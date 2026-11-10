@@ -5,18 +5,13 @@ import { CHARACTERS } from '@guess/rules';
 import { artScale, character, CHARACTER_ART, frameAt, frameIndex, PORTRAIT, sheetSize } from '../src/lib/sprites/characters';
 
 describe('personagens', () => {
-  test('um por personagem do protocolo: quatro heróis, três esqueletos, o Kratos no lugar 6, o Vorcaro no 8, o Orelha no 9 e o Bolsonaro no 10', () => {
+  test('um por personagem do protocolo: seis, um de cada modelo', () => {
     expect(CHARACTER_ART).toHaveLength(CHARACTERS);
-    expect(CHARACTER_ART.map((c) => c.model)).toEqual(['hero', 'hero', 'hero', 'hero', 'skeleton', 'skeleton', 'kratos', 'skeleton', 'vorcaro', 'orelha', 'bolsonaro']);
-    expect(character(3).sheet).toBe('/sprites/char-3.png');
-    expect(character(6).sheet).toBe('/sprites/char-6.webp');
-    expect(character(8).sheet).toBe('/sprites/char-8.webp');
-    expect(character(9).sheet).toBe('/sprites/char-9.webp');
-    expect(character(10).sheet).toBe('/sprites/char-10.webp');
-    expect(character(5).atlas).toBe(character(4).atlas);
-    expect(character(7).atlas).toBe(character(4).atlas);
-    expect(character(0).atlas).not.toBe(character(4).atlas);
-    expect(character(6).atlas).not.toBe(character(4).atlas);
+    expect(CHARACTER_ART.map((c) => c.model)).toEqual(['hero', 'skeleton', 'kratos', 'vorcaro', 'orelha', 'bolsonaro']);
+    expect(CHARACTER_ART.map((c) => c.sheet)).toEqual(['/sprites/char-0.png', '/sprites/char-1.png', '/sprites/char-2.webp', '/sprites/char-3.webp', '/sprites/char-4.webp', '/sprites/char-5.webp']);
+    expect(new Set(CHARACTER_ART.map((c) => c.atlas)).size).toBe(6);
+    expect(character(0).name).toBe('loiro');
+    expect(character(1).name).toBe('vermelho');
   });
 
   test('cores únicas, para bordas e marcas na interface', () => {
@@ -30,16 +25,11 @@ describe('personagens', () => {
   });
 
   test('o Kratos, o Vorcaro, o Orelha e o Bolsonaro são arte grande desenhada encolhida; os outros valem 1 unidade por pixel', () => {
-    expect(CHARACTER_ART.map((c) => artScale(c.atlas) < 1)).toEqual([false, false, false, false, false, false, true, false, true, true, true]);
-    const b = character(10).atlas;
-    expect(Math.round((b.anchor.y - b.stand.y) * artScale(b))).toBe(45);
-    const o = character(9).atlas;
-    expect(Math.round((o.anchor.y - o.stand.y) * artScale(o))).toBe(30);
+    expect(CHARACTER_ART.map((c) => artScale(c.atlas) < 1)).toEqual([false, false, true, true, true, true]);
+    const tall = (n: number) => { const a = character(n).atlas; return Math.round((a.anchor.y - a.stand.y) * artScale(a)); };
+    expect([0, 1, 2, 3, 4, 5].map(tall)).toEqual([37, 51, 61, 50, 30, 45]);
+    const o = character(4).atlas;
     expect(o.stand.w).toBeGreaterThan(o.stand.h); // quatro patas: mais comprido que alto
-    const k = character(6).atlas;
-    expect(Math.round((k.anchor.y - k.stand.y) * artScale(k))).toBe(61);
-    const v = character(8).atlas;
-    expect(Math.round((v.anchor.y - v.stand.y) * artScale(v))).toBe(50);
   });
 
   test('fora da faixa cai no primeiro, sem quebrar', () => {
@@ -47,7 +37,7 @@ describe('personagens', () => {
     expect(character(-1)).toBe(character(0));
   });
 
-  for (const n of [0, 4, 6, 8, 9, 10]) {
+  for (const n of [0, 1, 2, 3, 4, 5]) {
     const { atlas, model } = character(n);
 
     test(`${model}: as animações que o jogo usa existem`, () => {
@@ -83,7 +73,7 @@ describe('personagens', () => {
   }
 
   test('o índice do quadro segue o fps de cada modelo', () => {
-    const hero = character(0).atlas, skel = character(4).atlas;
+    const hero = character(0).atlas, skel = character(1).atlas;
     expect(frameIndex(skel, 'run', 1000 / skel.animations.run.fps)).toBe(1);
     expect(frameIndex(hero, 'run', 1000 / hero.animations.run.fps)).toBe(1);
     expect(frameIndex(skel, 'shove', 60_000)).toBe(skel.animations.shove.frames - 1);

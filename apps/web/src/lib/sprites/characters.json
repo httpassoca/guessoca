@@ -1,79 +1,44 @@
 [
   {
     "model": "hero",
-    "name": "castanho",
-    "color": "#7d5556",
-    "sheet": "/sprites/char-0.png",
-    "atlas": "hero"
-  },
-  {
-    "model": "hero",
-    "name": "preto",
-    "color": "#2c2838",
-    "sheet": "/sprites/char-1.png",
-    "atlas": "hero"
-  },
-  {
-    "model": "hero",
     "name": "loiro",
     "color": "#d9a441",
-    "sheet": "/sprites/char-2.png",
-    "atlas": "hero"
-  },
-  {
-    "model": "hero",
-    "name": "ruivo",
-    "color": "#b9452a",
-    "sheet": "/sprites/char-3.png",
+    "sheet": "/sprites/char-0.png",
     "atlas": "hero"
   },
   {
     "model": "skeleton",
     "name": "vermelho",
     "color": "#982b2b",
-    "sheet": "/sprites/char-4.png",
-    "atlas": "skeleton"
-  },
-  {
-    "model": "skeleton",
-    "name": "azul",
-    "color": "#2f50ad",
-    "sheet": "/sprites/char-5.png",
+    "sheet": "/sprites/char-1.png",
     "atlas": "skeleton"
   },
   {
     "model": "kratos",
     "name": "kratos",
     "color": "#cdbfb4",
-    "sheet": "/sprites/char-6.webp",
+    "sheet": "/sprites/char-2.webp",
     "atlas": "kratos"
-  },
-  {
-    "model": "skeleton",
-    "name": "roxo",
-    "color": "#6c2fa3",
-    "sheet": "/sprites/char-7.png",
-    "atlas": "skeleton"
   },
   {
     "model": "vorcaro",
     "name": "vorcaro",
     "color": "#6f8fc0",
-    "sheet": "/sprites/char-8.webp",
+    "sheet": "/sprites/char-3.webp",
     "atlas": "vorcaro"
   },
   {
     "model": "orelha",
     "name": "orelha",
     "color": "#c57a3a",
-    "sheet": "/sprites/char-9.webp",
+    "sheet": "/sprites/char-4.webp",
     "atlas": "orelha"
   },
   {
     "model": "bolsonaro",
     "name": "bolsonaro",
     "color": "#3f9b4a",
-    "sheet": "/sprites/char-10.webp",
+    "sheet": "/sprites/char-5.webp",
     "atlas": "bolsonaro"
   }
 ]

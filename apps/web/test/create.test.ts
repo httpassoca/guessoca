@@ -16,9 +16,9 @@ describe('criar a sala', () => {
     expect(long.ok && long.nickname.length).toBe(NICKNAME_MAX);
   });
 
-  test('o personagem tem de ser um dos onze', () => {
+  test('o personagem tem de ser um dos seis', () => {
     expect(checkCreate(form({ character: null }))).toEqual({ ok: false, problems: ['character'] });
-    expect(checkCreate(form({ character: 11 }))).toEqual({ ok: false, problems: ['character'] });
+    expect(checkCreate(form({ character: 6 }))).toEqual({ ok: false, problems: ['character'] });
     expect(checkCreate(form({ character: -1 }))).toEqual({ ok: false, problems: ['character'] });
   });
 
@@ -48,7 +48,7 @@ describe('entrar na sala', () => {
 
   test('sem apelido ou sem personagem não entra', () => {
     expect(checkJoin('', 2)).toEqual({ ok: false, problems: ['nickname'] });
-    expect(checkJoin('Ana', 11)).toEqual({ ok: false, problems: ['character'] });
+    expect(checkJoin('Ana', 6)).toEqual({ ok: false, problems: ['character'] });
     expect(checkJoin('Ana', null)).toEqual({ ok: false, problems: ['character'] });
   });
 });

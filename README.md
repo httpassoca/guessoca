@@ -106,14 +106,14 @@ tools/sprites      `bun run sprites` (@guess/sprites): as receitas que geram as 
                      transformações para desenhar quadros novos (mover, inclinar, achatar, esticar, girar, colar por baixo)
   src/grid.ts        pixel art escrita como texto (um caractere por pixel, `.` transparente)
   src/atlas.ts       o que os dois modelos têm em comum: as animações na ordem do jogo e a montagem da folha e do atlas
-  src/hero.ts        o herói: fatia as folhas do pacote, tira a espada do golpe, quatro cores de cabelo
-  src/skeleton.ts    o cavaleiro esqueleto: tira o rastro dos golpes, desenha correr, pular e cair, três capas
+  src/hero.ts        o herói: fatia as folhas do pacote, tira a espada do golpe, uma folha por cor de cabelo (hoje só o loiro)
+  src/skeleton.ts    o cavaleiro esqueleto: tira o rastro dos golpes, desenha correr, pular e cair, uma folha por capa (hoje só a vermelha)
   src/pack.ts        a receita dos personagens de sete folhas (arte de modelo de imagem): não muda pixel, só põe os quadros no lugar
   src/kratos.ts      o Kratos: os números dele para `pack.ts`
   src/vorcaro.ts     o Vorcaro: os números dele para `pack.ts`
   src/orelha.ts      o Orelha, o cachorro: os números dele para `pack.ts`
   src/bolsonaro.ts   o Bolsonaro no dinossauro: os números dele para `pack.ts`
-  src/characters.ts  os onze personagens (0–3 herói, 4, 5 e 7 esqueleto, 6 Kratos, 8 Vorcaro, 9 Orelha, 10 Bolsonaro), que viram `characters.json`
+  src/characters.ts  os seis personagens (0 herói, 1 esqueleto, 2 Kratos, 3 Vorcaro, 4 Orelha, 5 Bolsonaro), que viram `characters.json`
   src/emotes.ts      os balões `?`, `!`, `haha`, "eu?"/"me?" com uma fonte 3×5 em texto
   src/rooftop.ts     o telhado em grades de texto: a paleta, a prancheta (`Sketch`) que carimba grades, tampo, muretas,
                      fachadas, as três caixas do mapa (ar-condicionado, chaminé, caixa-d'água), antenas, letreiros de neon,
@@ -171,31 +171,31 @@ com erro.
 
 O que sai:
 
-- `char-N.png` (e `char-6.webp`, `char-8.webp`, `char-9.webp` e `char-10.webp`, a arte grande): uma folha por personagem, com uma linha por animação, na mesma ordem em todos os modelos:
+- `char-0.png`, `char-1.png` e `char-2.webp` … `char-5.webp` (a arte grande, em WebP sem perda): uma folha por personagem, com uma linha por animação, na mesma ordem em todos os modelos:
   parado, andando, correndo, pulo, queda, queda em loop e empurrão.
-  - `char-0` … `char-3`: o herói, igual menos o cabelo (castanho, preto, loiro, ruivo). O empurrão é o golpe do pacote
+  - `char-0`: o herói, de cabelo loiro (o pacote vem castanho; o jogo já teve também preto e ruivo). O empurrão é o golpe do pacote
     sem a espada: as cores da lâmina e do cabo saem por cor, o rastro branco por ser uma mancha branca grande, e o
     contorno fino da lâmina por estar à frente do corpo.
-  - `char-4`, `char-5` e `char-7`: o cavaleiro esqueleto, igual menos a capa (vermelha, azul, roxa). Fica com a espada em
+  - `char-1`: o cavaleiro esqueleto, de capa vermelha, a original (o jogo já teve também azul e roxa). Fica com a espada em
     tudo; dos golpes sai só o rastro branco (mancha branca grande demais para ser osso, ou ponta solta toda branca). A arte
     não tem correr, pular nem cair, então a receita desenha: correr é o andar inclinado 4 pixels para a frente com a capa
     arrastando atrás; pular é o parado agachado, depois o golpe de cima (espada erguida, um joelho para cima) esticado,
     com a capa puxada para baixo e a perna encolhida; cair é esse corpo com a capa do golpe para a frente girada 90° para
     voar para cima atrás das costas. O empurrão é o golpe para a frente, cinco quadros, com o pé de trás no lugar do
     parado.
-  - `char-6`: o Kratos, feito por um modelo de imagem a pedido do dono, no lugar que era do esqueleto de capa verde.
+  - `char-2`: o Kratos, feito por um modelo de imagem a pedido do dono.
     Sete folhas com células de 116×160, desenhadas no jogo pela metade (`scale` 1/2, uns 60 de altura). Trocou a
     primeira versão, que era um GIF dele girando com as animações desenhadas por código.
-  - `char-8`: o Vorcaro, o homem de terno, feito por um modelo de imagem a pedido do dono. A arte já tem as sete
+  - `char-3`: o Vorcaro, o homem de terno, feito por um modelo de imagem a pedido do dono. A arte já tem as sete
     animações e vem grande (células de 256×384). Como no Kratos, a receita (`pack.ts`) não muda nenhum pixel: só põe o pé de todo quadro na linha
     do chão e anda o correr para a frente. A folha sai no tamanho da arte, em WebP sem perda (os mesmos pixels,
     1,3 MB em vez de 2 MB em PNG), e o atlas leva `scale` (1/6): é o jogo que a desenha menor.
-  - `char-9`: o Orelha, o cachorro, feito por um modelo de imagem a pedido do dono. Células de 168×116, desenhado a
+  - `char-4`: o Orelha, o cachorro, feito por um modelo de imagem a pedido do dono. Células de 168×116, desenhado a
     0,3 (30 de altura, 43 de comprimento). É o único de quatro patas: mais comprido que alto, com a cabeça na frente.
-  - `char-10`: o Bolsonaro, uma caricatura dele de faixa presidencial montado num tiranossauro, com uma arma de raio;
+  - `char-5`: o Bolsonaro, uma caricatura dele de faixa presidencial montado num tiranossauro, com uma arma de raio;
     feito por um modelo de imagem a pedido do dono. Células de 208×192, desenhado a 0,3 (45 de altura, 52 de
     comprimento). O empurrão é um tiro, com o clarão da arma.
-- `characters.json`: os onze, cada um com o modelo, o nome da cor, a cor na interface, a folha e o atlas. Um atlas por
+- `characters.json`: os seis, cada um com o modelo, o nome da cor, a cor na interface, a folha e o atlas. Um atlas por
   modelo (`hero.json`, `skeleton.json`, `kratos.json`, `vorcaro.json`, `orelha.json`, `bolsonaro.json`): tamanho do quadro, âncora (entre os pés), a cabeça, o parado, as linhas das
   animações com quadros, fps e loop, e o crédito (ou null).
 - `emotes-pt-BR.png` e `emotes-en-US.png`: os balões das teclas 1–4; só o "eu?"/"me?" muda de uma para a outra.
@@ -214,9 +214,9 @@ O que sai:
 
 ### Pedir um personagem ou objeto novo
 
-- **Outra cor de cabelo** ou **outra capa**: troque uma rampa em `HAIRS` (sombra, base, brilho) em
-  `tools/sprites/src/hero.ts` ou em `CAPES` (sombra, base) em `tools/sprites/src/skeleton.ts`. São onze personagens
-  (não exclusivos; a sala tem até oito pessoas): quatro heróis, três esqueletos, o Kratos, o Vorcaro, o Orelha e o Bolsonaro, na ordem de `characters.ts`. A cor do personagem na interface é
+- **Outra cor de cabelo** ou **outra capa**: mais uma rampa (um lugar a mais) em `HAIRS` (sombra, base, brilho) em
+  `tools/sprites/src/hero.ts` ou em `CAPES` (sombra, base) em `tools/sprites/src/skeleton.ts`. São seis personagens
+  (não exclusivos; a sala tem até oito pessoas): o herói, o esqueleto, o Kratos, o Vorcaro, o Orelha e o Bolsonaro, na ordem de `characters.ts`. A cor do personagem na interface é
   a base da rampa; atualize `--gs-char-N` em `apps/web/src/app.css` (o teste confere).
 - **Variantes do esqueleto**: a capa é `771818` (sombra) e `982b2b` (base), os únicos vermelhos da arte além do olho
   (`fe0707`, que fica). Diga a cor da capa nova, ou outra peça (a espada, os ossos) e a cor; uma animação nova ou
