@@ -5,6 +5,7 @@ import { SHOVE_COOLDOWN_MS } from '@guess/world';
 import { ANIMATION_NAMES } from '../src/atlas';
 import { blank, bounds, crop, palette, rgbOf, setPixel, type Image } from '../src/image';
 import { BOLSONARO, buildBolsonaro } from '../src/bolsonaro';
+import { KNIGHT, buildKnight } from '../src/knight';
 import { KRATOS, buildKratos } from '../src/kratos';
 import { ORELHA, buildOrelha } from '../src/orelha';
 import { PACK_SPEC, buildPack, cellsOf, derive, packFiles, place, type PackConfig } from '../src/pack';
@@ -32,6 +33,8 @@ function sheet(n: number, lift = 0, c = C, ground = GROUND): Image {
 }
 const pack = (lift = 0, c = C, ground = GROUND) => Object.fromEntries(ANIMATION_NAMES.map((name) => [name, sheet(c.spec.animations[name].frames, ['jump', 'fall', 'fall_loop'].includes(name) ? lift : 0, c, ground)]));
 const floor = (img: Image) => { const b = bounds(img)!; return b.y + b.h; };
+/** a mesma imagem com a cor zerada onde é transparente: só o que se vê */
+const visible = (img: Image): Image => { const data = img.data.slice(); for (let i = 0; i < data.length; i += 4) if (!data[i + 3]) data[i] = data[i + 1] = data[i + 2] = 0; return { ...img, data }; };
 /** só o retângulo com o boneco */
 const tight = (img: Image) => { const b = bounds(img)!; return crop(img, b.x, b.y, b.w, b.h); };
 
@@ -113,13 +116,14 @@ for (const who of [
   { c: VORCARO, dir: 'vorcaro', build: buildVorcaro, ground: 352, height: 302, world: 50 },
   { c: ORELHA, dir: 'orelha', build: buildOrelha, ground: 109, height: 100, world: 30 },
   { c: BOLSONARO, dir: 'bolsonaro', build: buildBolsonaro, ground: 177, height: 150, world: 45 },
+  { c: KNIGHT, dir: 'knight', build: buildKnight, ground: 87, height: 63, world: 35 },
 ]) {
   const dir = join(import.meta.dir, '../../../assets-src', who.dir);
   describe.skipIf(!existsSync(join(dir, 'idle.png')))(`${who.c.name}: a arte de verdade`, () => {
     test('as folhas têm as células e os quadros do pedido, o parado pisa na linha do chão, e a folha gerada é a arte', () => {
       const sheets: Record<string, Image> = {};
-      for (const name of ANIMATION_NAMES) {
-        const s = readPng(join(dir, `${name}.png`));
+      for (const [name, file] of packFiles((f) => existsSync(join(dir, f)))) {
+        const s = readPng(join(dir, file));
         expect(s.height).toBe(who.c.cellH);
         expect(s.width / who.c.cellW).toBe(who.c.spec.animations[name].frames);
         sheets[name] = s;
@@ -129,7 +133,8 @@ for (const who of [
       const { sheets: [out], atlas } = who.build(sheets);
       expect(atlas.stand.h).toBe(who.height);
       expect(Math.round(atlas.stand.h * atlas.scale!)).toBe(who.world);
-      expect(crop(out, atlas.stand.x, atlas.stand.y, atlas.stand.w, atlas.stand.h).data).toEqual(tight(idle).data);
+      // os pixels visíveis são os da arte (a cor que a arte guarda por baixo de um pixel transparente não conta)
+      expect(visible(crop(out, atlas.stand.x, atlas.stand.y, atlas.stand.w, atlas.stand.h)).data).toEqual(visible(tight(idle)).data);
       // todas as cores da arte estão na folha, e nenhuma a mais
       const art = new Set(ANIMATION_NAMES.flatMap((n) => [...palette(sheets[n])]));
       expect(palette(out)).toEqual(art);

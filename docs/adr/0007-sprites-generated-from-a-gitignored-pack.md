@@ -40,3 +40,9 @@ Another image-model pack from the owner (`assets-src/bolsonaro/`, 208×192 cells
 
 With four image-model characters in, the owner removed the colour variants: the hero keeps only the blonde hair and the skeleton only the red cape. `CHARACTERS` goes from 11 to 6 and the slots are renumbered in list order: 0 hero, 1 skeleton, 2 Kratos, 3 Vorcaro, 4 Orelha, 5 Bolsonaro. `HAIRS` and `CAPES` stay as lists of one, so a variant can come back as one line plus a slot. Browsers remember the last character by number; a number that now points elsewhere just selects that character, and one out of range falls back to slot 0. Sheets of the removed slots are deleted from `apps/web/public/sprites/`; an override for a file name that no longer exists (ADR 0009) is simply never served.
 
+## Amendment: a seventh model, the masked knight
+
+The owner supplied another seven-sheet pack (`assets-src/knight/`, 96×96 cells, `credit` null): a small knight with a white horned mask and a grey-blue cloak, drawn in the likeness of the Knight from Hollow Knight. It is a new drawing made for the owner, **not the game's files**: an earlier folder that held Team Cherry's extracted sprite collection was refused, because nothing they publish licenses those assets for reuse. Before importing this pack its frames were compared against that collection (best mask overlap about 0.6–0.8 after rescaling, 12 colours against the originals' thousands), so they are redrawn, not resized copies. Extracted assets of another game stay out of this repository; fan drawings supplied by the owner follow the same rule as Kratos.
+
+Imported through `pack.ts` with no pixel changed, drawn at 0.55 (35 units tall), slot 6; `CHARACTERS` goes from 6 to 7. It is the first pack whose attack sheet is `attack.png`. The picker becomes rows of four, whose cells are wider than the portrait window, so every character shows whole.
+

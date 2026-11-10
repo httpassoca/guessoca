@@ -4,7 +4,7 @@
   import Hero from './Hero.svelte';
 
   /**
-   * Os seis personagens para escolher um (pré-lobby e lobby): o escolhido anda. Não são exclusivos: duas pessoas da
+   * Os sete personagens para escolher um (pré-lobby e lobby): o escolhido anda. Não são exclusivos: duas pessoas da
    * sala podem usar o mesmo. Um botão por lugar (0..`CHARACTERS`−1), com o retrato de `Hero` na escala 2; os nomes são
    * "Personagem N" (i18n `pre.characterN`), não os nomes das cores de `characters.json`. Um modelo novo aparece aqui
    * sem mudar nada.
