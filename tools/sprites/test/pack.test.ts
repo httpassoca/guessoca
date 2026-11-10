@@ -7,7 +7,7 @@ import { blank, bounds, crop, palette, rgbOf, setPixel, type Image } from '../sr
 import { BOLSONARO, buildBolsonaro } from '../src/bolsonaro';
 import { KRATOS, buildKratos } from '../src/kratos';
 import { ORELHA, buildOrelha } from '../src/orelha';
-import { PACK_SPEC, buildPack, cellsOf, derive, place, type PackConfig } from '../src/pack';
+import { PACK_SPEC, buildPack, cellsOf, derive, packFiles, place, type PackConfig } from '../src/pack';
 import { readPng } from '../src/png';
 import { VORCARO, buildVorcaro } from '../src/vorcaro';
 
@@ -90,6 +90,14 @@ describe('personagem de sete folhas', () => {
     const { atlas } = buildPack(pack(), { ...C, headSize: 24 });
     expect(atlas.head.size).toBe(24);
     expect(atlas.head.x + 12).toBe(atlas.stand.x + (16 - 12 + 5));
+  });
+
+  test('o empurrão do jogo vem de attack.png se o pacote tiver, senão de shove.png', () => {
+    const old = packFiles((f) => f !== 'attack.png');
+    expect(old.map(([, file]) => file)).toEqual(['idle.png', 'walk.png', 'run.png', 'jump.png', 'fall.png', 'fall_loop.png', 'shove.png']);
+    const now = packFiles(() => true);
+    expect(now[6]).toEqual(['shove', 'attack.png']);
+    expect(now.slice(0, 6)).toEqual(old.slice(0, 6));
   });
 
   test('sem uma folha, ou com uma folha curta, erro dizendo o que falta e de quem', () => {

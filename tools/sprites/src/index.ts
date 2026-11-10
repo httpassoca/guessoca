@@ -18,7 +18,7 @@ import { characters } from './characters';
 import { buildBolsonaro } from './bolsonaro';
 import { buildHero, ANIMATIONS } from './hero';
 import { buildKratos } from './kratos';
-import { SHEETS as PACK_SHEETS } from './pack';
+import { packFiles } from './pack';
 import { buildOrelha } from './orelha';
 import { buildVorcaro } from './vorcaro';
 import { buildSkeleton, SHEETS as SKELETON_SHEETS } from './skeleton';
@@ -72,28 +72,28 @@ const models = [
     model: 'kratos' as const,
     pack: join(root, 'assets-src/kratos'),
     how: 'Copie as sete folhas do Kratos (idle.png, walk.png, ... de células de 116×160) para assets-src/kratos/ (ver README).',
-    files: PACK_SHEETS.map((n) => [n, `${n}.png`] as const),
+    files: packFiles((file) => existsSync(join(root, 'assets-src/kratos', file))),
     build: buildKratos,
   },
   {
     model: 'vorcaro' as const,
     pack: join(root, 'assets-src/vorcaro'),
     how: 'Copie as sete folhas do Vorcaro (idle.png, walk.png, ... de células de 256×384) para assets-src/vorcaro/ (ver README).',
-    files: PACK_SHEETS.map((n) => [n, `${n}.png`] as const),
+    files: packFiles((file) => existsSync(join(root, 'assets-src/vorcaro', file))),
     build: buildVorcaro,
   },
   {
     model: 'orelha' as const,
     pack: join(root, 'assets-src/orelha'),
     how: 'Copie as sete folhas do Orelha (idle.png, walk.png, ... de células de 168×116) para assets-src/orelha/ (ver README).',
-    files: PACK_SHEETS.map((n) => [n, `${n}.png`] as const),
+    files: packFiles((file) => existsSync(join(root, 'assets-src/orelha', file))),
     build: buildOrelha,
   },
   {
     model: 'bolsonaro' as const,
     pack: join(root, 'assets-src/bolsonaro'),
     how: 'Copie as sete folhas do Bolsonaro (idle.png, walk.png, ... de células de 208×192) para assets-src/bolsonaro/ (ver README).',
-    files: PACK_SHEETS.map((n) => [n, `${n}.png`] as const),
+    files: packFiles((file) => existsSync(join(root, 'assets-src/bolsonaro', file))),
     build: buildBolsonaro,
   },
 ];
