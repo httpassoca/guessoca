@@ -81,7 +81,7 @@ O mundo sempre ligado: entrar na sala põe a pessoa no telhado. Lobby, jogo e fi
 _Evitar_: mapa, fase, level, cenário, cena
 
 **Personagem** (`character`):
-O corpo de cada pessoa no telhado. São onze, um de cada modelo: o herói (loiro), o cavaleiro esqueleto (de capa vermelha), o Kratos, o Vorcaro (o homem de terno), o Orelha (o cachorro), o Bolsonaro (montado num dinossauro), o cavaleiro (pequeno, de máscara branca com chifres), o Old Snake (o soldado velho de bandana e fuzil), o Pinóquio (o rapaz de sabre e braço mecânico), a Eve (a espadachim de traje verde) e a Katarina (a assassina de cabelo vermelho e duas adagas). Cada pessoa escolhe um, e duas pessoas podem usar o mesmo. Os corpos são sólidos: não se atravessa um grupo, pula-se por cima, e dá para ficar na cabeça de alguém e ser carregado.
+O corpo de cada pessoa no telhado. São treze, um de cada modelo: o herói (loiro), o cavaleiro esqueleto (de capa vermelha), o Kratos, o Vorcaro (o homem de terno), o Orelha (o cachorro), o Bolsonaro (montado num dinossauro), o cavaleiro (pequeno, de máscara branca com chifres), o Old Snake (o soldado velho de bandana e fuzil), o Pinóquio (o rapaz de sabre e braço mecânico), a Eve (a espadachim de traje verde), a Katarina (a assassina de cabelo vermelho e duas adagas), o Justiceiro (de sobretudo preto e caveira no peito) e o Mista (o pistoleiro de gorro e suéter azul). Cada pessoa escolhe um, e duas pessoas podem usar o mesmo. Os corpos são sólidos: não se atravessa um grupo, pula-se por cima, e dá para ficar na cabeça de alguém e ser carregado.
 _Evitar_: avatar, boneco, skin, sprite (é o desenho), herói
 
 **Empurrão** (`shove`):

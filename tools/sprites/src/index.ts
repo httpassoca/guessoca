@@ -1,12 +1,12 @@
 /**
  * `bun run sprites`: roda as receitas sobre os pacotes em `assets-src/` (fora do git, ADR 0007) e escreve as folhas que o
  * jogo usa em `apps/web/public/sprites/` (`char-N.png`, ou `char-N.webp` para a arte grande do Kratos e do Vorcaro, uma por personagem) e os atlas em
- * `apps/web/src/lib/sprites/` (`hero.json`, `skeleton.json`, `kratos.json`, `vorcaro.json`, `orelha.json`, `bolsonaro.json`, `knight.json`, `oldsnake.json`, `pinocchio.json`, `eve.json`, `katarina.json` e `characters.json`, que liga cada personagem ao seu).
+ * `apps/web/src/lib/sprites/` (`hero.json`, `skeleton.json`, `kratos.json`, `vorcaro.json`, `orelha.json`, `bolsonaro.json`, `knight.json`, `oldsnake.json`, `pinocchio.json`, `eve.json`, `katarina.json`, `punisher.json`, `mista.json` e `characters.json`, que liga cada personagem ao seu).
  * Só a saída vai para o git; o CI e o Docker nunca precisam dos pacotes.
  * O telhado (objetos em grade de texto e a cidade ao fundo) não usa o pacote e sai primeiro, mesmo sem ele.
  *
  * Ordem: `rooftop.png` + `skyline-*.png` + `rooftop.json` (de `rooftop.ts` e `skyline.ts`); depois cada modelo de
- * `models` (`hero.ts`, `skeleton.ts`, e `kratos.ts`, `vorcaro.ts`, `orelha.ts`, `bolsonaro.ts`, `knight.ts`, `oldsnake.ts`, `pinocchio.ts`, `eve.ts` e `katarina.ts`, os de sete folhas de `pack.ts`), com as folhas nos lugares que `characters.ts` dá a ele; `characters.json`;
+ * `models` (`hero.ts`, `skeleton.ts`, e `kratos.ts`, `vorcaro.ts`, `orelha.ts`, `bolsonaro.ts`, `knight.ts`, `oldsnake.ts`, `pinocchio.ts`, `eve.ts`, `katarina.ts`, `punisher.ts` e `mista.ts`, os de sete folhas de `pack.ts`), com as folhas nos lugares que `characters.ts` dá a ele; `characters.json`;
  * `emotes-<língua>.png` e `emotes.json` (`emotes.ts`); e por fim apaga nomes antigos que não existem mais. É o único
  * arquivo que toca o disco (com `png.ts`); as receitas são puras. `bun run sprites:preview` (`preview.ts`) lê o que
  * sai daqui e amplia para conferir.
@@ -22,9 +22,11 @@ import { buildKatarina } from './katarina';
 import { buildKnight } from './knight';
 import { buildKratos } from './kratos';
 import { packFiles } from './pack';
+import { buildMista } from './mista';
 import { buildOldSnake } from './oldsnake';
 import { buildOrelha } from './orelha';
 import { buildPinocchio } from './pinocchio';
+import { buildPunisher } from './punisher';
 import { buildVorcaro } from './vorcaro';
 import { buildSkeleton, SHEETS as SKELETON_SHEETS } from './skeleton';
 import { rooftopSheet } from './rooftop';
@@ -90,7 +92,7 @@ const models = [
   {
     model: 'orelha' as const,
     pack: join(root, 'assets-src/orelha'),
-    how: 'Copie as sete folhas do Orelha (idle.png, walk.png, ... de células de 168×116) para assets-src/orelha/ (ver README).',
+    how: 'Copie as sete folhas do Orelha (idle.png, walk.png, ..., attack.png, de células de 96×64) para assets-src/orelha/ (ver README).',
     files: packFiles((file) => existsSync(join(root, 'assets-src/orelha', file))),
     build: buildOrelha,
   },
@@ -135,6 +137,20 @@ const models = [
     how: 'Copie as sete folhas da Katarina (idle.png, walk.png, ..., attack.png, de células de 144×144) para assets-src/katarina/ (ver README).',
     files: packFiles((file) => existsSync(join(root, 'assets-src/katarina', file))),
     build: buildKatarina,
+  },
+  {
+    model: 'punisher' as const,
+    pack: join(root, 'assets-src/punisher'),
+    how: 'Copie as sete folhas do Justiceiro (idle.png, walk.png, ..., attack.png, de células de 224×192) para assets-src/punisher/ (ver README).',
+    files: packFiles((file) => existsSync(join(root, 'assets-src/punisher', file))),
+    build: buildPunisher,
+  },
+  {
+    model: 'mista' as const,
+    pack: join(root, 'assets-src/mista'),
+    how: 'Copie as sete folhas do Mista (idle.png, walk.png, ..., attack.png, de células de 160×176) para assets-src/mista/ (ver README).',
+    files: packFiles((file) => existsSync(join(root, 'assets-src/mista', file))),
+    build: buildMista,
   },
 ];
 const list = characters();

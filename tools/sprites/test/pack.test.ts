@@ -10,8 +10,10 @@ import { KATARINA, buildKatarina } from '../src/katarina';
 import { KNIGHT, buildKnight } from '../src/knight';
 import { KRATOS, buildKratos } from '../src/kratos';
 import { OLDSNAKE, buildOldSnake } from '../src/oldsnake';
+import { MISTA, buildMista } from '../src/mista';
 import { ORELHA, buildOrelha } from '../src/orelha';
 import { PINOCCHIO, buildPinocchio } from '../src/pinocchio';
+import { PUNISHER, buildPunisher } from '../src/punisher';
 import { MAX_FRAMES, NORMAL_ART_HEIGHT, NORMAL_HEIGHT, PACK_SPEC, PACK_WORLD_SCALE, buildPack, cellsOf, derive, packFiles, packSpec, place, specProblems, worldScaleFor, type PackConfig } from '../src/pack';
 import { readPng } from '../src/png';
 import { VORCARO, buildVorcaro } from '../src/vorcaro';
@@ -160,13 +162,15 @@ describe('personagem de sete folhas', () => {
 for (const who of [
   { c: KRATOS, dir: 'kratos', build: buildKratos, ground: 145, height: 121, world: 61 },
   { c: VORCARO, dir: 'vorcaro', build: buildVorcaro, ground: 352, height: 302, world: 50 },
-  { c: ORELHA, dir: 'orelha', build: buildOrelha, ground: 109, height: 100, world: 20 },
+  { c: ORELHA, dir: 'orelha', build: buildOrelha, ground: 54, height: 38, world: 15 },
   { c: BOLSONARO, dir: 'bolsonaro', build: buildBolsonaro, ground: 177, height: 150, world: 70 },
   { c: KNIGHT, dir: 'knight', build: buildKnight, ground: 87, height: 63, world: 35 },
   { c: OLDSNAKE, dir: 'oldsnake', build: buildOldSnake, ground: 116, height: 97, world: 49 },
   { c: PINOCCHIO, dir: 'pinocchio', build: buildPinocchio, ground: 113, height: 106, world: 50 },
   { c: EVE, dir: 'eve', build: buildEve, ground: 177, height: 140, world: 50 },
   { c: KATARINA, dir: 'katarina', build: buildKatarina, ground: 125, height: 101, world: 50 },
+  { c: PUNISHER, dir: 'punisher', build: buildPunisher, ground: 176, height: 152, world: 59 },
+  { c: MISTA, dir: 'mista', build: buildMista, ground: 160, height: 132, world: 52 },
 ]) {
   const dir = join(import.meta.dir, '../../../assets-src', who.dir);
   describe.skipIf(!existsSync(join(dir, 'idle.png')))(`${who.c.name}: a arte de verdade`, () => {

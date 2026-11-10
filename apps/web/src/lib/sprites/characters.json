@@ -75,5 +75,19 @@
     "color": "#e0364f",
     "sheet": "/sprites/char-10.webp",
     "atlas": "katarina"
+  },
+  {
+    "model": "punisher",
+    "name": "justiceiro",
+    "color": "#9aa0aa",
+    "sheet": "/sprites/char-11.webp",
+    "atlas": "punisher"
+  },
+  {
+    "model": "mista",
+    "name": "mista",
+    "color": "#2f8fd0",
+    "sheet": "/sprites/char-12.webp",
+    "atlas": "mista"
   }
 ]

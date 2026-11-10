@@ -72,3 +72,13 @@ Another seven-sheet pack from the owner (`assets-src/katarina/`, 144×144 cells,
 
 With eleven characters the picker is rows of six (up to twelve in two rows). Since the dinosaur widened the portrait window, a cell shows the middle of that window around the feet, which fits every character but the dinosaur and the tip of the skeleton's sword. A thirteenth character will need a scrolling picker or a third row.
 
+## Amendment: the first packs from the new prompt: the Punisher, Mista, and a redrawn Orelha
+
+Three packs made with the prompt that fixes the pixel density and lets the model choose frame counts. Each `sheet.json` carries `size` and `standing_height_px`, which matched the measured idle, so all three import at `PACK_WORLD_SCALE` with their own timings through `packSpec`:
+
+- **The Punisher** (`assets-src/punisher/`, 224×192 cells): black coat, white skull, pistol; size 1.19, 59 units tall, slot 11. In the run he leans so far that his feet sit about 38 px behind the idle's, so the run is shifted 24 px forward (a move, not an edit).
+- **Mista** (`assets-src/mista/`, 160×176 cells): red cap, blue sweater, revolver; size 1.03, 52 units tall, slot 12.
+- **Orelha** redrawn (`assets-src/orelha/`, 96×64 cells), replacing the first dog in slot 4: size 0.30, 15 units tall and 20 long, at a person's knee, with 12-frame walk and run. The first pack barely moved when idle or airborne.
+
+All three are new drawings generated for the owner (the first two in the likeness of Marvel's Punisher and of Guido Mista from JoJo's Bizarre Adventure), not another game's or publisher's extracted art. `CHARACTERS` goes from 11 to 13, and the picker to rows of seven (fourteen in two rows).
+
