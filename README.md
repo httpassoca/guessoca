@@ -109,7 +109,7 @@ tools/sprites      `bun run sprites` (@guess/sprites): as receitas que geram as 
   src/hero.ts        o herói: fatia as folhas do pacote, tira a espada do golpe, quatro cores de cabelo
   src/skeleton.ts    o cavaleiro esqueleto: tira o rastro dos golpes, desenha correr, pular e cair, três capas
   src/kratos.ts      o Kratos: do quadro de lado de um GIF de giro, desenha as sete animações
-  src/vorcaro.ts     o Vorcaro: arruma e encolhe as folhas grandes feitas por um modelo de imagem
+  src/vorcaro.ts     o Vorcaro: as folhas grandes feitas por um modelo de imagem, só com os quadros postos no lugar
   src/gif.ts         lê um GIF animado como folha de uma linha
   src/characters.ts  os nove personagens (0–3 herói, 4, 5 e 7 esqueleto, 6 Kratos, 8 Vorcaro), que viram `characters.json`
   src/emotes.ts      os balões `?`, `!`, `haha`, "eu?"/"me?" com uma fonte 3×5 em texto
@@ -167,7 +167,7 @@ com erro.
 
 O que sai:
 
-- `char-0.png` … `char-8.png`: uma folha por personagem, com uma linha por animação, na mesma ordem em todos os modelos:
+- `char-0.png` … `char-7.png` e `char-8.webp`: uma folha por personagem, com uma linha por animação, na mesma ordem em todos os modelos:
   parado, andando, correndo, pulo, queda, queda em loop e empurrão.
   - `char-0` … `char-3`: o herói, igual menos o cabelo (castanho, preto, loiro, ruivo). O empurrão é o golpe do pacote
     sem a espada: as cores da lâmina e do cabo saem por cor, o rastro branco por ser uma mancha branca grande, e o
@@ -184,8 +184,9 @@ O que sai:
     faz das pernas duas (a de trás escurecida) que vão e voltam a partir do quadril e encolhem no joelho, e inclina, sobe
     e desce o tronco; no empurrão dá um passo e estica a mão da espada. É um substituto até existirem folhas desenhadas.
   - `char-8`: o Vorcaro, o homem de terno, feito por um modelo de imagem a pedido do dono. A arte já tem as sete
-    animações, mas vem grande (células de 256×384) e com milhares de cores; a receita põe o pé de todo quadro na linha
-    do chão, conserta os quadros tortos do correr e encolhe tudo 6 vezes, com a cor que mais aparece em cada bloco.
+    animações e vem grande (células de 256×384). A receita não muda nenhum pixel: só põe o pé de todo quadro na linha
+    do chão e anda o correr para a frente. A folha sai no tamanho da arte, em WebP sem perda (os mesmos pixels,
+    1,3 MB em vez de 2 MB em PNG), e o atlas leva `scale` (1/6): é o jogo que a desenha menor.
 - `characters.json`: os nove, cada um com o modelo, o nome da cor, a cor na interface, a folha e o atlas. Um atlas por
   modelo (`hero.json`, `skeleton.json`, `kratos.json`, `vorcaro.json`): tamanho do quadro, âncora (entre os pés), a cabeça, o parado, as linhas das
   animações com quadros, fps e loop, e o crédito (ou null).

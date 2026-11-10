@@ -3,9 +3,9 @@ import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { SHOVE_COOLDOWN_MS } from '@guess/world';
 import { ANIMATION_NAMES } from '../src/atlas';
-import { blank, bounds, getPixel, rgbOf, setPixel, type Image } from '../src/image';
+import { blank, bounds, crop, palette, rgbOf, setPixel, type Image } from '../src/image';
 import { readPng } from '../src/png';
-import { CELL_H, CELL_W, FIXES, GROUND, H, PAD_X, SCALE, VORCARO_SPEC, W, buildVorcaro, cellsOf, derive, grow, place, shrink } from '../src/vorcaro';
+import { CELL_H, CELL_W, GROUND, H, PAD_X, SHIFTS, VORCARO_SPEC, WORLD_SCALE, buildVorcaro, cellsOf, derive, place } from '../src/vorcaro';
 
 function fill(img: Image, x: number, y: number, w: number, h: number, hex: string, a = 255) {
   for (let j = 0; j < h; j++) for (let i = 0; i < w; i++) setPixel(img, x + i, y + j, [...rgbOf(hex), a]);
@@ -24,44 +24,25 @@ function sheet(n: number, lift = 0): Image {
 }
 const pack = (lift = 0) => Object.fromEntries(ANIMATION_NAMES.map((name) => [name, sheet(VORCARO_SPEC.animations[name].frames, ['jump', 'fall', 'fall_loop'].includes(name) ? lift : 0)]));
 const floor = (img: Image) => { const b = bounds(img)!; return b.y + b.h; };
+/** só o retângulo com o boneco */
+const tight = (img: Image) => { const b = bounds(img)!; return crop(img, b.x, b.y, b.w, b.h); };
 
 describe('vorcaro', () => {
-  test('as células saem com alfa de tudo ou nada', () => {
-    const s = blank(CELL_W, CELL_H);
-    fill(s, 10, 10, 2, 1, 'ffffff', 200);
-    fill(s, 12, 10, 2, 1, 'ffffff', 90);
-    const [c] = cellsOf(s);
-    expect(getPixel(c, 10, 10)[3]).toBe(255);
-    expect(getPixel(c, 12, 10)[3]).toBe(0);
+  test('as células saem como vieram, pixel por pixel', () => {
+    const src = sheet(2);
+    const cells = cellsOf(src);
+    expect(cells).toHaveLength(2);
+    expect(cells[1].data).toEqual(crop(src, CELL_W, 0, CELL_W, CELL_H).data);
   });
 
-  test('cada quadro vai para a tela com o ponto mais baixo no chão, mesmo desenhado no ar', () => {
+  test('cada quadro vai para a tela com o ponto mais baixo no chão, mesmo desenhado no ar, sem mudar a arte', () => {
     const [ground] = cellsOf(sheet(1)), [air] = cellsOf(sheet(1, 42));
     expect(floor(place(ground))).toBe(H);
     expect(floor(place(air))).toBe(H);
     expect(bounds(place(ground))!.x).toBe(PAD_X + 84);
-    expect(bounds(place(ground, { dx: 24 }))!.x).toBe(PAD_X + 84 + 24);
-    expect([W % SCALE, H % SCALE]).toEqual([0, 0]);
-  });
-
-  test('crescer aumenta o boneco sem tirar o pé do chão nem a frente do lugar', () => {
-    const [c] = cellsOf(sheet(1));
-    const a = bounds(place(c))!, b = bounds(place(c, { grow: 1.16 }))!;
-    expect(b.h).toBeGreaterThan(a.h);
-    expect(b.y + b.h).toBe(H);
-    expect(b.x + b.w).toBe(a.x + a.w);
-    expect(grow(place(c), 1, 0, 0).data).toEqual(place(c).data);
-  });
-
-  test('encolher: um pixel por bloco, opaco se metade do bloco é, da cor que mais aparece (não a média)', () => {
-    const img = blank(4, 2);
-    fill(img, 0, 0, 2, 2, '202020');
-    setPixel(img, 0, 0, [240, 240, 240, 255]); // um ponto de luz num bloco escuro: perde
-    setPixel(img, 2, 0, [255, 0, 0, 255]); // um pixel só num bloco vazio: some
-    const out = shrink(img, 2);
-    expect([out.width, out.height]).toEqual([2, 1]);
-    expect(getPixel(out, 0, 0)).toEqual([0x20, 0x20, 0x20, 255]);
-    expect(getPixel(out, 1, 0)[3]).toBe(0);
+    expect(bounds(place(ground, 24))!.x).toBe(PAD_X + 84 + 24);
+    expect(tight(place(air, 24)).data).toEqual(tight(air).data);
+    expect(palette(place(ground))).toEqual(palette(ground));
   });
 
   test('cada animação tem os quadros do atlas, e o empurrão cabe no tempo do mundo', () => {
@@ -74,19 +55,24 @@ describe('vorcaro', () => {
 
   test('todo quadro de toda animação tem o pé na mesma linha; o correr anda para a frente', () => {
     const rows = derive(pack(42));
-    for (const f of rows.flat()) expect(floor(f)).toBe(H / SCALE);
+    for (const f of rows.flat()) expect(floor(f)).toBe(H);
     const x = (name: (typeof ANIMATION_NAMES)[number]) => bounds(rows[ANIMATION_NAMES.indexOf(name)][0])!.x;
-    expect(x('run') - x('idle')).toBe(FIXES.run!.all!.dx! / SCALE);
+    expect(x('run') - x('idle')).toBe(SHIFTS.run!);
   });
 
-  test('monta uma folha só, com a âncora entre os sapatos e a cabeça no alto do parado', () => {
+  test('monta uma folha só, no tamanho da arte, com a escala do mundo no atlas', () => {
     const { sheets, atlas } = buildVorcaro(pack());
     expect(sheets).toHaveLength(1);
     expect(sheets[0].height).toBe(ANIMATION_NAMES.length * atlas.frame.h);
+    expect(atlas.scale).toBe(WORLD_SCALE);
+    expect(atlas.stand).toMatchObject({ w: 96, h: GROUND - 50 });
     expect(atlas.stand.y + atlas.stand.h).toBe(atlas.anchor.y);
     expect(atlas.anchor.x).toBe(atlas.stand.x + atlas.stand.w / 2);
     expect(atlas.head.y).toBeLessThanOrEqual(atlas.stand.y);
-    expect(atlas.head.x + atlas.head.size / 2).toBe(atlas.stand.x + (96 - 84 + 30) / SCALE);
+    expect(atlas.head.x + atlas.head.size / 2).toBe(atlas.stand.x + (96 - 84 + 30));
+    // o primeiro quadro do parado, na folha, é a arte: os mesmos pixels do boneco da célula
+    const first = crop(sheets[0], atlas.stand.x, atlas.stand.y, atlas.stand.w, atlas.stand.h);
+    expect(first.data).toEqual(tight(cellsOf(sheet(1))[0]).data);
   });
 
   test('sem uma folha, ou com uma folha curta, erro dizendo o que falta', () => {

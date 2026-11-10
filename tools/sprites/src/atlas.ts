@@ -43,6 +43,11 @@ export interface Atlas {
   animations: Record<AnimationName, { row: number; frames: number; fps: number; loop: boolean }>;
   /** a quem dar o crédito da arte, ou null se não precisa */
   credit: string | null;
+  /**
+   * quantas unidades do mundo vale um pixel do quadro; sem isto, 1 (pixel art no tamanho do jogo). Menor que 1 é arte
+   * grande que o jogo desenha encolhida, sem a receita mexer nos pixels (o Vorcaro)
+   */
+  scale?: number;
 }
 
 /**

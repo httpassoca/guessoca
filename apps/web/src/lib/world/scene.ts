@@ -36,7 +36,7 @@ import { Application, Assets, ColorMatrixFilter, Container, Graphics, Rectangle,
 import { effectsOn, onEffects } from '../effects';
 import type { Lang } from '../i18n';
 import emoteAtlas from '../sprites/emotes.json';
-import { CHARACTER_ART, character, frameIndex } from '../sprites/characters';
+import { artScale, CHARACTER_ART, character, frameIndex } from '../sprites/characters';
 import { loadRooftopArt } from './art';
 import { Backdrop } from './backdrop';
 import { Film } from './film';
@@ -166,6 +166,11 @@ export class Scene {
     const sheets = await Promise.all(CHARACTER_ART.map((c) => Assets.load<Texture>(c.sheet)));
     sheets.forEach((sheet, n) => {
       const { frame: { w, h }, animations } = CHARACTER_ART[n].atlas;
+      // arte grande desenhada encolhida (`artScale` < 1): suavizada, senão o vizinho mais próximo come linhas (sem
+      // mipmaps: com eles o sprite some no WebGL por software)
+      if (artScale(CHARACTER_ART[n].atlas) < 1) {
+        sheet.source.scaleMode = 'linear';
+      }
       this.frames.push(ANIMS.map((anim) => {
         const a = animations[anim];
         return Array.from({ length: a.frames }, (_, i) => new Texture({ source: sheet.source, frame: new Rectangle(i * w, a.row * h, w, h) }));
@@ -216,7 +221,8 @@ export class Scene {
       d.sprite.texture = frames[frameIndex(atlas, anim, now - b.animSince)];
       d.sprite.anchor.set(atlas.anchor.x / atlas.frame.w, atlas.anchor.y / atlas.frame.h);
       d.sprite.position.set(at.x, at.y);
-      d.sprite.scale.set(b.facing * s, s);
+      const k = s * artScale(atlas);
+      d.sprite.scale.set(b.facing * k, k);
       d.sprite.zIndex = i;
       d.sprite.visible = true;
       d.sprite.alpha = b.blink && Math.floor(now / BLINK_PERIOD) % 2 === 1 ? BLINK_ALPHA : 1;

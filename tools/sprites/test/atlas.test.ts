@@ -56,7 +56,7 @@ describe('os personagens', () => {
   test('nove, quatro heróis, três esqueletos, o Kratos no lugar 6 e o Vorcaro no 8, cada um com a sua folha e o seu atlas', () => {
     expect(list).toHaveLength(9);
     expect(list.map((c) => c.model)).toEqual(['hero', 'hero', 'hero', 'hero', 'skeleton', 'skeleton', 'kratos', 'skeleton', 'vorcaro']);
-    expect(list.map((c) => c.sheet)).toEqual(Array.from({ length: 9 }, (_, n) => `/sprites/char-${n}.png`));
+    expect(list.map((c) => c.sheet)).toEqual(Array.from({ length: 9 }, (_, n) => `/sprites/char-${n}.${n === 8 ? 'webp' : 'png'}`)); // o Vorcaro, arte grande, em WebP sem perda
     for (const c of list) expect(c.atlas).toBe(c.model);
   });
 
