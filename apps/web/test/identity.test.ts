@@ -89,3 +89,19 @@ describe('o que atravessa a ida do pré-lobby para a sala', () => {
     expect(sideCollapsedIn(tab)).toBe(true);
   });
 });
+
+describe('o zoom do telhado', () => {
+  test('lembrado no navegador; nada guardado ou lixo é 0', async () => {
+    const { zoomIn, rememberZoomIn } = await import('../src/lib/identity');
+    const data = new Map<string, string>();
+    const store = { getItem: (k: string) => data.get(k) ?? null, setItem: (k: string, v: string) => void data.set(k, v) };
+    expect(zoomIn(store)).toBe(0);
+    rememberZoomIn(store, -1);
+    expect(zoomIn(store)).toBe(-1);
+    data.set('guess.zoom', 'muito');
+    expect(zoomIn(store)).toBe(0);
+    data.set('guess.zoom', '99');
+    expect(zoomIn(store)).toBe(0);
+    expect(zoomIn(null)).toBe(0);
+  });
+});

@@ -20,7 +20,8 @@ import { fixedSteps, STEP_MS } from './loop';
 import { PresenceSender, presenceOfBody, type Emote } from './presence';
 import type { Scene, SceneBody } from './scene';
 import { declutter, type Tag } from './declutter';
-import { headAnchor, makeView, renderView } from './view';
+import { rememberedZoom, rememberZoom } from '../identity';
+import { headAnchor, makeView, renderView, stepZoom } from './view';
 
 /** Se o canvas já desenha: carregando as folhas, pronto, ou sem como desenhar (sem WebGL nem canvas). */
 export type SceneStatus = 'loading' | 'ready' | 'failed';
@@ -45,11 +46,17 @@ export interface RuntimeOptions {
  */
 const spawnOffset = (index: number) => ((index % 5) - 2) * 14;
 
+/** o intervalo mínimo entre dois passos de zoom da roda, em ms */
+const WHEEL_MS = 120;
+
 /** O telhado ligado de uma aba: `start` liga o laço e carrega a cena, `dispose` desliga. */
 export class WorldRuntime {
   private room: RoomSnapshot | null = null;
   private blocked = false;
   private insetLeft = 0;
+  /** o zoom da roda do mouse, em passos inteiros sobre a escala automática; lembrado no navegador */
+  private zoom = rememberedZoom();
+  private lastWheel = 0;
   private lang: Lang;
   private body: Body | null = null;
   private cam: Camera | null = null;
@@ -84,6 +91,9 @@ export class WorldRuntime {
     listen('keydown', (e) => this.keydown(e));
     listen('keyup', (e) => this.keyup(e));
     listen('blur', () => this.controls.releaseAll());
+    const wheel = (e: WheelEvent) => this.wheel(e);
+    window.addEventListener('wheel', wheel, { passive: false });
+    this.off.push(() => window.removeEventListener('wheel', wheel));
     listen('focusin', (e) => { if (isTextField(e.target as HTMLElement)) this.controls.releaseAll(); });
     this.off.push(this.opts.remote.onShoved(({ dir }) => { if (this.body) this.body = applyShove(this.body, dir, performance.now()); }));
 
@@ -121,6 +131,25 @@ export class WorldRuntime {
     if ('hold' in k) this.controls.hold(k.hold);
     else if ('press' in k) this.controls.press(k.press);
     else this.emote = { name: EMOTES[k.emote], since: performance.now() };
+  }
+
+  /**
+   * A roda do mouse sobre o telhado aproxima e afasta, um passo inteiro de escala por vez (no máximo um a cada
+   * `WHEEL_MS`, para o trackpad não varrer tudo de uma vez). Sobre um painel a roda é do painel; com Ctrl é o zoom do
+   * navegador.
+   */
+  private wheel(e: WheelEvent) {
+    if (this.blocked || e.ctrlKey || e.metaKey || !e.deltaY) return;
+    const over = e.target instanceof Element ? e.target : null;
+    if (!over || !(this.opts.host.contains(over) || over === this.opts.heads)) return;
+    e.preventDefault();
+    const now = performance.now();
+    if (now - this.lastWheel < WHEEL_MS) return;
+    this.lastWheel = now;
+    const zoom = stepZoom(this.zoom, e.deltaY < 0 ? 1 : -1, window.innerWidth, window.innerHeight);
+    if (zoom === this.zoom) return;
+    this.zoom = zoom;
+    rememberZoom(zoom);
   }
 
   private keyup(e: KeyboardEvent) {
@@ -168,7 +197,7 @@ export class WorldRuntime {
     }
 
     // a câmera segue dentro do que se vê (à direita da coluna); desenha-se na vista larga, que põe o meio no meio dele
-    const visible = makeView(window.innerWidth, window.innerHeight, this.insetLeft);
+    const visible = makeView(window.innerWidth, window.innerHeight, this.insetLeft, this.zoom);
     const view = renderView(visible, this.insetLeft);
     const body = this.body;
     // a primeira vez, já em cima do corpo (dt 0 só aplica os limites do mundo)

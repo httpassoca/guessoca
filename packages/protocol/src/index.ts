@@ -75,6 +75,8 @@ export type ClientMessage =
   | { type: 'order'; order: string[] }
   /** "Sortear": ninguém escreve para si */
   | { type: 'shuffleAuthors' }
+  /** `author` passa a escrever para `owner`; os outros se ajeitam */
+  | { type: 'assign'; author: string; owner: string }
   | { type: 'turnMs'; ms: number }
   /** só moderar, como fantasma */
   | { type: 'onlyModerate'; on: boolean }
@@ -281,6 +283,8 @@ export function parseClientMessage(raw: unknown): ClientMessage | null {
       if (!isId(m.owner) || typeof m.text !== 'string' || m.text.length > POSTIT_MAX * 4) return null;
       if (m.image !== null && !(typeof m.image === 'string' && IMAGE_ID_RE.test(m.image))) return null;
       return { type: 'write', owner: m.owner, text: m.text, image: m.image };
+    case 'assign':
+      return isId(m.author) && isId(m.owner) && m.author !== m.owner ? { type: 'assign', author: m.author, owner: m.owner } : null;
     case 'vote':
       return isBool(m.yes) ? { type: 'vote', yes: m.yes } : null;
     case 'mark':

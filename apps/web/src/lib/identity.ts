@@ -1,7 +1,7 @@
 /**
  * Quem esta aba é para o servidor, e o que o navegador lembra entre visitas (ADR 0003). O token vive na aba
  * (sessionStorage): sobrevive a refresh e queda de rede, e duas abas do mesmo navegador são duas pessoas na sala.
- * O apelido e o último personagem são lembrados pelo navegador inteiro (localStorage); o bloco (o texto e se está
+ * O apelido, o último personagem e o zoom do telhado são lembrados pelo navegador inteiro (localStorage); o bloco (o texto e se está
  * minimizado), a coluna recolhida e a entrada automática de quem acabou de criar a sala, só pela aba.
  */
 import { TOKEN_RE } from '@guess/protocol';
@@ -14,6 +14,7 @@ const NOTEPAD_KEY = 'guess.notepad.';
 const NOTEPAD_MIN_KEY = 'guess.notepadMin';
 const SIDE_KEY = 'guess.sideCollapsed';
 const AUTO_JOIN_KEY = 'guess.autoJoin';
+const ZOOM_KEY = 'guess.zoom';
 
 /** O storage, ou nada (teste, modo privado): aí nada fica lembrado e segue sem quebrar. */
 export type MaybeStore = Pick<Storage, 'getItem' | 'setItem'> | null;
@@ -46,6 +47,15 @@ export function characterIn(store: MaybeStore): number | null {
   return Number.isInteger(n) && n >= 0 && n < CHARACTERS ? n : null;
 }
 export const rememberCharacterIn = (store: MaybeStore, character: number) => write(store, CHARACTER_KEY, String(character));
+
+/** O zoom do telhado lembrado neste navegador, em passos da escala automática (0 = sem zoom; lixo vira 0). */
+export function zoomIn(store: MaybeStore): number {
+  const n = Number(read(store, ZOOM_KEY));
+  return Number.isInteger(n) && Math.abs(n) <= 8 ? n : 0;
+}
+export const rememberZoomIn = (store: MaybeStore, zoom: number) => write(store, ZOOM_KEY, String(zoom));
+export const rememberedZoom = () => zoomIn(local());
+export const rememberZoom = (zoom: number) => rememberZoomIn(local(), zoom);
 
 /** O bloco desta aba nesta sala: pessoal, nunca sai da aba. */
 export const notepadIn = (store: MaybeStore, code: string) => read(store, NOTEPAD_KEY + code);

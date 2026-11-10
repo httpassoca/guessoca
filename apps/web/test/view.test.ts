@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 import { CHARACTERS, TURN_MAX, TURN_MIN, TURN_STEP } from '@guess/rules';
-import { characterToClaim, clockText, countdown, devTools, moveBy, roomView, turnOptions } from '../src/lib/room/view';
+import { characterToClaim, clockText, countdown, devTools, moveBy, roomView, turnFraction, turnOptions } from '../src/lib/room/view';
 import { member, postit, snapshot } from './snapshots';
 
 /** O círculo Zé → Ana → Bia → Zé (dono → autor: Ana é escrita por Zé, e assim por diante). */
@@ -388,5 +388,16 @@ describe('ferramentas de desenvolvimento', () => {
     expect(devTools({ hostname: 'guess.passoca.dev', search: '?x=1&dev' }, true)).toBe(true);
     expect(devTools({ hostname: 'guess.passoca.dev', search: '' }, true)).toBe(false);
     expect(devTools({ hostname: 'localhost', search: '?dev' }, false)).toBe(false);
+  });
+});
+
+describe('o fio da vez', () => {
+  test('a fração do tempo que sobra, de 1 a 0', () => {
+    expect(turnFraction(60_000, 60_000)).toBe(1);
+    expect(turnFraction(15_000, 60_000)).toBe(0.25);
+    expect(turnFraction(0, 60_000)).toBe(0);
+    expect(turnFraction(-500, 60_000)).toBe(0);
+    expect(turnFraction(90_000, 60_000)).toBe(1);
+    expect(turnFraction(10, 0)).toBe(0);
   });
 });

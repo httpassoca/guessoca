@@ -229,6 +229,11 @@ html, body { margin: 0; min-height: 100%; background: var(--ss-bg); }
 /* para quem escreve: o alvo, o rosto e o nome */
 .gs-target { display: inline-flex; align-items: center; gap: 4px; min-width: 0; color: var(--ss-fg-muted); }
 .gs-target > .ss-icon { color: var(--ss-fg-faint); margin-right: 2px; }
+.gs-target select { appearance: none; max-width: 128px; height: 24px; padding: 0 20px 0 6px; font: inherit; color: var(--ss-fg); text-overflow: ellipsis; cursor: pointer; border: 1px solid var(--ss-line); border-radius: 0;
+  background: transparent linear-gradient(45deg, transparent 50%, var(--ss-fg-muted) 50%) no-repeat right 8px center / 5px 5px; }
+.gs-target select:hover { border-color: var(--ss-line-strong); }
+.gs-target select:focus-visible { outline: 2px solid var(--gs-focus); outline-offset: 1px; }
+.gs-target select option { color: var(--ss-fg); background: var(--ss-bg); }
 .gs-target .name { max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 /* em que pé está: o lápis parado (vazio), o lápis que rabisca (escrevendo, um estado vivo) e o pronto, um tom acima */
 .gs-progress { display: inline-grid; place-items: center; width: 16px; height: 16px; color: var(--ss-fg-faint); }
@@ -285,8 +290,11 @@ html, body { margin: 0; min-height: 100%; background: var(--ss-bg); }
 .gs-top { position: absolute; z-index: 9; top: var(--gs-edge); right: calc(var(--gs-edge) + var(--gs-rank-w) + 12px); display: flex; justify-content: center; pointer-events: none; }
 .gs-top > * { pointer-events: auto; }
 .gs-turnbar { display: inline-flex; flex-direction: column; align-items: stretch; gap: 8px; max-width: 100%; }
-.gs-turn { display: flex; align-items: center; gap: 16px; min-height: 52px; padding: 8px 8px 8px 16px; }
-.gs-turn.live { box-shadow: inset 2px 0 0 var(--ss-accent); }
+.gs-turn { position: relative; display: flex; align-items: center; gap: 16px; min-height: 52px; padding: 8px 8px 8px 16px; }
+/* o tempo da vez: um fio na borda de baixo que encolhe da largura toda até zero */
+.gs-turn-left { position: absolute; left: -1px; bottom: -1px; height: 2px; max-width: calc(100% + 2px); background: var(--ss-accent); transition: width 200ms linear; pointer-events: none; }
+.gs-turn-left.gs-warn { background: currentColor; }
+.gs-turn-left.paused { opacity: 0.5; }
 .gs-turn .who { font: 500 var(--ss-ui-md)/20px var(--ss-font-body); white-space: nowrap; }
 .gs-turn .gs-clock.paused { opacity: 0.5; }
 .gs-turn .acts, .gs-vote .acts { display: flex; gap: 8px; margin-left: auto; }
