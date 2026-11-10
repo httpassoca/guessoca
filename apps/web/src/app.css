@@ -19,7 +19,7 @@ html, body { margin: 0; min-height: 100%; background: var(--ss-bg); }
   /* o anel de foco do teclado: neutro, visível */
   --gs-focus: color-mix(in srgb, var(--ss-fg) 55%, transparent);
   /* a cor de cada personagem (src/lib/sprites/characters.json): 0–3 o cabelo do herói, 4–7 a capa do esqueleto */
-  --gs-char-0: #d9a441; --gs-char-1: #982b2b; --gs-char-2: #cdbfb4; --gs-char-3: #6f8fc0; --gs-char-4: #c57a3a; --gs-char-5: #3f9b4a; --gs-char-6: #dfe3ee; --gs-char-7: #656a7c; --gs-char-8: #5b4b8a;
+  --gs-char-0: #d9a441; --gs-char-1: #982b2b; --gs-char-2: #cdbfb4; --gs-char-3: #6f8fc0; --gs-char-4: #c57a3a; --gs-char-5: #3f9b4a; --gs-char-6: #dfe3ee; --gs-char-7: #656a7c; --gs-char-8: #5b4b8a; --gs-char-9: #2bb8a3;
 }
 @media (prefers-reduced-motion: reduce) {
   :root { --gs-fast: 0ms; --gs-dur: 0ms; --gs-enter: 0ms; }

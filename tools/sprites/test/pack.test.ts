@@ -5,6 +5,7 @@ import { SHOVE_COOLDOWN_MS } from '@guess/world';
 import { ANIMATION_NAMES } from '../src/atlas';
 import { blank, bounds, crop, palette, rgbOf, setPixel, type Image } from '../src/image';
 import { BOLSONARO, buildBolsonaro } from '../src/bolsonaro';
+import { EVE, buildEve } from '../src/eve';
 import { KNIGHT, buildKnight } from '../src/knight';
 import { KRATOS, buildKratos } from '../src/kratos';
 import { OLDSNAKE, buildOldSnake } from '../src/oldsnake';
@@ -121,6 +122,7 @@ for (const who of [
   { c: KNIGHT, dir: 'knight', build: buildKnight, ground: 87, height: 63, world: 35 },
   { c: OLDSNAKE, dir: 'oldsnake', build: buildOldSnake, ground: 116, height: 97, world: 49 },
   { c: PINOCCHIO, dir: 'pinocchio', build: buildPinocchio, ground: 113, height: 106, world: 50 },
+  { c: EVE, dir: 'eve', build: buildEve, ground: 177, height: 140, world: 50 },
 ]) {
   const dir = join(import.meta.dir, '../../../assets-src', who.dir);
   describe.skipIf(!existsSync(join(dir, 'idle.png')))(`${who.c.name}: a arte de verdade`, () => {

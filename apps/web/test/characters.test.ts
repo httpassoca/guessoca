@@ -5,11 +5,11 @@ import { CHARACTERS } from '@guess/rules';
 import { artScale, character, CHARACTER_ART, frameAt, frameIndex, PORTRAIT, sheetSize } from '../src/lib/sprites/characters';
 
 describe('personagens', () => {
-  test('um por personagem do protocolo: nove, um de cada modelo', () => {
+  test('um por personagem do protocolo: dez, um de cada modelo', () => {
     expect(CHARACTER_ART).toHaveLength(CHARACTERS);
-    expect(CHARACTER_ART.map((c) => c.model)).toEqual(['hero', 'skeleton', 'kratos', 'vorcaro', 'orelha', 'bolsonaro', 'knight', 'oldsnake', 'pinocchio']);
-    expect(CHARACTER_ART.map((c) => c.sheet)).toEqual(['/sprites/char-0.png', '/sprites/char-1.png', '/sprites/char-2.webp', '/sprites/char-3.webp', '/sprites/char-4.webp', '/sprites/char-5.webp', '/sprites/char-6.webp', '/sprites/char-7.webp', '/sprites/char-8.webp']);
-    expect(new Set(CHARACTER_ART.map((c) => c.atlas)).size).toBe(9);
+    expect(CHARACTER_ART.map((c) => c.model)).toEqual(['hero', 'skeleton', 'kratos', 'vorcaro', 'orelha', 'bolsonaro', 'knight', 'oldsnake', 'pinocchio', 'eve']);
+    expect(CHARACTER_ART.map((c) => c.sheet)).toEqual(['/sprites/char-0.png', '/sprites/char-1.png', '/sprites/char-2.webp', '/sprites/char-3.webp', '/sprites/char-4.webp', '/sprites/char-5.webp', '/sprites/char-6.webp', '/sprites/char-7.webp', '/sprites/char-8.webp', '/sprites/char-9.webp']);
+    expect(new Set(CHARACTER_ART.map((c) => c.atlas)).size).toBe(10);
     expect(character(0).name).toBe('loiro');
     expect(character(1).name).toBe('vermelho');
   });
@@ -24,10 +24,10 @@ describe('personagens', () => {
     CHARACTER_ART.forEach((c, n) => expect(css).toContain(`--gs-char-${n}: ${c.color};`));
   });
 
-  test('o Kratos, o Vorcaro, o Orelha, o Bolsonaro, o cavaleiro, o Old Snake e o Pinóquio são arte grande desenhada encolhida; os outros valem 1 unidade por pixel', () => {
-    expect(CHARACTER_ART.map((c) => artScale(c.atlas) < 1)).toEqual([false, false, true, true, true, true, true, true, true]);
+  test('o Kratos, o Vorcaro, o Orelha, o Bolsonaro, o cavaleiro, o Old Snake, o Pinóquio e a Eve são arte grande desenhada encolhida; os outros valem 1 unidade por pixel', () => {
+    expect(CHARACTER_ART.map((c) => artScale(c.atlas) < 1)).toEqual([false, false, true, true, true, true, true, true, true, true]);
     const tall = (n: number) => { const a = character(n).atlas; return Math.round((a.anchor.y - a.stand.y) * artScale(a)); };
-    expect([0, 1, 2, 3, 4, 5, 6, 7, 8].map(tall)).toEqual([37, 51, 61, 50, 30, 45, 35, 49, 50]);
+    expect([0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map(tall)).toEqual([37, 51, 61, 50, 30, 45, 35, 49, 50, 50]);
     const o = character(4).atlas;
     expect(o.stand.w).toBeGreaterThan(o.stand.h); // quatro patas: mais comprido que alto
   });
@@ -37,7 +37,7 @@ describe('personagens', () => {
     expect(character(-1)).toBe(character(0));
   });
 
-  for (const n of [0, 1, 2, 3, 4, 5, 6, 7, 8]) {
+  for (const n of [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]) {
     const { atlas, model } = character(n);
 
     test(`${model}: as animações que o jogo usa existem`, () => {
