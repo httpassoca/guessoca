@@ -5,13 +5,14 @@ import { CHARACTERS } from '@guess/rules';
 import { artScale, character, CHARACTER_ART, frameAt, frameIndex, PORTRAIT, sheetSize } from '../src/lib/sprites/characters';
 
 describe('personagens', () => {
-  test('um por personagem do protocolo: quatro heróis, três esqueletos, o Kratos no lugar 6, o Vorcaro no 8 e o Orelha no 9', () => {
+  test('um por personagem do protocolo: quatro heróis, três esqueletos, o Kratos no lugar 6, o Vorcaro no 8, o Orelha no 9 e o Bolsonaro no 10', () => {
     expect(CHARACTER_ART).toHaveLength(CHARACTERS);
-    expect(CHARACTER_ART.map((c) => c.model)).toEqual(['hero', 'hero', 'hero', 'hero', 'skeleton', 'skeleton', 'kratos', 'skeleton', 'vorcaro', 'orelha']);
+    expect(CHARACTER_ART.map((c) => c.model)).toEqual(['hero', 'hero', 'hero', 'hero', 'skeleton', 'skeleton', 'kratos', 'skeleton', 'vorcaro', 'orelha', 'bolsonaro']);
     expect(character(3).sheet).toBe('/sprites/char-3.png');
     expect(character(6).sheet).toBe('/sprites/char-6.webp');
     expect(character(8).sheet).toBe('/sprites/char-8.webp');
     expect(character(9).sheet).toBe('/sprites/char-9.webp');
+    expect(character(10).sheet).toBe('/sprites/char-10.webp');
     expect(character(5).atlas).toBe(character(4).atlas);
     expect(character(7).atlas).toBe(character(4).atlas);
     expect(character(0).atlas).not.toBe(character(4).atlas);
@@ -28,8 +29,10 @@ describe('personagens', () => {
     CHARACTER_ART.forEach((c, n) => expect(css).toContain(`--gs-char-${n}: ${c.color};`));
   });
 
-  test('o Kratos, o Vorcaro e o Orelha são arte grande desenhada encolhida; os outros valem 1 unidade por pixel', () => {
-    expect(CHARACTER_ART.map((c) => artScale(c.atlas) < 1)).toEqual([false, false, false, false, false, false, true, false, true, true]);
+  test('o Kratos, o Vorcaro, o Orelha e o Bolsonaro são arte grande desenhada encolhida; os outros valem 1 unidade por pixel', () => {
+    expect(CHARACTER_ART.map((c) => artScale(c.atlas) < 1)).toEqual([false, false, false, false, false, false, true, false, true, true, true]);
+    const b = character(10).atlas;
+    expect(Math.round((b.anchor.y - b.stand.y) * artScale(b))).toBe(45);
     const o = character(9).atlas;
     expect(Math.round((o.anchor.y - o.stand.y) * artScale(o))).toBe(30);
     expect(o.stand.w).toBeGreaterThan(o.stand.h); // quatro patas: mais comprido que alto
@@ -44,7 +47,7 @@ describe('personagens', () => {
     expect(character(-1)).toBe(character(0));
   });
 
-  for (const n of [0, 4, 6, 8, 9]) {
+  for (const n of [0, 4, 6, 8, 9, 10]) {
     const { atlas, model } = character(n);
 
     test(`${model}: as animações que o jogo usa existem`, () => {

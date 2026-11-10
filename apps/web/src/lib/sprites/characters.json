@@ -68,5 +68,12 @@
     "color": "#c57a3a",
     "sheet": "/sprites/char-9.webp",
     "atlas": "orelha"
+  },
+  {
+    "model": "bolsonaro",
+    "name": "bolsonaro",
+    "color": "#3f9b4a",
+    "sheet": "/sprites/char-10.webp",
+    "atlas": "bolsonaro"
   }
 ]

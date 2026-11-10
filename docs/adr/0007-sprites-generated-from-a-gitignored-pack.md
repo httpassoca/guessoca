@@ -32,3 +32,7 @@ Since both image-model characters follow the same rules, they share one recipe, 
 
 Orelha, a dog, is another image-model pack from the owner (`assets-src/orelha/`, 168×116 cells, `credit` null), imported through `pack.ts` with no pixel changed and drawn at 0.3 (30 units tall, 43 long). `CHARACTERS` goes from 9 to 10 and he is slot 9. He is the first four-legged character, wider than tall with the head at the front, which needed two things: `PackConfig.headSize`, so the face square can be larger than the rows that hold only head, and a picker laid out as two rows of five, whose cells are wide enough to show every character whole (the single row of narrow cells clipped him at both ends).
 
+## Amendment: a sixth model, Bolsonaro on a dinosaur, and an eleventh slot
+
+Another image-model pack from the owner (`assets-src/bolsonaro/`, 208×192 cells, `credit` null): a caricature of Jair Bolsonaro in the presidential sash, riding a tyrannosaur and holding a ray gun. Imported through `pack.ts` with no pixel changed, drawn at 0.3 (45 units tall, 52 long), slot 10; `CHARACTERS` goes from 10 to 11. His shove is a shot with a muzzle flash, which the character prompt forbids, but supplied art isn't edited. With eleven characters the picker is two rows of six; the cells are a little narrower than the portrait window, so only the very ends of the widest characters (the dinosaur's tail and snout) fall outside.
+
