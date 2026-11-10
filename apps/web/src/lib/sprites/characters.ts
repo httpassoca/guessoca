@@ -1,6 +1,6 @@
 /**
  * Os personagens desenhados a partir das folhas geradas por `bun run sprites` (ADR 0007): `characters.json` diz de que
- * modelo é cada um (0–3 o herói, 4, 5 e 7 o esqueleto, 6 o Kratos, 8 o Vorcaro, 9 o Orelha, 10 o Bolsonaro), a cor e a folha; cada modelo tem o seu atlas (`hero.json`,
+ * modelo é cada um (0 o herói, 1 o esqueleto, 2 o Kratos, 3 o Vorcaro, 4 o Orelha, 5 o Bolsonaro), a cor e a folha; cada modelo tem o seu atlas (`hero.json`,
  * `skeleton.json`, `kratos.json`, `vorcaro.json`, `orelha.json`, `bolsonaro.json`) com o tamanho do quadro, a âncora, a cabeça e as animações. Puro, para os componentes e para o mundo
  * (Pixi) lerem do mesmo lugar.
  *
@@ -12,7 +12,7 @@
  *
  * Como mudar: um modelo novo é um atlas novo (`<modelo>.json`, gerado), importado aqui, com o nome em `Model` e em
  * `ATLASES`; o `Model` de `tools/sprites/src/characters.ts` tem que ter o mesmo nome. `CHARACTER_ART` é indexado pelo
- * lugar (0..10, o `character` do protocolo, `CHARACTERS` em `@guess/rules`): mudar que modelo ocupa que lugar é em
+ * lugar (0..5, o `character` do protocolo, `CHARACTERS` em `@guess/rules`): mudar que modelo ocupa que lugar é em
  * `tools/sprites/src/characters.ts`, e a cor nova vai também em `--gs-char-N` (`apps/web/src/app.css`; o teste confere).
  */
 import type { Anim } from '@guess/world';
@@ -68,12 +68,12 @@ export interface CharacterArt {
   atlas: Atlas;
 }
 
-/** Os onze personagens, na ordem dos lugares do protocolo (0–3 o herói, 4, 5 e 7 o esqueleto, 6 o Kratos, 8 o Vorcaro, 9 o Orelha, 10 o Bolsonaro). */
+/** Os seis personagens, na ordem dos lugares do protocolo (0 o herói, 1 o esqueleto, 2 o Kratos, 3 o Vorcaro, 4 o Orelha, 5 o Bolsonaro). */
 export const CHARACTER_ART: readonly CharacterArt[] = list.map((c) => ({
   model: c.model as Model, name: c.name, color: c.color, sheet: c.sheet, atlas: ATLASES[c.atlas as Model],
 }));
 
-/** O personagem `n` (0..10); fora da faixa, o primeiro. */
+/** O personagem `n` (0..5); fora da faixa, o primeiro. */
 export const character = (n: number): CharacterArt => CHARACTER_ART[n] ?? CHARACTER_ART[0];
 
 /** O canto do quadro `frame` da animação `name` na folha, em pixels da folha. */

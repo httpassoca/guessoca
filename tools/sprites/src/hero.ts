@@ -44,14 +44,13 @@ if (ANIMATIONS.some((a, i) => a.name !== ANIMATION_NAMES[i])) throw new Error('a
 export const HAIR: readonly [Hex, Hex, Hex] = ['4c2641', '7d5556', '9f95ab'];
 
 /**
- * As quatro cores de cabelo (sombra, base, brilho) dos personagens 0–3; a 0 é a original, as outras escolhidas no olho.
- * A base é a cor na interface (`color` em `characters.json`, igual a `--gs-char-N` no CSS). A ordem é a dos lugares.
+ * As cores de cabelo (sombra, base, brilho) dos heróis do jogo, uma folha por cor. Hoje só o loiro: o castanho (o
+ * original, `HAIR`), o preto e o ruivo saíram quando o elenco ganhou outros modelos. A base é a cor na interface (`color`
+ * em `characters.json`, igual a `--gs-char-N` no CSS). A ordem é a dos lugares. Outra cor é mais uma linha aqui (e um
+ * lugar a mais, ver `characters.ts`).
  */
 export const HAIRS: readonly { name: string; ramp: readonly [Hex, Hex, Hex] }[] = [
-  { name: 'castanho', ramp: HAIR },
-  { name: 'preto', ramp: ['141220', '2c2838', '5d5873'] },
   { name: 'loiro', ramp: ['8a5a1e', 'd9a441', 'f7e39a'] },
-  { name: 'ruivo', ramp: ['6b1f14', 'b9452a', 'ef9264'] },
 ];
 
 /** Cores que só a espada (lâmina azul, cabo laranja e dourado) usa no pacote, achadas por `palette()` nos quadros do golpe. */

@@ -32,7 +32,7 @@ export function checkCreate(f: CreateForm): Checked<{ nickname: string; characte
   return { ok: true, nickname, character: f.character as number, init: { turnMs: f.turnMs, maxPlayers: f.maxPlayers, onlyModerate: f.onlyModerate } };
 }
 
-/** O formulário de entrar: apelido e um dos onze personagens (não são exclusivos). */
+/** O formulário de entrar: apelido e um dos seis personagens (não são exclusivos). */
 export function checkJoin(nickname: string, character: number | null): Checked<{ nickname: string; character: number }> {
   const problems: FormProblem[] = [];
   const n = cleanNickname(nickname);

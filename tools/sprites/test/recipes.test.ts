@@ -53,17 +53,16 @@ describe('o golpe sem a espada', () => {
 
 describe('cabelo', () => {
   test('a rampa castanha vira a rampa pedida, e nada mais muda', () => {
-    const out = recolorHair(body(), HAIRS[3].ramp);
+    const out = recolorHair(body(), HAIRS[0].ramp);
     const pal = palette(out);
     for (const c of HAIR) expect(pal.has(c)).toBe(false);
-    for (const c of HAIRS[3].ramp) expect(pal.has(c)).toBe(true);
+    for (const c of HAIRS[0].ramp) expect(pal.has(c)).toBe(true);
     expect(pal.has('d2947f')).toBe(true);
   });
 
-  test('quatro cabelos, todos diferentes, o primeiro é o original', () => {
-    expect(HAIRS.map((h) => h.name)).toEqual(['castanho', 'preto', 'loiro', 'ruivo']);
-    expect(HAIRS[0].ramp).toEqual(HAIR);
-    expect(new Set(HAIRS.map((h) => h.ramp[1])).size).toBe(4);
+  test('um cabelo só, o loiro', () => {
+    expect(HAIRS.map((h) => h.name)).toEqual(['loiro']);
+    expect(HAIRS[0].ramp).not.toEqual(HAIR); // o loiro é uma troca de cor do castanho original
   });
 });
 

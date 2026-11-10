@@ -35,15 +35,15 @@ describe('post-it sobre a cabeça', () => {
   });
 
   test('o post-it fica acima do topo da cabeça de cada modelo, dentro do quadro', () => {
-    for (const n of [0, 4, 6, 8, 9, 10]) {
+    for (const n of [0, 1, 2, 3, 4, 5]) {
       const { atlas } = character(n);
       const k = atlas.scale ?? 1; // o Vorcaro é arte grande, desenhada encolhida
       expect(headY(n)).toBeGreaterThanOrEqual((atlas.anchor.y - atlas.head.y) * k);
       expect(headY(n)).toBeLessThan(atlas.frame.h * k + 4);
     }
     // o esqueleto é mais alto que o herói: o post-it dele vai mais alto
-    expect(headY(4)).toBeGreaterThan(headY(0));
-    expect(emoteY(4) - emoteY(0)).toBe(headY(4) - headY(0));
+    expect(headY(1)).toBeGreaterThan(headY(0));
+    expect(emoteY(1) - emoteY(0)).toBe(headY(1) - headY(0));
   });
 
   test('pular leva o post-it junto', () => {

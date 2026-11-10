@@ -36,3 +36,7 @@ Orelha, a dog, is another image-model pack from the owner (`assets-src/orelha/`,
 
 Another image-model pack from the owner (`assets-src/bolsonaro/`, 208×192 cells, `credit` null): a caricature of Jair Bolsonaro in the presidential sash, riding a tyrannosaur and holding a ray gun. Imported through `pack.ts` with no pixel changed, drawn at 0.3 (45 units tall, 52 long), slot 10; `CHARACTERS` goes from 10 to 11. His shove is a shot with a muzzle flash, which the character prompt forbids, but supplied art isn't edited. With eleven characters the picker is two rows of six; the cells are a little narrower than the portrait window, so only the very ends of the widest characters (the dinosaur's tail and snout) fall outside.
 
+## Amendment: the cast cut to six, one per model
+
+With four image-model characters in, the owner removed the colour variants: the hero keeps only the blonde hair and the skeleton only the red cape. `CHARACTERS` goes from 11 to 6 and the slots are renumbered in list order: 0 hero, 1 skeleton, 2 Kratos, 3 Vorcaro, 4 Orelha, 5 Bolsonaro. `HAIRS` and `CAPES` stay as lists of one, so a variant can come back as one line plus a slot. Browsers remember the last character by number; a number that now points elsewhere just selects that character, and one out of range falls back to slot 0. Sheets of the removed slots are deleted from `apps/web/public/sprites/`; an override for a file name that no longer exists (ADR 0009) is simply never served.
+

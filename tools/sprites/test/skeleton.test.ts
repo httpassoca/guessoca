@@ -34,17 +34,17 @@ function body(img = blank(CELL_W, CELL_H), x0 = 0) {
 }
 
 describe('capa', () => {
-  test('a capa vermelha é a original; três capas com cores diferentes (a verde deu o lugar ao Kratos)', () => {
-    expect(CAPES.map((c) => c.name)).toEqual(['vermelho', 'azul', 'roxo']);
+  test('a capa vermelha é a original, e a única que ficou', () => {
+    expect(CAPES.map((c) => c.name)).toEqual(['vermelho']);
     expect(CAPES[0].ramp).toEqual(CAPE);
-    expect(new Set(CAPES.map((c) => c.ramp[1])).size).toBe(3);
   });
 
   test('trocar a capa só mexe nas cores da capa: olhos, ossos e espada ficam', () => {
     const f = body();
-    const out = recolorCape(f, CAPES[1].ramp);
+    const BLUE = ['1c2c6e', '2f50ad'] as const; // uma capa que o jogo já teve
+    const out = recolorCape(f, BLUE);
     for (const c of CAPE) expect(palette(out).has(c)).toBe(false);
-    expect(count(out, CAPES[1].ramp[0]) + count(out, CAPES[1].ramp[1])).toBe(count(f, CAPE[0]) + count(f, CAPE[1]));
+    expect(count(out, BLUE[0]) + count(out, BLUE[1])).toBe(count(f, CAPE[0]) + count(f, CAPE[1]));
     for (const keep of [EYE, 'ffffff', '7e7e7e', '4d5865']) expect(count(out, keep)).toBe(count(f, keep));
     expect(EYE).not.toBe(CAPE[0]);
   });
@@ -110,7 +110,7 @@ describe('as animações desenhadas', () => {
 
   test('a folha e o atlas: uma folha por capa, a âncora no chão', () => {
     const { sheets: out, atlas } = buildSkeleton(sheets);
-    expect(out).toHaveLength(3);
+    expect(out).toHaveLength(CAPES.length);
     expect(atlas.credit).toBeNull();
     expect(atlas.anchor.y).toBe(atlas.stand.y + atlas.stand.h);
     const { x, y, size } = atlas.head;
