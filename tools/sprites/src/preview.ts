@@ -6,7 +6,7 @@
  *
  * - `<modelo>-<animação>.png`: os quadros de uma animação lado a lado, do primeiro personagem do modelo (o mesmo atlas
  *   vale para as outras cores), cada quadro num xadrez com borda e tiques vermelhos embaixo e à esquerda, na coluna e na linha da âncora (o pé);
- * - `characters-idle.png`: o primeiro quadro do parado dos oito personagens, na ordem dos lugares 0–7;
+ * - `characters-idle.png`: o primeiro quadro do parado dos nove personagens, na ordem dos lugares 0–8;
  * - `rooftop.png`, `emotes-<língua>.png` e `skyline-<camada>.png`: os objetos do telhado, os balões e a cidade.
  *
  * Tudo a `SCALE`× (4). A montagem (`contactLayout`, `contactSheet`, `upscale`) é pura e testada em
@@ -124,7 +124,7 @@ if (import.meta.main) {
   };
   const sheetOf = (url: string) => readPng(join(sheets, url.replace(/^\/sprites\//, '')));
 
-  // os personagens: uma imagem por animação de cada modelo, e o parado dos oito
+  // os personagens: uma imagem por animação de cada modelo, e o parado dos nove
   const list = json<CharacterEntry[]>('characters.json');
   const idles: Image[] = [];
   const idleAnchors: { x: number; y: number }[] = [];

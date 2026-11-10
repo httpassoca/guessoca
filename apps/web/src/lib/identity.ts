@@ -40,7 +40,7 @@ export const token = () => tokenIn(session());
 export const rememberedNickname = () => nicknameIn(local());
 export const rememberNickname = (nickname: string) => rememberNicknameIn(local(), nickname);
 
-/** O último personagem escolhido neste navegador, ou null (nenhum, ou algo fora de 0..7). */
+/** O último personagem escolhido neste navegador, ou null (nenhum, ou algo fora de 0..8). */
 export function characterIn(store: MaybeStore): number | null {
   const s = read(store, CHARACTER_KEY);
   const n = s === '' ? NaN : Number(s);

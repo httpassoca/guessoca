@@ -53,17 +53,17 @@ describe('a montagem do atlas', () => {
 describe('os personagens', () => {
   const list = characters();
 
-  test('oito, quatro heróis, três esqueletos e o Kratos no lugar 6, cada um com a sua folha e o seu atlas', () => {
-    expect(list).toHaveLength(8);
-    expect(list.map((c) => c.model)).toEqual(['hero', 'hero', 'hero', 'hero', 'skeleton', 'skeleton', 'kratos', 'skeleton']);
-    expect(list.map((c) => c.sheet)).toEqual(Array.from({ length: 8 }, (_, n) => `/sprites/char-${n}.png`));
+  test('nove, quatro heróis, três esqueletos, o Kratos no lugar 6 e o Vorcaro no 8, cada um com a sua folha e o seu atlas', () => {
+    expect(list).toHaveLength(9);
+    expect(list.map((c) => c.model)).toEqual(['hero', 'hero', 'hero', 'hero', 'skeleton', 'skeleton', 'kratos', 'skeleton', 'vorcaro']);
+    expect(list.map((c) => c.sheet)).toEqual(Array.from({ length: 9 }, (_, n) => `/sprites/char-${n}.png`));
     for (const c of list) expect(c.atlas).toBe(c.model);
   });
 
   test('cores de interface únicas, em #rrggbb, e nomes únicos por modelo', () => {
-    expect(new Set(list.map((c) => c.color)).size).toBe(8);
+    expect(new Set(list.map((c) => c.color)).size).toBe(9);
     for (const c of list) expect(c.color).toMatch(/^#[0-9a-f]{6}$/);
     expect(list.slice(0, 4).map((c) => c.name)).toEqual(['castanho', 'preto', 'loiro', 'ruivo']);
-    expect(list.slice(4).map((c) => c.name)).toEqual(['vermelho', 'azul', 'kratos', 'roxo']);
+    expect(list.slice(4).map((c) => c.name)).toEqual(['vermelho', 'azul', 'kratos', 'roxo', 'vorcaro']);
   });
 });
