@@ -74,7 +74,7 @@ apps/web           Vite + Svelte 5 + PixiJS v8 + dssoca
                            desistir ou votar, os post-its como posso vê-los, o ranking, a contagem regressiva
   src/lib/image.ts         a imagem do post-it: reduz a 512 px, WebP baixando a qualidade até caber, sobe por POST
   src/lib/effects.ts       "efeitos de tela" (os filtros de filme) ligados ou não, por navegador (localStorage)
-  src/lib/sprites/         os atlas gerados (`characters.json`, `hero.json`, `skeleton.json`, `kratos.json`, `vorcaro.json`, `orelha.json`, `emotes.json`, `rooftop.json`),
+  src/lib/sprites/         os atlas gerados (`characters.json`, `hero.json`, `skeleton.json`, `kratos.json`, `vorcaro.json`, `orelha.json`, `bolsonaro.json`, `emotes.json`, `rooftop.json`),
                            `characters.ts`, que diz de que modelo é cada personagem, a folha, a cor e onde está cada quadro
                            no atlas do modelo, e `rooftop.ts`, o mesmo para os objetos do telhado e as faixas da cidade
   src/lib/world/            o telhado no navegador: controls (teclas → `Input`), loop (60 passos por segundo), presence (manda
@@ -112,7 +112,8 @@ tools/sprites      `bun run sprites` (@guess/sprites): as receitas que geram as 
   src/kratos.ts      o Kratos: os números dele para `pack.ts`
   src/vorcaro.ts     o Vorcaro: os números dele para `pack.ts`
   src/orelha.ts      o Orelha, o cachorro: os números dele para `pack.ts`
-  src/characters.ts  os dez personagens (0–3 herói, 4, 5 e 7 esqueleto, 6 Kratos, 8 Vorcaro, 9 Orelha), que viram `characters.json`
+  src/bolsonaro.ts   o Bolsonaro no dinossauro: os números dele para `pack.ts`
+  src/characters.ts  os onze personagens (0–3 herói, 4, 5 e 7 esqueleto, 6 Kratos, 8 Vorcaro, 9 Orelha, 10 Bolsonaro), que viram `characters.json`
   src/emotes.ts      os balões `?`, `!`, `haha`, "eu?"/"me?" com uma fonte 3×5 em texto
   src/rooftop.ts     o telhado em grades de texto: a paleta, a prancheta (`Sketch`) que carimba grades, tampo, muretas,
                      fachadas, as três caixas do mapa (ar-condicionado, chaminé, caixa-d'água), antenas, letreiros de neon,
@@ -149,9 +150,9 @@ Como a arte funciona e como importar arte nova (personagens, animações, objeto
 [`docs/art.md`](docs/art.md). `bun run sprites:preview` gera folhas de contato ampliadas do que está versionado em
 `.preview/` (fora do git) para conferir no olho.
 
-Há cinco modelos de personagem. O herói é o "male hero" (versão grátis) da [Ozzbit Games](https://ozzbit-games.itch.io),
+Há seis modelos de personagem. O herói é o "male hero" (versão grátis) da [Ozzbit Games](https://ozzbit-games.itch.io),
 com licença só para uso pessoal e não comercial, modificações permitidas e crédito obrigatório (ADR 0007). O cavaleiro
-esqueleto, o Kratos, o Vorcaro e o Orelha são arte do dono do jogo, sem restrição nem crédito (emendas da ADR 0007). Os pacotes ficam fora do git, em
+esqueleto, o Kratos, o Vorcaro, o Orelha e o Bolsonaro são arte do dono do jogo, sem restrição nem crédito (emendas da ADR 0007). Os pacotes ficam fora do git, em
 `assets-src/` (ignorado), e só as folhas que o pipeline gera são versionadas em `apps/web/public/sprites/` (os atlas em
 `apps/web/src/lib/sprites/`). O CI e o Docker usam o que está versionado e nunca precisam dos pacotes.
 
@@ -161,6 +162,7 @@ cp -r <folhas do esqueleto> assets-src/skeleton/   # IDLE.png, WALK.png, FWD_SWI
 cp <folhas do Kratos> assets-src/kratos/           # idle.png, walk.png, run.png, jump.png, fall.png, fall_loop.png, shove.png
 cp <folhas do Vorcaro> assets-src/vorcaro/         # as mesmas sete
 cp <folhas do Orelha> assets-src/orelha/           # as mesmas sete
+cp <folhas do Bolsonaro> assets-src/bolsonaro/     # as mesmas sete
 bun run sprites                             # refaz as folhas e os atlas
 ```
 
@@ -169,7 +171,7 @@ com erro.
 
 O que sai:
 
-- `char-N.png` (e `char-6.webp`, `char-8.webp` e `char-9.webp`, a arte grande): uma folha por personagem, com uma linha por animação, na mesma ordem em todos os modelos:
+- `char-N.png` (e `char-6.webp`, `char-8.webp`, `char-9.webp` e `char-10.webp`, a arte grande): uma folha por personagem, com uma linha por animação, na mesma ordem em todos os modelos:
   parado, andando, correndo, pulo, queda, queda em loop e empurrão.
   - `char-0` … `char-3`: o herói, igual menos o cabelo (castanho, preto, loiro, ruivo). O empurrão é o golpe do pacote
     sem a espada: as cores da lâmina e do cabo saem por cor, o rastro branco por ser uma mancha branca grande, e o
@@ -190,8 +192,11 @@ O que sai:
     1,3 MB em vez de 2 MB em PNG), e o atlas leva `scale` (1/6): é o jogo que a desenha menor.
   - `char-9`: o Orelha, o cachorro, feito por um modelo de imagem a pedido do dono. Células de 168×116, desenhado a
     0,3 (30 de altura, 43 de comprimento). É o único de quatro patas: mais comprido que alto, com a cabeça na frente.
-- `characters.json`: os dez, cada um com o modelo, o nome da cor, a cor na interface, a folha e o atlas. Um atlas por
-  modelo (`hero.json`, `skeleton.json`, `kratos.json`, `vorcaro.json`, `orelha.json`): tamanho do quadro, âncora (entre os pés), a cabeça, o parado, as linhas das
+  - `char-10`: o Bolsonaro, uma caricatura dele de faixa presidencial montado num tiranossauro, com uma arma de raio;
+    feito por um modelo de imagem a pedido do dono. Células de 208×192, desenhado a 0,3 (45 de altura, 52 de
+    comprimento). O empurrão é um tiro, com o clarão da arma.
+- `characters.json`: os onze, cada um com o modelo, o nome da cor, a cor na interface, a folha e o atlas. Um atlas por
+  modelo (`hero.json`, `skeleton.json`, `kratos.json`, `vorcaro.json`, `orelha.json`, `bolsonaro.json`): tamanho do quadro, âncora (entre os pés), a cabeça, o parado, as linhas das
   animações com quadros, fps e loop, e o crédito (ou null).
 - `emotes-pt-BR.png` e `emotes-en-US.png`: os balões das teclas 1–4; só o "eu?"/"me?" muda de uma para a outra.
 - `rooftop.png` (atlas em `rooftop.json`): o telhado neon-noir, todo desenhado em grades de texto em
@@ -210,8 +215,8 @@ O que sai:
 ### Pedir um personagem ou objeto novo
 
 - **Outra cor de cabelo** ou **outra capa**: troque uma rampa em `HAIRS` (sombra, base, brilho) em
-  `tools/sprites/src/hero.ts` ou em `CAPES` (sombra, base) em `tools/sprites/src/skeleton.ts`. São dez personagens
-  (não exclusivos; a sala tem até oito pessoas): quatro heróis, três esqueletos, o Kratos, o Vorcaro e o Orelha, na ordem de `characters.ts`. A cor do personagem na interface é
+  `tools/sprites/src/hero.ts` ou em `CAPES` (sombra, base) em `tools/sprites/src/skeleton.ts`. São onze personagens
+  (não exclusivos; a sala tem até oito pessoas): quatro heróis, três esqueletos, o Kratos, o Vorcaro, o Orelha e o Bolsonaro, na ordem de `characters.ts`. A cor do personagem na interface é
   a base da rampa; atualize `--gs-char-N` em `apps/web/src/app.css` (o teste confere).
 - **Variantes do esqueleto**: a capa é `771818` (sombra) e `982b2b` (base), os únicos vermelhos da arte além do olho
   (`fe0707`, que fica). Diga a cor da capa nova, ou outra peça (a espada, os ossos) e a cor; uma animação nova ou
@@ -244,7 +249,8 @@ chmod 600 ~/.guessoca.env
 cd ~/dev/guessoca && npm run docker:stop; npm run docker:start
 ```
 
-Para testar na sua máquina: `GUESS_ADMIN_HASH=<hash> PORT=3111 bun apps/server/src/index.ts`.
+Para testar na sua máquina: `GUESS_ADMIN_HASH=<hash> PORT=3111 bun apps/server/src/index.ts`. O passo a passo do servidor,
+com a conferência e como trocar a senha, está em `docs/sistema.md`.
 
 - **Ver**: cada personagem com as sete animações tocando (tamanho, velocidade, pausa, quadro a quadro, linha do chão e
   âncora), os objetos do telhado, a cidade ao fundo, os balões, a música e os efeitos sonoros, e a tabela de todos os
@@ -272,5 +278,5 @@ certbot) são guiados por `bash deploy/wizard.sh`, que termina provando HTTPS e 
 ## Créditos
 
 Herói: [Ozzbit Games](https://ozzbit-games.itch.io) (pacote "male hero", uso pessoal e não comercial). O pacote original
-não está no repositório; só as folhas geradas pelo pipeline (ADR 0007). O cavaleiro esqueleto, o Kratos, o Vorcaro e o Orelha são arte do dono do jogo.
+não está no repositório; só as folhas geradas pelo pipeline (ADR 0007). O cavaleiro esqueleto, o Kratos, o Vorcaro, o Orelha e o Bolsonaro são arte do dono do jogo.
 Guessoca não é comercial e não tem anúncios.

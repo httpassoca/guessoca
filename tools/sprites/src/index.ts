@@ -1,12 +1,12 @@
 /**
  * `bun run sprites`: roda as receitas sobre os pacotes em `assets-src/` (fora do git, ADR 0007) e escreve as folhas que o
  * jogo usa em `apps/web/public/sprites/` (`char-N.png`, ou `char-N.webp` para a arte grande do Kratos e do Vorcaro, uma por personagem) e os atlas em
- * `apps/web/src/lib/sprites/` (`hero.json`, `skeleton.json`, `kratos.json`, `vorcaro.json`, `orelha.json` e `characters.json`, que liga cada personagem ao seu).
+ * `apps/web/src/lib/sprites/` (`hero.json`, `skeleton.json`, `kratos.json`, `vorcaro.json`, `orelha.json`, `bolsonaro.json` e `characters.json`, que liga cada personagem ao seu).
  * Só a saída vai para o git; o CI e o Docker nunca precisam dos pacotes.
  * O telhado (objetos em grade de texto e a cidade ao fundo) não usa o pacote e sai primeiro, mesmo sem ele.
  *
  * Ordem: `rooftop.png` + `skyline-*.png` + `rooftop.json` (de `rooftop.ts` e `skyline.ts`); depois cada modelo de
- * `models` (`hero.ts`, `skeleton.ts`, e `kratos.ts`, `vorcaro.ts` e `orelha.ts`, os de sete folhas de `pack.ts`), com as folhas nos lugares que `characters.ts` dá a ele; `characters.json`;
+ * `models` (`hero.ts`, `skeleton.ts`, e `kratos.ts`, `vorcaro.ts`, `orelha.ts` e `bolsonaro.ts`, os de sete folhas de `pack.ts`), com as folhas nos lugares que `characters.ts` dá a ele; `characters.json`;
  * `emotes-<língua>.png` e `emotes.json` (`emotes.ts`); e por fim apaga nomes antigos que não existem mais. É o único
  * arquivo que toca o disco (com `png.ts`); as receitas são puras. `bun run sprites:preview` (`preview.ts`) lê o que
  * sai daqui e amplia para conferir.
@@ -15,6 +15,7 @@ import { existsSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { emoteSheet, type EmoteLang } from './emotes';
 import { characters } from './characters';
+import { buildBolsonaro } from './bolsonaro';
 import { buildHero, ANIMATIONS } from './hero';
 import { buildKratos } from './kratos';
 import { SHEETS as PACK_SHEETS } from './pack';
@@ -87,6 +88,13 @@ const models = [
     how: 'Copie as sete folhas do Orelha (idle.png, walk.png, ... de células de 168×116) para assets-src/orelha/ (ver README).',
     files: PACK_SHEETS.map((n) => [n, `${n}.png`] as const),
     build: buildOrelha,
+  },
+  {
+    model: 'bolsonaro' as const,
+    pack: join(root, 'assets-src/bolsonaro'),
+    how: 'Copie as sete folhas do Bolsonaro (idle.png, walk.png, ... de células de 208×192) para assets-src/bolsonaro/ (ver README).',
+    files: PACK_SHEETS.map((n) => [n, `${n}.png`] as const),
+    build: buildBolsonaro,
   },
 ];
 const list = characters();
