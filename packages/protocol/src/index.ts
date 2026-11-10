@@ -134,7 +134,7 @@ export interface MemberView {
   id: string;
   nickname: string;
   connected: boolean;
-  /** personagem, 0..10 */
+  /** personagem, 0..12 */
   character: number | null;
   /** fora de `order`: chegou depois do começo, ou só modera */
   ghost: boolean;
