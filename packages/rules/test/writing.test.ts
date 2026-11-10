@@ -89,6 +89,14 @@ describe('escrita no lobby', () => {
     expect(s.game.postits.c.ready).toBe(true);
     s.refuse('b', { type: 'ready' }, 'invalid');
     s.refuse('b', { type: 'write', owner: 'c', text: 'outro', image: null }, 'invalid');
+    // desfazer o pronto: só o autor, só de um post-it pronto; o texto fica e volta a dar para escrever
+    s.refuse('a', { type: 'unready' }, 'invalid');
+    expect(s.do('b', { type: 'unready' })).toEqual([]);
+    expect(s.game.postits.c).toEqual({ text: 'Pelé', image: null, ready: false });
+    s.refuse('b', { type: 'unready' }, 'invalid');
+    s.do('b', { type: 'write', owner: 'c', text: 'Garrincha', image: null });
+    s.do('b', { type: 'ready' });
+    expect(s.game.postits.c).toEqual({ text: 'Garrincha', image: null, ready: true });
     s.refuse('a', { type: 'write', owner: 'c', text: 'outro', image: null }, 'invalid');
   });
 

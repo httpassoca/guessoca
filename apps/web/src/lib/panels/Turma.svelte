@@ -52,7 +52,7 @@
 {#snippet postitChip(r: TurmaRow)}
   {@const c = r.card}
   {#if c?.hidden}
-    <Tooltip text={t('postit.hidden')}><span class="gs-chip hidden"><span class="q">?</span></span></Tooltip>
+    <Tooltip text={t(c.mine ? 'postit.hidden' : 'postit.secret')}><span class="gs-chip hidden"><span class="q">?</span></span></Tooltip>
   {:else if c && (c.text || c.image)}
     {#snippet chip()}
       <span class="gs-chip">

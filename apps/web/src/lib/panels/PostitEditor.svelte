@@ -14,7 +14,8 @@
    * mesma altura. O lugar vazio abre o seletor de arquivo; com imagem, clicar troca e a lixeira no canto tira. Cada
    * tecla manda o post-it como está (no máximo a cada ~100 ms), para a turma ver ao vivo; "Pronto" (a ação principal)
    * manda na hora e marca pronto. O moderador usa o mesmo editor para os post-its que faltam, sem "Pronto"
-   * (`canReady` false): ele pode começar sem esperar o pronto. Pronto, tudo fica parado.
+   * (`canReady` false): ele pode começar sem esperar o pronto. Pronto, tudo fica parado, até o autor desfazer
+   * ("Desfazer", ao lado da marca de pronto), o que solta o editor de novo com o mesmo texto.
    */
   let { owner, postit, code, token, send, canReady }: {
     owner: string; postit: PostitView; code: string; token: string; send: (r: GameRequest) => void; canReady: boolean;
@@ -93,7 +94,7 @@
     <div class="gs-row gs-editor-foot">
       {#if imageFailed}<p class="gs-error">{t('editor.imageFailed')}</p>{/if}
       <span class="gs-spacer"></span>
-      {#if locked}<span class="gs-tag on"><Icon name="check" />{t('editor.isReady')}</span>
+      {#if locked}<span class="gs-tag on"><Icon name="check" />{t('editor.isReady')}</span>{#if canReady}<button class="ss-btn ghost gs-sm" type="button" onclick={() => send({ type: 'unready' })}>{t('editor.unready')}</button>{/if}
       {:else if canReady}<button class="ss-btn primary gs-sm" type="button" disabled={!text.trim() || uploading} onclick={ready}>{t('editor.ready')}</button>{/if}
     </div>
   {/if}

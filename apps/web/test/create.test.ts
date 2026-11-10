@@ -43,13 +43,13 @@ describe('criar a sala', () => {
 
 describe('entrar na sala', () => {
   test('apelido e um personagem livre', () => {
-    expect(checkJoin('  Ana ', 2, [0, 2, 5])).toEqual({ ok: true, nickname: 'Ana', character: 2 });
+    expect(checkJoin('  Ana ', 2)).toEqual({ ok: true, nickname: 'Ana', character: 2 });
   });
 
-  test('sem apelido, ou personagem que outra pessoa pegou, não entra', () => {
-    expect(checkJoin('', 2, [2])).toEqual({ ok: false, problems: ['nickname'] });
-    expect(checkJoin('Ana', 1, [0, 2])).toEqual({ ok: false, problems: ['character'] });
-    expect(checkJoin('Ana', null, [0])).toEqual({ ok: false, problems: ['character'] });
+  test('sem apelido ou sem personagem não entra', () => {
+    expect(checkJoin('', 2)).toEqual({ ok: false, problems: ['nickname'] });
+    expect(checkJoin('Ana', 9)).toEqual({ ok: false, problems: ['character'] });
+    expect(checkJoin('Ana', null)).toEqual({ ok: false, problems: ['character'] });
   });
 });
 

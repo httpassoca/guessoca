@@ -91,7 +91,7 @@ export interface Ctx {
 
 export type GameAction =
   // lobby
-  /** escolhe o próprio personagem, se estiver livre (qualquer fase) */
+  /** escolhe o próprio personagem, qualquer um dos oito, mesmo que outra pessoa já use (qualquer fase) */
   | { type: 'character'; character: number }
   /** moderador: nova ordem das vezes; tem de ser uma permutação de `order` (lobby ou jogo) */
   | { type: 'order'; order: string[] }
@@ -110,6 +110,8 @@ export type GameAction =
   | { type: 'write'; owner: string; text: string; image: string | null }
   /** o autor marca o post-it que escreve como pronto (precisa de texto; lobby) */
   | { type: 'ready' }
+  /** o autor desfaz o pronto do post-it que escreve, para voltar a mexer nele (lobby) */
+  | { type: 'unready' }
   /**
    * moderador: lobby → jogo, com pelo menos `MIN_PLAYERS` em `order` e todo post-it com texto (pronto ou não: o moderador
    * pode começar sem esperar o "Pronto" de alguém, mas não com post-it vazio)
@@ -173,7 +175,8 @@ export function createGame(init: { turnMs?: number } = {}): GameState {
 }
 
 /**
- * Alguém entrou na turma: ganha o primeiro personagem livre; no lobby entra no fim de `order` com um post-it vazio (o
+ * Alguém entrou na turma: ganha o primeiro personagem que ninguém usa (ou o 0, se todos já têm dono: os personagens
+ * não são exclusivos, isto é só para a turma começar variada); no lobby entra no fim de `order` com um post-it vazio (o
  * círculo recalcula, `customAuthors` volta a false e o post-it de quem muda de autor é apagado); fora do lobby fica
  * fantasma até o próximo jogo. Não devolve eventos: o `cleared` de quem entra fica de fora.
  */
@@ -181,6 +184,7 @@ export function addMember(g: GameState, id: string): GameState {
   if (id in g.characters) return g;
   const next = structuredClone(g);
   const taken = new Set(Object.values(next.characters));
+  next.characters[id] = 0;
   for (let c = 0; c < CHARACTERS; c++) {
     if (!taken.has(c)) {
       next.characters[id] = c;
@@ -249,7 +253,6 @@ function apply(g: GameState, actor: string, moderator: boolean, action: GameActi
     case 'character': {
       const c = action.character;
       if (!(actor in g.characters) || !Number.isInteger(c) || c < 0 || c >= CHARACTERS) return 'invalid';
-      if (Object.entries(g.characters).some(([id, other]) => id !== actor && other === c)) return 'invalid';
       g.characters[actor] = c;
       return null;
     }
@@ -324,6 +327,13 @@ function apply(g: GameState, actor: string, moderator: boolean, action: GameActi
       const postit = g.postits[owner];
       if (postit.ready || postit.text === '') return 'invalid';
       postit.ready = true;
+      return null;
+    }
+    case 'unready': {
+      if (g.phase !== 'lobby') return 'wrongPhase';
+      const owner = Object.keys(g.postits).find((o) => g.authors[o] === actor && o !== actor);
+      if (owner === undefined || !g.postits[owner].ready) return 'invalid';
+      g.postits[owner].ready = false;
       return null;
     }
     case 'start': {

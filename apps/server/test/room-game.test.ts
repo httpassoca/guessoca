@@ -105,17 +105,24 @@ describe('sala: mensagens de jogo', () => {
 });
 
 describe('sala: o próprio post-it nunca passa pelo fio antes da revelação', () => {
-  test('nem texto nem imagem chegam ao dono; chegam a todo o resto; e chegam ao dono quando ele desiste', () => {
+  test('no lobby só o autor vê; no jogo, todos menos o dono; e chega ao dono quando ele desiste', () => {
     const s = lobby(3);
     s.connect('t9'); // visitante
     const owner = 'm3', author = s.game.authors[owner];
     const image = 'abcdef0123456789';
     // escrito tecla a tecla, como o cliente manda
     for (const text of ['M', 'Mo', 'Mona', 'Mona Lisa']) s.say(tokenOf(s, author), { type: 'write', owner, text, image });
-    expect(s.snapshotFor('t1')!.postits[owner]).toMatchObject({ text: 'Mona Lisa', image: imageUrl('ABCD', image) });
-    expect(s.snapshotFor('t9')!.postits[owner]).toMatchObject({ text: 'Mona Lisa', image: imageUrl('ABCD', image) });
+    // no lobby: só o autor vê o que escreveu; nem o moderador, nem os outros, nem o visitante (e nada vai pelo fio)
+    expect(s.snapshotFor(tokenOf(s, author))!.postits[owner]).toMatchObject({ text: 'Mona Lisa', image: imageUrl('ABCD', image) });
+    for (const t of ['t1', 't2', 't3', 't9'].filter((t) => t !== tokenOf(s, author))) {
+      expect(s.snapshotFor(t)!.postits[owner]).toMatchObject({ text: null, image: null, written: true });
+      expect(JSON.stringify(s.snapshotFor(t))).not.toContain('Mona');
+    }
     writeAll(s);
     s.say('t1', { type: 'start' });
+    // começou: todos veem, menos o dono
+    expect(s.snapshotFor('t1')!.postits[owner]).toMatchObject({ text: 'Mona Lisa', image: imageUrl('ABCD', image) });
+    expect(s.snapshotFor('t9')!.postits[owner]).toMatchObject({ text: 'Mona Lisa', image: imageUrl('ABCD', image) });
     s.say('t1', { type: 'mark', member: 'm1', right: true }); // m1 acerta; o jogo segue
     expect(s.snapshotFor('t3')!.postits[owner]).toEqual({ text: null, image: null, ready: true, written: true, revealed: false, author });
     const wire = s.wire('t3');

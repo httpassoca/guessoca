@@ -74,7 +74,7 @@ describe('lobby', () => {
     expect(s.game.postits).toEqual({ a: empty, b: empty, c: empty });
   });
 
-  test('quem entra vai para o fim da ordem e ganha o primeiro personagem livre', () => {
+  test('quem entra vai para o fim da ordem e ganha o primeiro personagem que ninguém usa', () => {
     const s = new Sim('a', 'b', 'c');
     expect(s.game.order).toEqual(['a', 'b', 'c']);
     expect(s.game.characters).toEqual({ a: 0, b: 1, c: 2 });
@@ -83,9 +83,12 @@ describe('lobby', () => {
     expect(s.game.characters.d).toBe(0);
   });
 
-  test('personagem ocupado ou fora da faixa é recusado', () => {
+  test('os personagens não são exclusivos: dois podem usar o mesmo; fora da faixa é recusado', () => {
     const s = new Sim('a', 'b');
-    s.refuse('b', { type: 'character', character: 0 }, 'invalid');
+    s.do('b', { type: 'character', character: 0 });
+    expect(s.game.characters).toEqual({ a: 0, b: 0 });
+    s.join('c');
+    expect(s.game.characters.c).toBe(1);
     s.refuse('b', { type: 'character', character: 8 }, 'invalid');
     s.refuse('b', { type: 'character', character: 1.5 }, 'invalid');
   });

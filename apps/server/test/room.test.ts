@@ -189,9 +189,9 @@ describe('sala: snapshot', () => {
     s.enter('t2', 'Dita');
     s.connect('t3');
     const lobby = { ...EMPTY, moderator: 'm1', members: [view('m1', 'Zé', 0), view('m2', 'Dita', 1)], order: ['m1', 'm2'], authors: { m1: 'm2', m2: 'm1' } };
-    // já no lobby cada um tem um post-it vazio; o próprio vai sem texto
-    const postit = (author: string, own: boolean) => ({ text: own ? null : '', image: null, ready: false, written: false, revealed: false, author });
-    const postits = (you: string | null) => ({ m1: postit('m2', you === 'm1'), m2: postit('m1', you === 'm2') });
+    // já no lobby cada um tem um post-it vazio; só quem escreve vê o texto (o dono, os outros e o visitante, não)
+    const postit = (author: string, you: string | null) => ({ text: you === author ? '' : null, image: null, ready: false, written: false, revealed: false, author });
+    const postits = (you: string | null) => ({ m1: postit('m2', you), m2: postit('m1', you) });
     expect(snapshotFor(s.state, 't1', s.now)).toEqual({ ...lobby, you: 'm1', postits: postits('m1') });
     expect(snapshotFor(s.state, 't2', s.now)).toEqual({ ...lobby, you: 'm2', postits: postits('m2') });
     expect(snapshotFor(s.state, 't3', s.now)).toEqual({ ...lobby, you: null, postits: postits(null) });
