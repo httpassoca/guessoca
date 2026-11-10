@@ -1,12 +1,12 @@
 /**
  * `bun run sprites`: roda as receitas sobre os pacotes em `assets-src/` (fora do git, ADR 0007) e escreve as folhas que o
- * jogo usa em `apps/web/public/sprites/` (`char-0.png` … `char-7.png` e `char-8.webp`, uma por personagem) e os atlas em
+ * jogo usa em `apps/web/public/sprites/` (`char-N.png`, ou `char-N.webp` para a arte grande do Kratos e do Vorcaro, uma por personagem) e os atlas em
  * `apps/web/src/lib/sprites/` (`hero.json`, `skeleton.json`, `kratos.json`, `vorcaro.json` e `characters.json`, que liga cada personagem ao seu).
  * Só a saída vai para o git; o CI e o Docker nunca precisam dos pacotes.
  * O telhado (objetos em grade de texto e a cidade ao fundo) não usa o pacote e sai primeiro, mesmo sem ele.
  *
  * Ordem: `rooftop.png` + `skyline-*.png` + `rooftop.json` (de `rooftop.ts` e `skyline.ts`); depois cada modelo de
- * `models` (`hero.ts`, `skeleton.ts`, `kratos.ts`, `vorcaro.ts`), com as folhas nos lugares que `characters.ts` dá a ele; `characters.json`;
+ * `models` (`hero.ts`, `skeleton.ts`, e `kratos.ts` e `vorcaro.ts`, os de sete folhas de `pack.ts`), com as folhas nos lugares que `characters.ts` dá a ele; `characters.json`;
  * `emotes-<língua>.png` e `emotes.json` (`emotes.ts`); e por fim apaga nomes antigos que não existem mais. É o único
  * arquivo que toca o disco (com `png.ts`); as receitas são puras. `bun run sprites:preview` (`preview.ts`) lê o que
  * sai daqui e amplia para conferir.
@@ -17,9 +17,9 @@ import { emoteSheet, type EmoteLang } from './emotes';
 import { characters } from './characters';
 import { buildHero, ANIMATIONS } from './hero';
 import { buildKratos } from './kratos';
-import { buildVorcaro, SHEETS as VORCARO_SHEETS } from './vorcaro';
+import { SHEETS as PACK_SHEETS } from './pack';
+import { buildVorcaro } from './vorcaro';
 import { buildSkeleton, SHEETS as SKELETON_SHEETS } from './skeleton';
-import { readGifStrip } from './gif';
 import { rooftopSheet } from './rooftop';
 import { SKYLINES, skyline } from './skyline';
 import { readPng, writePng, writeSheet } from './png';
@@ -69,20 +69,18 @@ const models = [
   {
     model: 'kratos' as const,
     pack: join(root, 'assets-src/kratos'),
-    how: 'Copie o kratos.gif (o giro de 8 quadros de 64×64) para assets-src/kratos/ (ver README).',
-    files: [['ROTATION', 'kratos.gif'] as const],
+    how: 'Copie as sete folhas do Kratos (idle.png, walk.png, ... de células de 116×160) para assets-src/kratos/ (ver README).',
+    files: PACK_SHEETS.map((n) => [n, `${n}.png`] as const),
     build: buildKratos,
   },
   {
     model: 'vorcaro' as const,
     pack: join(root, 'assets-src/vorcaro'),
     how: 'Copie as sete folhas do Vorcaro (idle.png, walk.png, ... de células de 256×384) para assets-src/vorcaro/ (ver README).',
-    files: VORCARO_SHEETS.map((n) => [n, `${n}.png`] as const),
+    files: PACK_SHEETS.map((n) => [n, `${n}.png`] as const),
     build: buildVorcaro,
   },
 ];
-/** lê uma folha do pacote: PNG, ou GIF como folha de uma linha (um quadro por célula) */
-const readSheet = (path: string) => (path.endsWith('.gif') ? readGifStrip(path) : readPng(path));
 const list = characters();
 const missing: string[] = [];
 for (const m of models) {
@@ -92,7 +90,7 @@ for (const m of models) {
     missing.push(m.model);
     continue;
   }
-  const built = m.build(Object.fromEntries(m.files.map(([name, file]) => [name, readSheet(join(m.pack, file))])));
+  const built = m.build(Object.fromEntries(m.files.map(([name, file]) => [name, readPng(join(m.pack, file))])));
   const slots = list.flatMap((c, n) => (c.model === m.model ? [n] : []));
   for (const [i, n] of slots.entries()) await writeSheet(join(out, list[n].sheet.replace(/^\/sprites\//, '')), built.sheets[i]);
   writeFileSync(join(atlasOut, `${m.model}.json`), JSON.stringify(built.atlas, null, 2) + '\n');
@@ -110,7 +108,7 @@ for (const lang of langs) {
 }
 writeFileSync(join(atlasOut, 'emotes.json'), JSON.stringify(emoteAtlas, null, 2) + '\n');
 // nomes de antes do esqueleto (os atlas moravam no `public`, as folhas eram `hero-N.png`): se ainda estão lá, saem
-for (const stale of ['hero.json', 'emotes.json', 'char-8.png', ...Array.from({ length: 8 }, (_, n) => `hero-${n}.png`)]) rmSync(join(out, stale), { force: true });
+for (const stale of ['hero.json', 'emotes.json', 'char-6.png', 'char-8.png', ...Array.from({ length: 8 }, (_, n) => `hero-${n}.png`)]) rmSync(join(out, stale), { force: true });
 if (missing.length) {
   console.error(`faltou o pacote de: ${missing.join(', ')}`);
   process.exitCode = 1;

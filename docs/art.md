@@ -12,7 +12,7 @@ owner's files ──cp──▶ assets-src/ (gitignored)         text grids in c
                          │   bun run sprites   (tools/sprites/src/index.ts)
                          ▼
    apps/web/public/sprites/*.png        apps/web/src/lib/sprites/*.json      (both committed)
-   char-0..7.png, char-8.webp,          hero, skeleton, kratos, vorcaro,
+   char-N.png, char-6/8.webp,           hero, skeleton, kratos, vorcaro,
    rooftop, skyline-*,                  characters, rooftop, emotes
    emotes-<lang>
                          │                        │
@@ -31,7 +31,7 @@ owner's files ──cp──▶ assets-src/ (gitignored)         text grids in c
 ## Licensing (ADR 0007)
 
 - **Hero**: Ozzbit Games' free "male hero" pack. Personal and non-commercial use only, modifications allowed, **credit required** ("Herói: Ozzbit Games", the `credit.character` i18n key, shown in the menu and on the home screen; `hero.json` carries `"credit": "Ozzbit Games"`). The pack itself must never be redistributed.
-- **Skeleton knight**, **Kratos** and **Vorcaro**: the owner's own art (Vorcaro made by an image model at the owner's request). No restriction and no credit (`"credit": null`).
+- **Skeleton knight**, **Kratos** and **Vorcaro**: the owner's own art (Kratos and Vorcaro made by an image model at the owner's request). No restriction and no credit (`"credit": null`).
 - **Scenery, emotes and skyline**: drawn in code (text grids and a seeded generator). No licence strings attached.
 - **Never commit `assets-src/`.** It's in `.gitignore` and `.dockerignore`. Commit only the generated output.
 - Art from any other pack needs a licence that allows this use (a free, non-commercial game whose repo is public). Signs and text are our own words: no real brands or game names.
@@ -50,9 +50,8 @@ Pipeline, `tools/sprites/src/` (`@guess/sprites`, pure apart from `png.ts` and t
 | `atlas.ts` | What the two models share: `ANIMATION_NAMES` (row order) and `layout()`, which crops all frames to one rectangle and builds the sheet and `Atlas`. |
 | `hero.ts` | The hero recipe: slice 128×128 cells, remove the sword from the shove, four hair ramps. |
 | `skeleton.ts` | The skeleton recipe: slice 170×125 cells, remove slash trails, draw run/jump/fall, four cape ramps. |
-| `kratos.ts` | The Kratos recipe: takes the side frame of a turnaround GIF and draws all seven animations from it (legs swung from the hip, torso leaned and bobbed). |
-| `vorcaro.ts` | The Vorcaro recipe: takes seven large image-model sheets (256×384 cells) and only moves frames into place (feet on one ground line). No pixel changes; the atlas carries `scale: 1/6` and the game draws it smaller. |
-| `gif.ts` | Decodes an animated GIF into frames and lays them out as a one-row sheet. |
+| `pack.ts` | The recipe for characters that arrive complete as seven sheets (image-model art). Changes no pixel: grounds every frame, optionally shifts an animation sideways, writes the sheet at the art's size with `scale` in the atlas. |
+| `kratos.ts`, `vorcaro.ts` | One `PackConfig` each for `pack.ts`: cell size, shifts, world scale, head rows, feet rows. |
 | `characters.ts` | The nine slots (0–3 hero, 4, 5, 7 skeleton, 6 Kratos, 8 Vorcaro) → `characters.json`. |
 | `emotes.ts` | The emote balloons, from a 3×5 text font, one sheet per language. |
 | `rooftop.ts` | The rooftop palette, the `Sketch` stamping board, every prop/texture/sign as a text grid, and the shelf-packed `rooftop.png` + atlas. |
@@ -97,8 +96,8 @@ World geometry the art must match: `packages/world/src/index.ts` (`MAP`, `DEPTH`
 
 There are four spaces. Comments say which one a value is in.
 
-1. **Source-sheet pixels**: the pack's cells. Hero cells are 128×128 (`CELL` in `hero.ts`); skeleton cells are 170×125 (`CELL_W`, `CELL_H`), and in them the feet rest on row `FEET_Y = 80`; Kratos cells are 64×64 with the feet on row 62, pasted into a padded 96×72 working canvas; Vorcaro cells are 256×384 with the ground at row 352, kept at that size. Every recipe works in cell coordinates until `layout()`.
-2. **Frame pixels**: after `layout()` crops all frames of a model to the smallest rectangle containing every opaque pixel of every animation. The hero is 45×51, the skeleton 120×61, Kratos 46×64 and Vorcaro 192×305 (drawn at 1/6: an atlas may carry `scale`, world units per frame pixel, default 1; read it with `artScale(atlas)` wherever atlas numbers become world or screen sizes). The **anchor** is the point between the feet on the ground: `x` is the middle of the idle's feet, `y` is the bottom row of the first idle frame (the frame height, in practice). Atlas `head` and `stand` are in frame pixels too.
+1. **Source-sheet pixels**: the pack's cells. Hero cells are 128×128 (`CELL` in `hero.ts`); skeleton cells are 170×125 (`CELL_W`, `CELL_H`), and in them the feet rest on row `FEET_Y = 80`; Kratos cells are 116×160 with the ground at row 145; Vorcaro cells are 256×384 with the ground at row 352, kept at that size. Every recipe works in cell coordinates until `layout()`.
+2. **Frame pixels**: after `layout()` crops all frames of a model to the smallest rectangle containing every opaque pixel of every animation. The hero is 45×51, the skeleton 120×61, Kratos 81×129 (drawn at 1/2) and Vorcaro 192×305 (drawn at 1/6: an atlas may carry `scale`, world units per frame pixel, default 1; read it with `artScale(atlas)` wherever atlas numbers become world or screen sizes). The **anchor** is the point between the feet on the ground: `x` is the middle of the idle's feet, `y` is the bottom row of the first idle frame (the frame height, in practice). Atlas `head` and `stand` are in frame pixels too.
 3. **World units**: `x` along the roofs (right is positive), `y` up (0 = the lowest roof), `z` depth (0 = front edge, `DEPTH = 56` = back). **1 world unit = 1 sprite pixel**, so a 40-px-tall prop is 40 units tall.
 4. **Screen pixels**: `project(p, cam, view)` gives `sx = (x − cam.x)·scale + width/2`, `sy = groundY − (y + z·DEPTH_K)·scale`. `DEPTH_K = 0.6` is an oblique projection: one unit of depth rises 0.6 px on screen while height stays 1:1, so a box's lid is drawn `round(depth · 0.6)` rows tall.
 
@@ -107,7 +106,7 @@ There are four spaces. Comments say which one a value is in.
 - **Depth sorting**: bodies are sorted by `depthKey(p) = z`, larger first (further back is drawn first), with ties broken by id so the order doesn't flicker. Each sprite's `zIndex` is its place in that list. Height doesn't count: someone riding a head has nearly the same `z` as the person below, so who covers whom is decided by `z` (then id), not by who is on top.
 - **Layer order** inside the world container: `scenery` (backdrop, then `platforms.back`: back decor, roof tops, ledges, facades, edges, facade signs, floor decor, box props) → shadows → bodies → `platforms.front` (front parapets, covering feet at the edge) → emote balloons → weather. The post-its and panels are HTML above the canvas and never pass through the filters.
 - **Shadow**: an ellipse at the ground under the feet (`groundAt(MAP, x, z)`), not at the body's height, so a jump reads as height. It's `BODY_RX·1.3` by `BODY_RZ·DEPTH_K·1.8` world units at 40 % black, and shrinks to 45 % size by 120 units above the ground.
-- **`BODY_H = 40`** is the physics height (what you stand on when riding a head). It isn't the sprite height (hero 37, skeleton 51, Kratos 62, Vorcaro 50). Post-it height comes from the atlas instead: `headY(n) = anchor.y − head.y + 3` (hero 40, skeleton 47). The emote tail sits at `headY − 11`, `EMOTE_GAP = 14` units in front of the face.
+- **`BODY_H = 40`** is the physics height (what you stand on when riding a head). It isn't the sprite height (hero 37, skeleton 51, Kratos 61, Vorcaro 50). Post-it height comes from the atlas instead: `headY(n) = anchor.y − head.y + 3` (hero 40, skeleton 47). The emote tail sits at `headY − 11`, `EMOTE_GAP = 14` units in front of the face.
 
 ## The character contract
 
@@ -309,20 +308,26 @@ Take screenshots in the middle of each animation (run, jump, fall off a roof edg
 
 ### Art made by an image model
 
-Vorcaro is the pattern: the owner sends reference pictures to an image model and asks for seven one-row sheets (`idle`, `walk`, `run`, `jump`, `fall`, `fall_loop`, `shove`), with the hero's counts and speeds (10@10, 10@12, 10@14, 6@12, 4@12, 3@10, 7@16), facing right, one cell size, transparent background, no shadows or effects. It comes back large and with a few frames out of place.
+Kratos and Vorcaro are the pattern. The owner sends reference pictures to an image model with the prompt in `docs/character-prompt.md` and gets back a folder: seven one-row sheets (`idle`, `walk`, `run`, `jump`, `fall`, `fall_loop`, `shove`) with the hero's counts and speeds (10@10, 10@12, 10@14, 6@12, 4@12, 3@10, 7@16), facing right, one cell size, transparent background, plus a `sheet.json` (cell size, ground row, feet x). The owner then says "add this character" or "replace X with this" and points at the folder.
 
-**Don't change the art.** No shrinking, recolouring, redrawing, rescaling a frame or dropping frames in the recipe: the owner wants the pixels as delivered. The recipe may only move whole frames, and the game draws the sheet smaller:
+**Don't change the art.** No shrinking, recolouring, redrawing, rescaling a frame or dropping frames: the owner wants the pixels as delivered. The recipe (`pack.ts`) may only move whole frames, and the game draws the sheet smaller.
 
-1. Put the sheets in `assets-src/<name>/` and measure each cell's opaque bounds: the ground row, and where the feet sit against the idle.
-2. Copy `vorcaro.ts`: set the cell size, `GROUND`, `SHIFTS` for animations that sit off the feet, and `WORLD_SCALE` (the height you want in game ÷ the source height).
-3. Every frame's lowest point goes to the ground line, including airborne ones, so the shoes are where the physics body is.
-4. Give the model `'webp'` in `SHEET_FORMAT` (`characters.ts`): large sheets are written as **lossless** WebP with Bun's built-in encoder (`writeWebp` in `png.ts`), about a third smaller than PNG with identical visible pixels. Never lossy.
-5. The atlas gets `scale`; the client already honours it (`artScale`). Sheets with `scale < 1` are filtered smoothly, without mipmaps (with mipmaps the sprite disappeared under software WebGL).
-6. Check `bun run sprites:preview` and the game for sliding feet. If a frame is wrong (wrong size, duplicate), tell the owner and ask for new art instead of fixing it in code.
+Importing one, start to finish:
+
+1. Copy the seven PNGs (and `sheet.json`) to `assets-src/<name>/`. If the folder has GIFs or "preview" sheets instead, use the PNG sheets and say so.
+2. Look at every sheet and measure each cell's opaque bounds with a throwaway script: the cell size, the row under the idle's feet, where the feet sit against the idle in each animation, how tall he is. Trust the measurement over `sheet.json`.
+3. Write `tools/sprites/src/<name>.ts`: a `PackConfig` (`cellW`, `cellH`, `shifts` for an animation whose feet sit off the idle's, `padX` ≥ the largest shift, `worldScale` = the height wanted in game ÷ the art's height, `headRows`, `feetRows`), a UI colour, and `build<Name> = (sheets) => buildPack(sheets, CONFIG)`. `kratos.ts` is the shortest example.
+4. Register it: `Model`, `SHEET_FORMAT` (`'webp'`, always lossless) and `characters()` in `tools/sprites/src/characters.ts`; an entry in `models` in `index.ts`; and in the client `apps/web/src/lib/sprites/characters.ts` (import the JSON, `Model`, `ATLASES`). Replacing a character keeps its slot and needs none of the slot steps; a new slot follows "The nine slots" above.
+5. `bun run sprites`, then add the character to the real-art list at the end of `tools/sprites/test/pack.test.ts` and update the model lists in `tools/sprites/test/atlas.test.ts` and `apps/web/test/characters.test.ts`.
+6. Look at it: `bun run sprites:preview`, then the game in a headless browser (the home screen picker and stage, and idle, walk, run, jump, shove on the roof). Check the feet don't slide, the name tag sits just above the head, and the neighbours in the picker aren't clipped (`.gs-char .gs-hero` in `app.css` centres the window).
+7. Update the README, `CONTEXT.md` if the cast changed, and add an amendment to ADR 0007. Commit on a branch, open a PR, and merge when the owner says so.
+8. Tell the owner about every flaw you saw in the art (a smaller frame, a duplicate, a weak fall) and leave it as it is.
+
+Things the client already handles: an atlas with `scale < 1` is drawn smaller everywhere (`artScale`), with smooth filtering and no mipmaps (with mipmaps the sprite disappeared under software WebGL).
 
 ## Pitfalls
 
-- **Kratos has no drawn animations.** The source GIF is only a turnaround, so every Kratos frame is derived in `kratos.ts` from the one side-view frame. To improve a movement, tune the `Pose` numbers there, or ask the owner for real sheets (64×64 cells, facing right, feet on row 62) and swap the row in `derive`.
+- **Image-model art is never edited.** Kratos and Vorcaro come from `pack.ts`, which may only move whole frames. If a frame looks wrong, report it to the owner; don't fix it in code (the first Vorcaro import was shrunk and repaired in the recipe, shipped, and had to be redone).
 - **CI has no `assets-src/`.** Tests that read real art must not touch the disk when it's absent. `describe.skipIf(!existsSync(pack))` is not enough on its own: bun runs a skipped `describe` body while registering its tests, so guard every read inside the body as well (see the end of `tools/sprites/test/skeleton.test.ts`). The recipe tests use fake images built in code.
 - **Semi-transparent pixels get solidified.** `solidify` makes any alpha above 0 fully opaque, so soft edges become hard halos and drop shadows become solid blobs. Clean the source.
 - **White slash trails versus white bones or shirts.** Trails are erased as white components that are too big: on the hero, white blobs over `SHIRT_WHITE_MAX = 24` px (the shirt's blobs are at most 17 px; trails are 325+); on the skeleton, white blobs over `SLASH_MIN = 100` (the largest bone blob is 55; the smallest trail 180), plus loose mostly-white pieces of at least `SLASH_TIP_MIN = 40`. New art with large white areas (a white cape, a big skull) needs new thresholds, or a different trail colour in the source. The tests compare bone and eye counts before and after.

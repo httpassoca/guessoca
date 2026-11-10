@@ -133,7 +133,8 @@ html, body { margin: 0; min-height: 100%; background: var(--ss-bg); }
 /* o momento do pré-lobby: o personagem escolhido, grande, numa faixa de telhado */
 .gs-stage { width: 288px; flex: none; display: flex; flex-direction: column; align-items: center; }
 .gs-stage-hero { position: relative; z-index: 1; display: flex; flex-direction: column; align-items: center; margin-bottom: -28px; }
-.gs-stage-hero .gs-hero { margin-top: -48px; }
+/* a janela do retrato tem a altura do personagem mais alto: `--lift` (de `Stage.svelte`) sobe o apelido até a cabeça deste */
+.gs-stage-hero .gs-hero { margin-top: var(--lift, 0px); }
 .gs-stage-tag { position: relative; z-index: 1; max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 0 8px; background: rgb(0 0 0 / 0.6);
   border: 1px solid var(--ss-line); color: var(--ss-fg); font: 500 var(--ss-ui-sm)/20px var(--ss-font-mono); }
 .gs-stage-tag.empty { color: var(--ss-fg-faint); }
@@ -149,7 +150,7 @@ html, body { margin: 0; min-height: 100%; background: var(--ss-bg); }
 .gs-char { all: unset; box-sizing: border-box; min-width: 0; overflow: hidden; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 4px 2px 8px; border: 1px solid var(--ss-line); cursor: pointer; font-size: var(--ss-ui-xs); color: var(--ss-fg-muted);
   transition: background-color var(--gs-fast) var(--gs-ease), border-color var(--gs-fast) var(--gs-ease); }
 /* a janela do retrato é mais larga que a casa: o corte cai mais na ponta da espada e do cachecol, atrás, que no rosto */
-.gs-char .gs-hero { margin-top: -8px; translate: -7px 0; }
+.gs-char .gs-hero { margin-top: -8px; translate: -10px 0; }
 .gs-char:hover:not(:disabled) { background: var(--ss-hover); }
 .gs-char:focus-visible { outline: 2px solid var(--gs-focus); outline-offset: 2px; }
 .gs-char.mine { border-color: var(--ss-line-strong); background: color-mix(in srgb, var(--ss-fg) 9%, transparent); box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.08); color: var(--ss-fg); }
