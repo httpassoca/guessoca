@@ -73,6 +73,28 @@ export interface PackConfig {
   feetRows: number;
 }
 
+/**
+ * O tamanho no jogo. A referência é um adulto comum de pé: `NORMAL_HEIGHT` unidades do mundo (a Eve, o Pinóquio e o
+ * Vorcaro têm isso). O pedido da arte manda desenhar esse adulto com `NORMAL_ART_HEIGHT` pixels e todo personagem na
+ * mesma densidade (um cachorro na altura do joelho tem 0,3 × 128 pixels), e manda gravar no `sheet.json` o `size` (a
+ * altura dele em adultos) e `standing_height_px`. Então um pacote novo entra com a mesma escala de todos,
+ * `PACK_WORLD_SCALE`, e o tamanho já vem no desenho.
+ *
+ * Os pacotes de antes dessa regra vieram em qualquer tamanho, e cada um tem a sua `worldScale`, escolhida no olho. Para
+ * um pacote que não seguiu a densidade (ou para o dono mudar o tamanho de alguém): `worldScaleFor(size, alturaNaArte)`.
+ */
+export const NORMAL_HEIGHT = 50;
+/** Quantos pixels o adulto de referência tem na arte, da cabeça ao chão (o pedido da arte fixa este número). */
+export const NORMAL_ART_HEIGHT = 128;
+/** A escala de um pacote que seguiu o pedido: unidades do mundo por pixel da arte. */
+export const PACK_WORLD_SCALE = NORMAL_HEIGHT / NORMAL_ART_HEIGHT;
+
+/**
+ * A `worldScale` para um personagem ficar com `size` adultos de altura no jogo, tendo `artHeight` pixels de altura no
+ * parado da arte (do alto da cabeça ao chão). Um adulto (`size` 1) de 128 pixels dá `PACK_WORLD_SCALE`.
+ */
+export const worldScaleFor = (size: number, artHeight: number): number => (size * NORMAL_HEIGHT) / artHeight;
+
 /** As células de uma folha, da esquerda para a direita, como vieram. */
 export function cellsOf(sheet: Image, c: PackConfig): Image[] {
   return Array.from({ length: Math.floor(sheet.width / c.cellW) }, (_, i) => crop(sheet, i * c.cellW, 0, c.cellW, c.cellH));

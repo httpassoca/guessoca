@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { SHOVE_COOLDOWN_MS } from '@guess/world';
 import { ANIMATION_NAMES } from '../src/atlas';
@@ -11,7 +11,7 @@ import { KRATOS, buildKratos } from '../src/kratos';
 import { OLDSNAKE, buildOldSnake } from '../src/oldsnake';
 import { ORELHA, buildOrelha } from '../src/orelha';
 import { PINOCCHIO, buildPinocchio } from '../src/pinocchio';
-import { PACK_SPEC, buildPack, cellsOf, derive, packFiles, place, type PackConfig } from '../src/pack';
+import { NORMAL_ART_HEIGHT, NORMAL_HEIGHT, PACK_SPEC, PACK_WORLD_SCALE, buildPack, cellsOf, derive, packFiles, place, worldScaleFor, type PackConfig } from '../src/pack';
 import { readPng } from '../src/png';
 import { VORCARO, buildVorcaro } from '../src/vorcaro';
 
@@ -96,6 +96,22 @@ describe('personagem de sete folhas', () => {
     const { atlas } = buildPack(pack(), { ...C, headSize: 24 });
     expect(atlas.head.size).toBe(24);
     expect(atlas.head.x + 12).toBe(atlas.stand.x + (16 - 12 + 5));
+  });
+
+  test('o tamanho: um adulto tem 50 no jogo e 128 pixels na arte, e os outros se medem por ele', () => {
+    expect([NORMAL_HEIGHT, NORMAL_ART_HEIGHT]).toEqual([50, 128]);
+    expect(PACK_WORLD_SCALE).toBe(50 / 128);
+    expect(worldScaleFor(1, 128)).toBe(PACK_WORLD_SCALE);
+    // um cachorro na altura do joelho (0,3), desenhado na densidade do pedido (0,3 × 128 ≈ 38 pixels): a mesma escala
+    expect(worldScaleFor(0.3, 0.3 * 128)).toBeCloseTo(PACK_WORLD_SCALE);
+    // um pacote fora da densidade: um adulto desenhado com 140 pixels fica com 50 no jogo
+    expect(worldScaleFor(1, 140) * 140).toBeCloseTo(50);
+    // o pedido de personagem diz os mesmos números
+    const prompt = readFileSync(join(import.meta.dir, '../../../apps/web/src/lib/system/character-prompt.txt'), 'utf8');
+    expect(prompt).toContain(`exactly ${NORMAL_ART_HEIGHT} pixels`);
+    expect(prompt).toContain('"size"');
+    expect(prompt).toContain('"standing_height_px"');
+    expect(prompt).toContain('FOUR alternative designs');
   });
 
   test('o empurrão do jogo vem de attack.png se o pacote tiver, senão de shove.png', () => {
