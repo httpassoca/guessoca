@@ -49,9 +49,9 @@ describe('parseClientMessage: o jogo', () => {
     }
   });
 
-  test('personagem de 0 a 7', () => {
-    expect(p({ type: 'character', character: 7 })).toEqual({ type: 'character', character: 7 });
-    expect(p({ type: 'character', character: 8 })).toBeNull();
+  test('personagem de 0 a 8', () => {
+    expect(p({ type: 'character', character: 8 })).toEqual({ type: 'character', character: 8 });
+    expect(p({ type: 'character', character: 9 })).toBeNull();
     expect(p({ type: 'character', character: 1.5 })).toBeNull();
   });
 

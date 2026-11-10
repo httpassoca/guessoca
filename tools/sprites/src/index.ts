@@ -1,12 +1,12 @@
 /**
  * `bun run sprites`: roda as receitas sobre os pacotes em `assets-src/` (fora do git, ADR 0007) e escreve as folhas que o
  * jogo usa em `apps/web/public/sprites/` (`char-N.png`, ou `char-N.webp` para a arte grande do Kratos e do Vorcaro, uma por personagem) e os atlas em
- * `apps/web/src/lib/sprites/` (`hero.json`, `skeleton.json`, `kratos.json`, `vorcaro.json`, `orelha.json`, `bolsonaro.json`, `knight.json`, `oldsnake.json` e `characters.json`, que liga cada personagem ao seu).
+ * `apps/web/src/lib/sprites/` (`hero.json`, `skeleton.json`, `kratos.json`, `vorcaro.json`, `orelha.json`, `bolsonaro.json`, `knight.json`, `oldsnake.json`, `pinocchio.json` e `characters.json`, que liga cada personagem ao seu).
  * Só a saída vai para o git; o CI e o Docker nunca precisam dos pacotes.
  * O telhado (objetos em grade de texto e a cidade ao fundo) não usa o pacote e sai primeiro, mesmo sem ele.
  *
  * Ordem: `rooftop.png` + `skyline-*.png` + `rooftop.json` (de `rooftop.ts` e `skyline.ts`); depois cada modelo de
- * `models` (`hero.ts`, `skeleton.ts`, e `kratos.ts`, `vorcaro.ts`, `orelha.ts`, `bolsonaro.ts`, `knight.ts` e `oldsnake.ts`, os de sete folhas de `pack.ts`), com as folhas nos lugares que `characters.ts` dá a ele; `characters.json`;
+ * `models` (`hero.ts`, `skeleton.ts`, e `kratos.ts`, `vorcaro.ts`, `orelha.ts`, `bolsonaro.ts`, `knight.ts`, `oldsnake.ts` e `pinocchio.ts`, os de sete folhas de `pack.ts`), com as folhas nos lugares que `characters.ts` dá a ele; `characters.json`;
  * `emotes-<língua>.png` e `emotes.json` (`emotes.ts`); e por fim apaga nomes antigos que não existem mais. É o único
  * arquivo que toca o disco (com `png.ts`); as receitas são puras. `bun run sprites:preview` (`preview.ts`) lê o que
  * sai daqui e amplia para conferir.
@@ -22,6 +22,7 @@ import { buildKratos } from './kratos';
 import { packFiles } from './pack';
 import { buildOldSnake } from './oldsnake';
 import { buildOrelha } from './orelha';
+import { buildPinocchio } from './pinocchio';
 import { buildVorcaro } from './vorcaro';
 import { buildSkeleton, SHEETS as SKELETON_SHEETS } from './skeleton';
 import { rooftopSheet } from './rooftop';
@@ -111,6 +112,13 @@ const models = [
     how: 'Copie as sete folhas do Old Snake (idle.png, walk.png, ..., attack.png, de células de 128×128) para assets-src/oldsnake/ (ver README).',
     files: packFiles((file) => existsSync(join(root, 'assets-src/oldsnake', file))),
     build: buildOldSnake,
+  },
+  {
+    model: 'pinocchio' as const,
+    pack: join(root, 'assets-src/pinocchio'),
+    how: 'Copie as sete folhas do Pinóquio (idle.png, walk.png, ..., attack.png, de células de 160×128) para assets-src/pinocchio/ (ver README).',
+    files: packFiles((file) => existsSync(join(root, 'assets-src/pinocchio', file))),
+    build: buildPinocchio,
   },
 ];
 const list = characters();

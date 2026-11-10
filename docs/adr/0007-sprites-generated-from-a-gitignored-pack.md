@@ -52,3 +52,7 @@ Another seven-sheet pack from the owner (`assets-src/oldsnake/`, 128×128 cells,
 
 The sprite tool no longer keeps a hand-written list of stale `char-*` files to delete: that list once deleted the sheet of a slot that had come back into use. It now removes any `char-N.png` or `char-N.webp` in the output folder that isn't a sheet of the current cast.
 
+## Amendment: a ninth model, Pinocchio
+
+Another seven-sheet pack from the owner (`assets-src/pinocchio/`, 160×128 cells, 29 colours, `credit` null): a dark-haired young man in a white shirt with a mechanical arm and a sabre, drawn in the likeness of P from Lies of P. Like Old Snake, the owner had it generated for this game; it is not another game's extracted art. Imported through `pack.ts` with no pixel changed, drawn at 0.47 (50 units tall), slot 8; `CHARACTERS` goes from 8 to 9. His attack is a sabre thrust that reaches 40 source pixels ahead of the body, which makes his frame the widest of the humanoids. The picker goes to rows of five so nine characters fit in two rows; only the tips of the dinosaur fall outside a cell.
+

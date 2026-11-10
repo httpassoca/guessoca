@@ -9,6 +9,7 @@ import { KNIGHT, buildKnight } from '../src/knight';
 import { KRATOS, buildKratos } from '../src/kratos';
 import { OLDSNAKE, buildOldSnake } from '../src/oldsnake';
 import { ORELHA, buildOrelha } from '../src/orelha';
+import { PINOCCHIO, buildPinocchio } from '../src/pinocchio';
 import { PACK_SPEC, buildPack, cellsOf, derive, packFiles, place, type PackConfig } from '../src/pack';
 import { readPng } from '../src/png';
 import { VORCARO, buildVorcaro } from '../src/vorcaro';
@@ -119,6 +120,7 @@ for (const who of [
   { c: BOLSONARO, dir: 'bolsonaro', build: buildBolsonaro, ground: 177, height: 150, world: 45 },
   { c: KNIGHT, dir: 'knight', build: buildKnight, ground: 87, height: 63, world: 35 },
   { c: OLDSNAKE, dir: 'oldsnake', build: buildOldSnake, ground: 116, height: 97, world: 49 },
+  { c: PINOCCHIO, dir: 'pinocchio', build: buildPinocchio, ground: 113, height: 106, world: 50 },
 ]) {
   const dir = join(import.meta.dir, '../../../assets-src', who.dir);
   describe.skipIf(!existsSync(join(dir, 'idle.png')))(`${who.c.name}: a arte de verdade`, () => {
