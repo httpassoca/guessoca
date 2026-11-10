@@ -68,7 +68,7 @@ export type ClientMessage =
   | { type: 'join'; nickname: string }
   /** troca o próprio apelido */
   | { type: 'nickname'; nickname: string }
-  /** escolhe o próprio personagem, se estiver livre */
+  /** escolhe o próprio personagem (não são exclusivos: dois podem usar o mesmo) */
   | { type: 'character'; character: number }
   // moderador, lobby
   /** a ordem das vezes (também durante o jogo) */
@@ -86,6 +86,8 @@ export type ClientMessage =
   /** o post-it de `owner` como está agora (cada tecla); `image` = id devolvido pelo upload, ou null */
   | { type: 'write'; owner: string; text: string; image: string | null }
   | { type: 'ready' }
+  /** desfaz o próprio pronto */
+  | { type: 'unready' }
   /** moderador: começa o jogo (todo post-it com texto; não precisa estarem todos prontos) */
   | { type: 'start' }
   // jogo
@@ -256,6 +258,7 @@ export function parseClientMessage(raw: unknown): ClientMessage | null {
     case 'ping':
     case 'shuffleAuthors':
     case 'ready':
+    case 'unready':
     case 'start':
     case 'claim':
     case 'skip':

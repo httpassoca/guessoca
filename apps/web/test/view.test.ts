@@ -65,21 +65,6 @@ describe('lobby: a turma', () => {
     expect(v.turma.every((r) => r.writesFor === null && r.writing === 'empty')).toBe(true);
   });
 
-  test('os oito personagens, com quem pegou cada um, e os livres', () => {
-    const members = [member('m1', 'Zé', { character: 0 }), member('m2', 'Ana', { character: 5 }), member('m3', 'Bia')];
-    const v = roomView(snapshot({ members }));
-    expect(v.characters).toHaveLength(CHARACTERS);
-    expect(v.characters[0]?.id).toBe('m1');
-    expect(v.characters[5]?.id).toBe('m2');
-    expect(v.characters.filter(Boolean)).toHaveLength(2);
-    expect(v.freeCharacters).toEqual([1, 2, 3, 4, 6, 7]);
-  });
-
-  test('o visitante (ainda sem entrar) também sabe quais personagens estão livres', () => {
-    const members = [member('m1', 'Zé', { character: 2 })];
-    expect(roomView(snapshot({ members, you: null })).freeCharacters).toEqual([0, 1, 3, 4, 5, 6, 7]);
-  });
-
   test('o limite de pessoas nunca fica abaixo da turma de agora, nem de dois', () => {
     expect(roomView(snapshot()).maxPlayersMin).toBe(3);
     expect(roomView(snapshot({ members: [member('m1', 'Zé')] })).maxPlayersMin).toBe(2);
@@ -366,14 +351,14 @@ describe('reordenar a turma', () => {
 });
 
 describe('personagem lembrado', () => {
-  test('ao entrar, pede o último personagem do navegador se estiver livre', () => {
+  test('ao entrar, pede o último personagem do navegador, mesmo que outra pessoa use o mesmo', () => {
     expect(characterToClaim(roomView(snapshot()), 4)).toBe(4);
   });
 
-  test('não pede se é o que já tenho, se outra pessoa pegou, se não lembro nenhum ou se ainda não entrei', () => {
+  test('não pede se é o que já tenho, se não lembro nenhum ou se ainda não entrei', () => {
     const members = [member('m1', 'Zé', { character: 4 }), member('m2', 'Ana', { character: 2 }), member('m3', 'Bia')];
     expect(characterToClaim(roomView(snapshot({ members })), 4)).toBeNull();
-    expect(characterToClaim(roomView(snapshot({ members })), 2)).toBeNull();
+    expect(characterToClaim(roomView(snapshot({ members })), 2)).toBe(2);
     expect(characterToClaim(roomView(snapshot()), null)).toBeNull();
     expect(characterToClaim(roomView(snapshot()), CHARACTERS)).toBeNull();
     expect(characterToClaim(roomView(snapshot({ you: null })), 4)).toBeNull();

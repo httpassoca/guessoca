@@ -57,6 +57,7 @@ export class WorldRuntime {
   /** o zoom da roda do mouse, em passos inteiros sobre a escala automática; lembrado no navegador */
   private zoom = rememberedZoom();
   private lastWheel = 0;
+  private moodSet = false;
   private lang: Lang;
   private body: Body | null = null;
   private cam: Camera | null = null;
@@ -212,6 +213,11 @@ export class WorldRuntime {
     }
     for (const b of bodies) list.push(this.sceneBody(b, now));
 
+    if (this.scene) {
+      // antes de o jogo começar o telhado fica em preto e branco; a primeira vez sem transição
+      this.scene.setLobby(room.phase === 'lobby', !this.moodSet);
+      this.moodSet = true;
+    }
     this.scene?.render(list, cam, view, now, this.lang);
     this.placeHeads(list, cam, view);
   }

@@ -32,7 +32,7 @@
  */
 import { EMOTES, type EmoteName } from '@guess/protocol';
 import { BODY_RX, BODY_RZ, DEPTH_K, depthKey, groundAt, MAP, project, type Anim, type Camera, type Vec3, type View } from '@guess/world';
-import { Application, Assets, Container, Graphics, Rectangle, Sprite, Texture, TextureSource } from 'pixi.js';
+import { Application, Assets, ColorMatrixFilter, Container, Graphics, Rectangle, Sprite, Texture, TextureSource } from 'pixi.js';
 import { effectsOn, onEffects } from '../effects';
 import type { Lang } from '../i18n';
 import emoteAtlas from '../sprites/emotes.json';
@@ -40,6 +40,7 @@ import { CHARACTER_ART, character, frameIndex } from '../sprites/characters';
 import { loadRooftopArt } from './art';
 import { Backdrop } from './backdrop';
 import { Film } from './film';
+import { lobbyMatrix, moodStep } from './mood';
 import { Platforms } from './platforms';
 import { emoteAnchor } from './view';
 import { Weather } from './weather';
@@ -96,6 +97,11 @@ export class Scene {
   private weather: Weather | null = null;
   private readonly film = new Film();
   private effects = effectsOn();
+  /** o clima do lobby (preto e branco, mais escuro, sombras fechadas): 1 no lobby, 0 com o jogo, indo aos poucos */
+  private readonly mood = new ColorMatrixFilter();
+  private moodAmount = 0;
+  private moodTarget: 0 | 1 = 0;
+  private moodAt = 0;
   private readonly offEffects: () => void;
   private readonly shadows = new Container();
   private readonly bodies = new Container({ sortableChildren: true });
@@ -109,11 +115,30 @@ export class Scene {
     app.stage.addChild(this.world);
     this.world.filterArea = app.screen;
     this.scenery.filterArea = app.screen;
+    this.mood.matrix = lobbyMatrix() as ColorMatrixFilter['matrix'];
+    this.mood.alpha = 0;
     this.offEffects = onEffects((on) => { this.effects = on; this.applyEffects(); });
   }
 
+  /** Antes de o jogo começar (`on`), o mundo fica em preto e branco; `instant` na primeira vez, sem transição. */
+  setLobby(on: boolean, instant = false) {
+    this.moodTarget = on ? 1 : 0;
+    if (instant) { this.moodAmount = this.moodTarget; this.mood.alpha = this.moodAmount; this.applyEffects(); }
+  }
+
+  private stepMood(now: number) {
+    const elapsed = this.moodAt ? now - this.moodAt : 0;
+    this.moodAt = now;
+    if (this.moodAmount === this.moodTarget) return;
+    const was = this.moodAmount;
+    this.moodAmount = moodStep(was, this.moodTarget, elapsed);
+    this.mood.alpha = this.moodAmount;
+    if ((was > 0) !== (this.moodAmount > 0)) this.applyEffects();
+  }
+
   private applyEffects() {
-    this.world.filters = this.effects ? this.film.world : [];
+    // o clima do lobby primeiro (só enquanto aparece), a aberração e o VHS por cima
+    this.world.filters = [...(this.moodAmount > 0 ? [this.mood] : []), ...(this.effects ? this.film.world : [])];
     this.scenery.filters = this.effects ? this.film.scenery : [];
   }
 
@@ -175,6 +200,7 @@ export class Scene {
     this.platforms?.update(cam, view, now);
     this.weather?.update(cam, view, now);
     if (this.effects) this.film.tick(now);
+    this.stepMood(now);
 
     const seen = new Set<string>();
     // quem está mais ao fundo primeiro; empate pelo id, para não piscar a ordem

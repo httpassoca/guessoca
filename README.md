@@ -22,7 +22,7 @@ packages/rules     sala e jogo, puros (@guess/rules)
   src/game.ts        o jogo (ADR 0008): `act(game, actor, moderador?, ação, ctx)`, `settle` (põe em dia com a hora e com quem
                      está online), `nextDeadline`, `addMember`/`removeMember`, `createGame({ turnMs })`. Lobby, com a escrita:
                      ordem das vezes, autores em círculo (ou sorteados sem ninguém escrever para si, ou escolhidos à mão pelo moderador), personagens
-                     únicos (cada um troca o seu no lobby),
+                     à escolha (não exclusivos; cada um troca o seu no lobby),
                      tamanho da vez, só moderar; cada dono da ordem tem um post-it já no lobby, que o autor (ou o moderador)
                      escreve ao vivo até "Pronto"; o post-it cujo autor muda é apagado (`cleared`). "Começar" é do moderador:
                      pelo menos duas pessoas e todo post-it com texto, pronto ou não; dali em diante os autores congelam.

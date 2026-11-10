@@ -49,14 +49,12 @@
   const v = $derived(room ? roomView(room) : null);
   const me = $derived(v?.me ?? null);
   const live = $derived(st.status === 'open');
-  const free = $derived(v?.freeCharacters ?? []);
-  const taken = $derived((v?.characters ?? []).map((m) => m?.nickname ?? null));
   const STATUS: Record<RemoteState['status'], MsgKey | null> = { idle: null, connecting: 'status.connecting', open: 'status.open', reconnecting: 'status.reconnecting', closed: null };
   const status = $derived.by(() => { const k = STATUS[st.status]; return k ? t(k) : ''; });
   const GONE = { notFound: ['gone.notFound.title', 'gone.notFound.msg'], ended: ['gone.ended.title', 'gone.ended.msg'], replaced: ['gone.replaced.title', 'gone.replaced.msg'], kicked: ['gone.kicked.title', 'gone.kicked.msg'] } as const satisfies Record<NonNullable<ClosedReason>, [MsgKey, MsgKey]>;
 
-  // o personagem lembrado já foi pego: escolhe o primeiro livre
-  $effect(() => { if (room && !me && (character === null || !free.includes(character))) character = free[0] ?? null; });
+  // sem personagem lembrado: o primeiro
+  $effect(() => { if (room && !me && character === null) character = 0; });
 
   // entrada automática de quem criou a sala
   $effect(() => {
@@ -69,7 +67,7 @@
 
   function submit(e: SubmitEvent) {
     e.preventDefault();
-    const c = checkJoin(nickname, character, free);
+    const c = checkJoin(nickname, character);
     if (!c.ok) { problems = c.problems; return; }
     problems = [];
     rememberNickname(c.nickname);
@@ -115,7 +113,7 @@
             {#if problems.includes('nickname')}<p class="gs-error">{t('pre.needNickname')}</p>{/if}
             <div class="gs-field">
               <span class="gs-lbl">{t('pre.character')}</span>
-              <CharacterPicker value={character} {taken} onpick={(n) => (character = n)} />
+              <CharacterPicker value={character} onpick={(n) => (character = n)} />
               {#if problems.includes('character')}<p class="gs-error">{t('pre.needCharacter')}</p>{/if}
             </div>
             <button class="ss-btn primary full-width" type="submit" disabled={!live || !room}>{t('sala.join')}</button>

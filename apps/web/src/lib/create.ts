@@ -32,12 +32,12 @@ export function checkCreate(f: CreateForm): Checked<{ nickname: string; characte
   return { ok: true, nickname, character: f.character as number, init: { turnMs: f.turnMs, maxPlayers: f.maxPlayers, onlyModerate: f.onlyModerate } };
 }
 
-/** O formulário de entrar: apelido e um dos personagens `free` (os que ninguém da sala pegou). */
-export function checkJoin(nickname: string, character: number | null, free: readonly number[]): Checked<{ nickname: string; character: number }> {
+/** O formulário de entrar: apelido e um dos oito personagens (não são exclusivos). */
+export function checkJoin(nickname: string, character: number | null): Checked<{ nickname: string; character: number }> {
   const problems: FormProblem[] = [];
   const n = cleanNickname(nickname);
   if (!n) problems.push('nickname');
-  if (!isCharacter(character) || !free.includes(character)) problems.push('character');
+  if (!isCharacter(character)) problems.push('character');
   return problems.length ? { ok: false, problems } : { ok: true, nickname: n, character: character as number };
 }
 

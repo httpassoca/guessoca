@@ -107,7 +107,7 @@ export function createRoom(code: string, now: number, opts: { ttl?: number; dev?
 
 /** As mensagens do cliente que são ações do jogo, passadas como estão às regras. */
 const GAME_ACTIONS = new Set<GameAction['type']>([
-  'character', 'order', 'shuffleAuthors', 'assign', 'turnMs', 'onlyModerate', 'write', 'ready', 'start', 'claim', 'vote', 'skip',
+  'character', 'order', 'shuffleAuthors', 'assign', 'turnMs', 'onlyModerate', 'write', 'ready', 'unready', 'start', 'claim', 'vote', 'skip',
   'giveUp', 'mark', 'pause', 'endGame', 'playAgain',
 ]);
 const isGameAction = (m: ClientMessage): m is ClientMessage & GameAction => GAME_ACTIONS.has(m.type as GameAction['type']);

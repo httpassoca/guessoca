@@ -11,7 +11,8 @@
   import type { GameRequest, RemoteRoom, RemoteState } from '../room/remote';
   import { characterToClaim, countdown, devTools, roomView } from '../room/view';
   import { roomPath } from '../route.svelte';
-  import { playSfx } from '../sound/player';
+  import { musicWanted } from '../sound/music';
+  import { playSfx, setMusic } from '../sound/player';
   import { roomSoundsTracker } from '../sound/room';
   import Icon from '../hud/Icon.svelte';
   import World from '../world/World.svelte';
@@ -64,6 +65,8 @@
     seenPhase = phase;
     if (collapsed === untrack(() => sideOpen)) setSide(!collapsed);
   });
+  // a trilha: toca em loop com o jogo correndo, sai em 1 s quando ele acaba (ou ao sair da sala)
+  $effect(() => { setMusic(musicWanted(room.phase)); });
   function setNotepadMin(on: boolean) { notepadMin = on; rememberNotepadMinimized(on); }
 
   // recusa do servidor: um aviso que some sozinho
@@ -107,7 +110,7 @@
     // os sons da sala (votação, acertou, fim de vez), snapshot a snapshot, direto do `RemoteRoom` (sem esperar o Svelte)
     const sounds = roomSoundsTracker();
     const offSounds = remote.watch((s) => { for (const name of sounds(s.status, s.room, s.room?.you ?? null)) playSfx(name); });
-    return () => { clearInterval(tick); clearTimeout(refusedTimer); offSounds(); };
+    return () => { clearInterval(tick); clearTimeout(refusedTimer); offSounds(); setMusic(false); };
   });
 </script>
 

@@ -88,10 +88,6 @@ export interface RoomView {
   offline: MemberView[];
   /** a turma que joga, linha a linha, na ordem das vezes */
   turma: TurmaRow[];
-  /** quem pegou cada um dos oito personagens */
-  characters: (MemberView | null)[];
-  /** os personagens que ninguém pegou (o visitante escolhe um destes para entrar) */
-  freeCharacters: number[];
   /** o limite de pessoas não desce abaixo disto: a turma de agora (fantasmas também), e nunca menos de `MIN_PLAYERS` */
   maxPlayersMin: number;
   /** lobby: o post-it que eu escrevo (sou o autor dele) */
@@ -181,8 +177,6 @@ export function roomView(s: RoomSnapshot): RoomView {
     };
   }
 
-  const characters: (MemberView | null)[] = Array.from({ length: CHARACTERS }, () => null);
-  for (const m of s.members) if (m.character !== null && m.character >= 0 && m.character < CHARACTERS) characters[m.character] = m;
 
   const ranking: RankingRow[] = [...pick(s.got).map((member) => ({ member, gaveUp: false })), ...pick(s.gaveUp).map((member) => ({ member, gaveUp: true }))]
     .map((r, i) => ({ place: i + 1, ...r }));
@@ -205,14 +199,11 @@ export function roomView(s: RoomSnapshot): RoomView {
   const writtenCount = players.filter((p) => s.postits[p.id]?.written || !!s.postits[p.id]?.text?.trim()).length;
   const allWritten = players.length > 0 && writtenCount === players.length;
   const startBlock: StartBlock | null = !hostLobby ? null : players.length < MIN_PLAYERS ? 'players' : !allWritten ? 'empty' : null;
-  const freeCharacters = characters.flatMap((m, n) => (m ? [] : [n]));
   return {
     me, isModerator, isPlayer, isGhost: !!me && !isPlayer, done, players,
     ghosts: s.members.filter((m) => !s.order.includes(m.id)),
     offline: s.members.filter((m) => !m.connected),
     turma,
-    characters,
-    freeCharacters,
     maxPlayersMin: Math.max(MIN_PLAYERS, s.members.length),
     writeFor,
     missing: hostCards.filter((p) => p.progress === 'empty'),
@@ -262,11 +253,10 @@ export function moveBy(order: readonly string[], id: string, delta: -1 | 1): str
   return out;
 }
 
-/** Ao entrar: o personagem lembrado pelo navegador, se está livre e não é o que já tenho; senão null. */
+/** Ao entrar: o personagem lembrado pelo navegador, se não é o que já tenho; senão null (não são exclusivos). */
 export function characterToClaim(v: RoomView, remembered: number | null): number | null {
   if (!v.me || remembered === null || remembered < 0 || remembered >= CHARACTERS) return null;
-  if (v.me.character === remembered) return null;
-  return v.characters[remembered] ? null : remembered;
+  return v.me.character === remembered ? null : remembered;
 }
 
 /** As ferramentas de desenvolvimento (jogador falso): só em localhost ou com `?dev`, e só se o servidor aceita. */

@@ -44,7 +44,7 @@ describe('parseClientMessage: o jogo', () => {
   const p = (v: unknown) => parseClientMessage(JSON.stringify(v));
 
   test('aceita as mensagens sem campos', () => {
-    for (const type of ['shuffleAuthors', 'start', 'ready', 'claim', 'skip', 'giveUp', 'endGame', 'playAgain', 'addFake']) {
+    for (const type of ['shuffleAuthors', 'start', 'ready', 'unready', 'claim', 'skip', 'giveUp', 'endGame', 'playAgain', 'addFake']) {
       expect(p({ type })).toEqual({ type } as never);
     }
   });

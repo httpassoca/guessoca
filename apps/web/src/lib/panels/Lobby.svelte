@@ -14,8 +14,8 @@
   import Turma from './Turma.svelte';
 
   /**
-   * O lobby, na coluna: a turma (ordem, quem escreve para quem, Sortear), o meu personagem (dá para trocar por um
-   * livre; fica lembrado no navegador), o post-it que eu escrevo, para o moderador os
+   * O lobby, na coluna: a turma (ordem, quem escreve para quem, Sortear), o meu personagem (dá para trocar por
+   * qualquer um; fica lembrado no navegador), o post-it que eu escrevo, para o moderador os
    * que faltam (que ele pode escrever, menos o próprio) e as configurações da sala (o moderador muda; os outros veem).
    * Começar fica no pé da coluna (`Room`).
    */
@@ -26,8 +26,6 @@
   const caps = $derived(maxPlayersOptions(v.maxPlayersMin));
   const capIdx = $derived(caps.indexOf(room.maxPlayers));
   const onlyModerating = $derived(v.isModerator && v.isGhost);
-  /** quem pegou cada personagem, menos eu (o meu é o escolhido, não um ocupado) */
-  const taken = $derived(v.characters.map((m) => (m && m.id !== room.you ? m.nickname : null)));
   const myCharacter = $derived(v.me?.character ?? null);
   function pickCharacter(n: number) {
     if (n === myCharacter) return;
@@ -54,7 +52,7 @@
 {#if myCharacter !== null}
   <section class="gs-block gs-sec">
     <div class="gs-sec-head"><h3>{t('pre.character')}</h3></div>
-    <CharacterPicker value={myCharacter} {taken} onpick={pickCharacter} />
+    <CharacterPicker value={myCharacter} onpick={pickCharacter} />
   </section>
 {/if}
 
