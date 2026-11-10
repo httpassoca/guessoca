@@ -6,6 +6,9 @@
 
 {#if route.current.name === 'sala'}
   {#key route.current.code}<Sala code={route.current.code} />{/key}
+{:else if route.current.name === 'sistema'}
+  <!-- a página do dono vem num pedaço à parte: quem só joga não baixa -->
+  {#await import('./lib/screens/Sistema.svelte') then m}<m.default />{/await}
 {:else}
   <Home />
 {/if}

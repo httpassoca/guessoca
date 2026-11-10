@@ -3,9 +3,17 @@ import type { SocketData } from './host';
 import type { Log } from './log';
 import { Rooms } from './rooms';
 import { staticHandler } from './static';
+import { createAdmin } from './admin';
+import { join } from 'node:path';
 
 /** `dev`: as salas aceitam jogadores falsos (nunca em produção). */
-export interface ServerOptions { port: number; distDir: string; log: Log; hostname?: string; dev?: boolean }
+export interface ServerOptions {
+  port: number; distDir: string; log: Log; hostname?: string; dev?: boolean;
+  /** onde ficam as trocas de arquivos do sistema (`admin.ts`): as que existem são servidas mesmo com o sistema desligado */
+  dataDir?: string;
+  /** o SHA-256 da senha do sistema (`GUESS_ADMIN_HASH`); sem isto, ou sem `dataDir`, o sistema fica desligado (404) */
+  adminHash?: string;
+}
 
 /** O corpo de `POST /api/rooms` (as escolhas do pré-lobby) não passa disto. */
 const ROOM_INIT_BYTES_MAX = 1024;
@@ -64,7 +72,13 @@ export function createServer(opts: ServerOptions) {
     const status = { notMember: 403, tooBig: 413, notWebp: 415 }[r.error];
     return new Response(r.error, { status });
   }
-  const serveStatic = staticHandler(opts.distDir);
+  const serveStatic = staticHandler(opts.distDir, opts.dataDir && join(opts.dataDir, 'overrides'));
+  const startedAt = Date.now();
+  const admin = opts.dataDir === undefined || !opts.adminHash ? null : createAdmin({
+    distDir: opts.distDir, dataDir: opts.dataDir, hash: opts.adminHash,
+    stats: () => ({ rooms: rooms.size, startedAt, now: Date.now(), dev: opts.dev ?? false, bun: Bun.version }),
+    failDelay: opts.dev ? 0 : undefined,
+  });
 
   const server = Bun.serve<SocketData>({
     port: opts.port,
@@ -79,6 +93,7 @@ export function createServer(opts: ServerOptions) {
         if (!body) return new Response('too big', { status: 413 });
         return Response.json({ code: rooms.create(parseRoomInit(parseJson(body))).code });
       }
+      if (url.pathname.startsWith('/api/admin/')) return (await admin?.handle(req, url)) ?? new Response('sistema desligado', { status: 404 });
       const image = IMAGES_PATH.exec(url.pathname);
       if (image) return images(req, url, image[1].toUpperCase(), image[2]);
       if (url.pathname === '/ws') {

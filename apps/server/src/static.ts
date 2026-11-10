@@ -1,12 +1,20 @@
 import { join, normalize } from 'node:path';
 
-/** Serve o cliente buildado: arquivos de `dist`, e `index.html` para qualquer rota que não seja arquivo (SPA). */
-export function staticHandler(distDir: string) {
+/**
+ * Serve o cliente buildado: arquivos de `dist`, e `index.html` para qualquer rota que não seja arquivo (SPA). Com
+ * `overridesDir` (as trocas do sistema, `admin.ts`), um arquivo de `/sprites/` ou `/music/` que exista lá é servido no
+ * lugar do original.
+ */
+export function staticHandler(distDir: string, overridesDir?: string) {
   const index = join(distDir, 'index.html');
   return async (pathname: string): Promise<Response> => {
     let decoded: string;
     try { decoded = decodeURIComponent(pathname); } catch { return new Response('bad path', { status: 400 }); }
     const safe = normalize(decoded).replace(/^(\.\.[/\\])+/, '');
+    if (overridesDir && /^[/\\](sprites|music)[/\\][^/\\]+$/.test(safe)) {
+      const over = Bun.file(join(overridesDir, safe));
+      if (await over.exists()) return new Response(over, { headers: { 'cache-control': 'no-cache' } });
+    }
     const file = Bun.file(join(distDir, safe));
     if (!safe.endsWith('/') && (await file.exists())) {
       const immutable = safe.startsWith('/assets/');
