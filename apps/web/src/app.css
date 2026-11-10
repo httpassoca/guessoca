@@ -19,7 +19,7 @@ html, body { margin: 0; min-height: 100%; background: var(--ss-bg); }
   /* o anel de foco do teclado: neutro, visível */
   --gs-focus: color-mix(in srgb, var(--ss-fg) 55%, transparent);
   /* a cor de cada personagem (src/lib/sprites/characters.json): 0–3 o cabelo do herói, 4–7 a capa do esqueleto */
-  --gs-char-0: #d9a441; --gs-char-1: #982b2b; --gs-char-2: #cdbfb4; --gs-char-3: #6f8fc0; --gs-char-4: #c57a3a; --gs-char-5: #3f9b4a; --gs-char-6: #dfe3ee; --gs-char-7: #656a7c;
+  --gs-char-0: #d9a441; --gs-char-1: #982b2b; --gs-char-2: #cdbfb4; --gs-char-3: #6f8fc0; --gs-char-4: #c57a3a; --gs-char-5: #3f9b4a; --gs-char-6: #dfe3ee; --gs-char-7: #656a7c; --gs-char-8: #5b4b8a;
 }
 @media (prefers-reduced-motion: reduce) {
   :root { --gs-fast: 0ms; --gs-dur: 0ms; --gs-enter: 0ms; }
@@ -143,10 +143,10 @@ html, body { margin: 0; min-height: 100%; background: var(--ss-bg); }
 .gs-swatch { display: inline-grid; place-items: center; width: 22px; height: 22px; flex: none; border-radius: var(--ss-radius-1); background-color: var(--ss-bg-inset); background-repeat: no-repeat; image-rendering: pixelated; color: var(--ss-fg-faint); font: 500 var(--ss-ui-xs) var(--ss-font-mono); box-shadow: inset 0 0 0 1px var(--c, var(--ss-line)); }
 .gs-swatch.smooth { image-rendering: auto; }
 .gs-swatch.none { background: var(--ss-bg-inset); color: var(--ss-fg-faint); }
-.gs-chars { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 4px; }
+.gs-chars { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 4px; }
 .gs-char { all: unset; box-sizing: border-box; min-width: 0; overflow: hidden; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 4px 2px 8px; border: 1px solid var(--ss-line); cursor: pointer; font-size: var(--ss-ui-xs); color: var(--ss-fg-muted);
   transition: background-color var(--gs-fast) var(--gs-ease), border-color var(--gs-fast) var(--gs-ease); }
-/* fileiras de quatro: a casa é mais larga que a janela do retrato, e todo personagem aparece inteiro */
+/* fileiras de cinco: a casa quase cabe a janela do retrato; só as pontas do mais largo (o rabo e o focinho do dinossauro) ficam de fora */
 .gs-char .gs-hero { margin-top: -8px; }
 .gs-char:hover:not(:disabled) { background: var(--ss-hover); }
 .gs-char:focus-visible { outline: 2px solid var(--gs-focus); outline-offset: 2px; }
