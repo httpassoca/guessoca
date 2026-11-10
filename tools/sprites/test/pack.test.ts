@@ -11,7 +11,7 @@ import { KRATOS, buildKratos } from '../src/kratos';
 import { OLDSNAKE, buildOldSnake } from '../src/oldsnake';
 import { ORELHA, buildOrelha } from '../src/orelha';
 import { PINOCCHIO, buildPinocchio } from '../src/pinocchio';
-import { NORMAL_ART_HEIGHT, NORMAL_HEIGHT, PACK_SPEC, PACK_WORLD_SCALE, buildPack, cellsOf, derive, packFiles, place, worldScaleFor, type PackConfig } from '../src/pack';
+import { MAX_FRAMES, NORMAL_ART_HEIGHT, NORMAL_HEIGHT, PACK_SPEC, PACK_WORLD_SCALE, buildPack, cellsOf, derive, packFiles, packSpec, place, specProblems, worldScaleFor, type PackConfig } from '../src/pack';
 import { readPng } from '../src/png';
 import { VORCARO, buildVorcaro } from '../src/vorcaro';
 
@@ -35,6 +35,8 @@ function sheet(n: number, lift = 0, c = C, ground = GROUND): Image {
   return img;
 }
 const pack = (lift = 0, c = C, ground = GROUND) => Object.fromEntries(ANIMATION_NAMES.map((name) => [name, sheet(c.spec.animations[name].frames, ['jump', 'fall', 'fall_loop'].includes(name) ? lift : 0, c, ground)]));
+/** os tempos de uma spec na forma que `packSpec` recebe */
+const timing = (s: typeof PACK_SPEC) => Object.fromEntries(ANIMATION_NAMES.map((n) => [n, [s.animations[n].frames, s.animations[n].fps] as const])) as Parameters<typeof packSpec>[0];
 const floor = (img: Image) => { const b = bounds(img)!; return b.y + b.h; };
 /** a mesma imagem com a cor zerada onde é transparente: só o que se vê */
 const visible = (img: Image): Image => { const data = img.data.slice(); for (let i = 0; i < data.length; i += 4) if (!data[i + 3]) data[i] = data[i + 1] = data[i + 2] = 0; return { ...img, data }; };
@@ -114,6 +116,28 @@ describe('personagem de sete folhas', () => {
     expect(prompt).toContain('FOUR alternative designs');
   });
 
+  test('um pacote pode escolher os próprios quadros: o empurrão cabe no tempo do jogo e a queda dura o tempo dela', () => {
+    // 12 quadros de ataque em 0,45 s; 5 de queda em 0,33 s; um andar mais liso
+    const spec = packSpec({ idle: [12, 10], walk: [12, 14], run: [10, 16], jump: [7, 16], fall: [5, 15], fall_loop: [4, 10], shove: [12, 27] });
+    expect(specProblems(spec)).toEqual([]);
+    expect(spec.animations.walk).toEqual({ frames: 12, fps: 14, loop: true });
+    expect(spec.animations.shove.loop).toBe(false);
+    expect(specProblems(PACK_SPEC)).toEqual([]);
+
+    const slow = packSpec({ ...timing(spec), shove: [12, 16] }); // 750 ms: o jogo cortaria no meio
+    expect(specProblems(slow)).toEqual(['shove: dura 750 ms, e o jogo corta em 450 ms']);
+    const long = packSpec({ ...timing(spec), fall: [8, 12] });
+    expect(specProblems(long)[0]).toContain('fall: dura 667 ms');
+    const many = packSpec({ ...timing(spec), idle: [MAX_FRAMES + 1, 10], run: [10, 60] });
+    expect(specProblems(many)).toHaveLength(2);
+    // e a receita recusa montar com tempos que não servem
+    expect(() => buildPack(pack(), { ...C, spec: slow })).toThrow(/Boneco.*shove.*750 ms/);
+    // com os quadros escolhidos, a folha tem uma linha de cada tamanho
+    const c = { ...C, spec };
+    const { atlas } = buildPack(pack(0, c), c);
+    expect(atlas.animations.shove).toMatchObject({ frames: 12, fps: 27 });
+  });
+
   test('o empurrão do jogo vem de attack.png se o pacote tiver, senão de shove.png', () => {
     const old = packFiles((f) => f !== 'attack.png');
     expect(old.map(([, file]) => file)).toEqual(['idle.png', 'walk.png', 'run.png', 'jump.png', 'fall.png', 'fall_loop.png', 'shove.png']);
@@ -133,8 +157,8 @@ describe('personagem de sete folhas', () => {
 for (const who of [
   { c: KRATOS, dir: 'kratos', build: buildKratos, ground: 145, height: 121, world: 61 },
   { c: VORCARO, dir: 'vorcaro', build: buildVorcaro, ground: 352, height: 302, world: 50 },
-  { c: ORELHA, dir: 'orelha', build: buildOrelha, ground: 109, height: 100, world: 30 },
-  { c: BOLSONARO, dir: 'bolsonaro', build: buildBolsonaro, ground: 177, height: 150, world: 45 },
+  { c: ORELHA, dir: 'orelha', build: buildOrelha, ground: 109, height: 100, world: 20 },
+  { c: BOLSONARO, dir: 'bolsonaro', build: buildBolsonaro, ground: 177, height: 150, world: 70 },
   { c: KNIGHT, dir: 'knight', build: buildKnight, ground: 87, height: 63, world: 35 },
   { c: OLDSNAKE, dir: 'oldsnake', build: buildOldSnake, ground: 116, height: 97, world: 49 },
   { c: PINOCCHIO, dir: 'pinocchio', build: buildPinocchio, ground: 113, height: 106, world: 50 },

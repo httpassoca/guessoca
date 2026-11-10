@@ -171,7 +171,7 @@ const FRICTION = 1200;
  * modelos: o `fall` do esqueleto (2 quadros a 10 fps = 200 ms) segura o último quadro por uns 133 ms antes do
  * `fall_loop`. Um modelo com `fall` mais longo que isto tem o fim cortado.
  */
-const FALL_MS = (4 / 12) * 1000;
+export const FALL_MS = (4 / 12) * 1000;
 /** parado contra um lado, fica a isto dele (para continuar fora do retângulo, que inclui as bordas) */
 const GAP = 1e-6;
 

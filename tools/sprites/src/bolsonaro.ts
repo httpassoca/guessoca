@@ -12,17 +12,19 @@
  */
 import type { Atlas } from './atlas';
 import type { Hex, Image } from './image';
-import { buildPack, PACK_SPEC, type PackConfig } from './pack';
+import { buildPack, PACK_SPEC, worldScaleFor, type PackConfig } from './pack';
 
 /** A cor do Bolsonaro na interface (`--gs-char-10` no CSS): o verde da faixa. */
 export const BOLSONARO_COLOR: Hex = '3f9b4a';
 
 /**
- * Os números do Bolsonaro. `worldScale` 0,3 dá 45 de altura e 52 de comprimento no mundo (o herói tem 37 de altura). As
+ * Os números do Bolsonaro. O conjunto tem 1,4 adulto de altura (`worldScaleFor`, a regra de tamanho de `pack.ts`): 70
+ * de altura e 80 de comprimento no mundo, o maior personagem do jogo. Já foi 0,9, mais baixo que uma pessoa de pé, o
+ * que deixava o cavaleiro minúsculo. As
  * 30 linhas do alto têm a cabeça do cavaleiro e a ponta da arma; o quadrado do rosto tem 40.
  */
 export const BOLSONARO: PackConfig = {
-  name: 'Bolsonaro', cellW: 208, cellH: 192, padX: 0, shifts: {}, spec: PACK_SPEC, worldScale: 0.3, headRows: 30, headSize: 40, feetRows: 6,
+  name: 'Bolsonaro', cellW: 208, cellH: 192, padX: 0, shifts: {}, spec: PACK_SPEC, worldScale: worldScaleFor(1.4, 150), headRows: 30, headSize: 40, feetRows: 6,
 };
 
 /** A folha e o atlas do Bolsonaro a partir das sete folhas do pacote. */

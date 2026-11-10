@@ -11,17 +11,19 @@
  */
 import type { Atlas } from './atlas';
 import type { Hex, Image } from './image';
-import { buildPack, PACK_SPEC, type PackConfig } from './pack';
+import { buildPack, PACK_SPEC, worldScaleFor, type PackConfig } from './pack';
 
 /** A cor do Orelha na interface (`--gs-char-9` no CSS): o caramelo das patas. */
 export const ORELHA_COLOR: Hex = 'c57a3a';
 
 /**
- * Os números do Orelha. `worldScale` 0,3 dá 30 de altura e 43 de comprimento no mundo (o herói tem 37 de altura). As 18
+ * Os números do Orelha. Ele tem 0,4 de um adulto, entre o joelho e o meio da coxa (`worldScaleFor`, a regra de tamanho
+ * de `pack.ts`): 20 de altura e 28 de comprimento no mundo (um adulto tem 50). Já foi 0,6, na cintura, até o dono pedir
+ * um cachorro na altura do joelho. As 18
  * linhas do alto só têm cabeça (o rabo começa mais abaixo): dão o meio do rosto; o quadrado do rosto tem 44.
  */
 export const ORELHA: PackConfig = {
-  name: 'Orelha', cellW: 168, cellH: 116, padX: 0, shifts: {}, spec: PACK_SPEC, worldScale: 0.3, headRows: 18, headSize: 44, feetRows: 6,
+  name: 'Orelha', cellW: 168, cellH: 116, padX: 0, shifts: {}, spec: PACK_SPEC, worldScale: worldScaleFor(0.4, 100), headRows: 18, headSize: 44, feetRows: 6,
 };
 
 /** A folha e o atlas do Orelha a partir das sete folhas do pacote. */

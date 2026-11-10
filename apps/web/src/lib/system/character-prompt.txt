@@ -14,14 +14,26 @@ WHAT TO DELIVER
    equal-size cells, left to right in playback order, PNG with a transparent
    background:
 
-  file            frames  fps  loops  what it shows
-  idle.png          10     10   yes   standing, breathing; small motion only
-  walk.png          10     12   yes   one full walk cycle (both steps)
-  run.png           10     14   yes   one full run cycle, body leaning forward
-  jump.png           6     12   no    crouch, push off, rise; last frame is held while going up
-  fall.png           4     12   no    turning from rising to falling; last frame is held
-  fall_loop.png      3     10   yes   falling, small flutter of limbs/cloth/hair
-  attack.png         7     16   no    one attack forward, then recover to the idle pose
+  file           min frames  how long it lasts     loops  what it shows
+  idle.png           8       0.8-1.6 s per cycle   yes    standing, breathing; small motion only
+  walk.png           8       0.7-1.0 s per cycle   yes    one full walk cycle (both steps)
+  run.png            8       0.5-0.8 s per cycle   yes    one full run cycle, body leaning forward
+  jump.png           5       0.3-0.5 s             no     crouch, push off, rise; last frame is held while going up
+  fall.png           3       exactly 0.33 s        no     turning from rising to falling; last frame is held
+  fall_loop.png      3       0.3-0.5 s per cycle   yes    falling, small flutter of limbs/cloth/hair
+  attack.png         6       at most 0.45 s        no     one attack forward, then recover to the idle pose
+
+   The frame counts are minimums, not targets. For each animation, decide how
+   many frames this character needs (at most 16):
+   - start from the minimum and add frames where the motion would otherwise jump:
+     a heavy or large body, four legs, a long weapon arc, a two-part attack, or
+     cloth, hair, a tail or ears that follow through after the body stops;
+   - a simple, small or stiff character can stay at the minimum; do not pad an
+     animation with near-identical frames;
+   - more frames make the motion smoother, not longer: the duration stays inside
+     the range in the table, and fps = frames / duration (any value up to 36,
+     decimals allowed);
+   - write down, per animation, the count you chose and one line of why.
 
    The attack: if the character has a weapon, it attacks WITH that weapon (a sword
    swings or thrusts, a gun fires, a staff strikes). With no weapon, it punches,
@@ -33,15 +45,16 @@ WHAT TO DELIVER
    the ground line in the cell, the x of the point between the feet in the idle,
    "size" (the character's standing height as a multiple of the reference human,
    see SIZE AND PROPORTIONS), "standing_height_px" (its height in pixels in the
-   first idle frame, from the top of the head to the ground line), and the
-   frames/fps/loop table above.
+   first idle frame, from the top of the head to the ground line), and for each
+   animation its file, frames, fps and loop, exactly as you drew it.
 
 2. A preview page (see PREVIEW PAGE below), so I can judge the animations before
    importing.
 
-The frame counts and fps are fixed: the game plays them at exactly those speeds.
-The attack must read fully within its 7 frames (about 440 ms), and the fall within
-its 4 frames (about 330 ms), because the game cuts to the next state after that.
+The durations are hard limits: the game cuts to the next state after them. The
+whole attack must fit in 0.45 s and the whole fall in 0.33 s, however many frames
+you use, so set their fps from the frame count. The game plays each sheet at the
+frames and fps you write in sheet.json.
 
 SIZE AND PROPORTIONS
 Every character in the game stands next to the others, so size is part of the

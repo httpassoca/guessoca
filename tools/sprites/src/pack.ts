@@ -19,6 +19,7 @@
  *   os números no `PackConfig` dele.
  */
 import { ANIMATION_NAMES, layout, type AnimationName, type Atlas, type ModelSpec } from './atlas';
+import { FALL_MS, SHOVE_COOLDOWN_MS } from '@guess/world';
 import { blank, blit, bounds, crop, type Image } from './image';
 
 /** As folhas de um pacote: uma por animação, `<nome>.png`. */
@@ -34,7 +35,8 @@ export function packFiles(has: (file: string) => boolean): (readonly [AnimationN
 }
 
 /**
- * Quadros, fps e loop que o pedido da arte fixa: os do herói. O empurrão, 7 a 16 fps ≈ 437 ms, cabe em
+ * Quadros, fps e loop dos pacotes de quando o pedido da arte fixava esses números: os do herói. Os pacotes novos
+ * escolhem os seus (`packSpec`). O empurrão, 7 a 16 fps ≈ 437 ms, cabe em
  * `SHOVE_COOLDOWN_MS` (450 ms). A queda, 4 a 12 fps ≈ 333 ms, dura o `FALL_MS` do mundo.
  */
 export const PACK_SPEC: ModelSpec = {
@@ -50,6 +52,43 @@ export const PACK_SPEC: ModelSpec = {
   credit: null,
 };
 
+/** Quais animações dão a volta; as outras tocam uma vez e param no último quadro. Igual para todo personagem. */
+const LOOPS: Record<AnimationName, boolean> = { idle: true, walk: true, run: true, jump: false, fall: false, fall_loop: true, shove: false };
+/** O maior número de quadros de uma animação, e o maior fps, que o pedido da arte aceita. */
+export const MAX_FRAMES = 16;
+export const MAX_FPS = 36;
+
+/**
+ * A `ModelSpec` de um pacote que escolheu os próprios quadros: o pedido da arte dá um mínimo por animação e uma duração,
+ * e o modelo decide quantos quadros cada uma precisa (e o fps que sai disso), gravando no `sheet.json`. Copie de lá, na
+ * forma `{ idle: [quadros, fps], … }`, com `attack` no lugar de `shove`. O loop de cada animação é fixo (`LOOPS`).
+ */
+export function packSpec(timing: Record<AnimationName, readonly [frames: number, fps: number]>, credit: string | null = null): ModelSpec {
+  return {
+    animations: Object.fromEntries(ANIMATION_NAMES.map((name) => [name, { frames: timing[name][0], fps: timing[name][1], loop: LOOPS[name] }])) as ModelSpec['animations'],
+    credit,
+  };
+}
+
+/**
+ * O que há de errado nos tempos de uma `ModelSpec`, em palavras (vazio se está tudo certo). O jogo corta o empurrão em
+ * `SHOVE_COOLDOWN_MS` e troca a queda pelo loop em `FALL_MS`, com quantos quadros forem: o empurrão não pode durar mais
+ * que isso, e a queda tem que durar isso (com um oitavo de folga). E os limites do pedido: 1 a `MAX_FRAMES` quadros, fps
+ * até `MAX_FPS`.
+ */
+export function specProblems(spec: ModelSpec): string[] {
+  const out: string[] = [];
+  for (const name of ANIMATION_NAMES) {
+    const a = spec.animations[name];
+    if (!Number.isInteger(a.frames) || a.frames < 1 || a.frames > MAX_FRAMES) out.push(`${name}: ${a.frames} quadros (tem que ser de 1 a ${MAX_FRAMES})`);
+    if (!(a.fps > 0) || a.fps > MAX_FPS) out.push(`${name}: ${a.fps} fps (tem que ser até ${MAX_FPS})`);
+  }
+  const ms = (name: AnimationName) => (spec.animations[name].frames / spec.animations[name].fps) * 1000;
+  if (ms('shove') > SHOVE_COOLDOWN_MS + 0.5) out.push(`shove: dura ${Math.round(ms('shove'))} ms, e o jogo corta em ${SHOVE_COOLDOWN_MS} ms`);
+  if (Math.abs(ms('fall') - FALL_MS) > FALL_MS / 8) out.push(`fall: dura ${Math.round(ms('fall'))} ms, e o jogo troca pelo loop em ${Math.round(FALL_MS)} ms`);
+  return out;
+}
+
 /** Os números de um personagem de sete folhas, em pixels da célula, medidos na arte. */
 export interface PackConfig {
   /** o nome nas mensagens de erro */
@@ -61,7 +100,7 @@ export interface PackConfig {
   padX: number;
   /** quantos pixels uma animação anda para a frente (os pés vieram atrás dos do parado); só muda o lugar */
   shifts: Partial<Record<AnimationName, number>>;
-  /** quadros, fps, loop e crédito; `PACK_SPEC` se a arte seguiu o pedido */
+  /** quadros, fps, loop e crédito: `PACK_SPEC` nos pacotes de quadros fixos; `packSpec({...})` com os números do `sheet.json` nos que escolheram os seus */
   spec: ModelSpec;
   /** unidades do mundo por pixel do quadro: a altura que ele deve ter no jogo ÷ a altura na arte */
   worldScale: number;
@@ -141,6 +180,8 @@ export function headBox(idle: Image, rows: number, side?: number): Atlas['head']
 
 /** A folha (no tamanho da arte) e o atlas (com `scale`) de um personagem de sete folhas. */
 export function buildPack(sheets: Readonly<Record<string, Image>>, c: PackConfig): { sheets: Image[]; atlas: Atlas } {
+  const problems = specProblems(c.spec);
+  if (problems.length) throw new Error(`os tempos de ${c.name} não servem: ${problems.join('; ')}`);
   const rows = derive(sheets, c);
   const { sheet, atlas } = layout(rows, c.spec, { anchorX: feetX(rows[0][0], c.feetRows), head: (idle) => headBox(idle, c.headRows, c.headSize) });
   return { sheets: [sheet], atlas: { ...atlas, scale: c.worldScale } };
