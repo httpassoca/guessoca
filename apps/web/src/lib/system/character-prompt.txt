@@ -1,19 +1,18 @@
-You are making an animated 2D character for my browser game "guessoca", a side-view
-game on a neon rooftop at night where small pixel-art characters walk, run, jump,
-fall and shove each other.
+You are making an animated 2D character for a side-view browser game, where small
+pixel-art characters walk, run, jump, fall and attack each other.
 
 I will send you one or more reference images of a character. They may be pixel art,
 drawings or real photos. Your job is to turn the reference into a 2D pixel-art-style
 game character and produce every animation frame the game needs, filling in all the
-poses the references don't show. It does not have to be pixel-perfect or on a strict
-pixel grid; what matters is that it reads as pixel art and that every frame follows
-the rules below.
+poses the references don't show. It does not have to be on a strict pixel grid; what
+matters is that it reads as pixel art, that it MOVES like pixel art, and that every
+frame follows the rules below.
 
 WHAT TO DELIVER
-1. A folder named after the character (lowercase, no spaces, e.g. "kratos/"),
-   delivered as a zip, containing exactly these seven files. Each is a single
-   horizontal row of equal-size cells, left to right in playback order, PNG with a
-   transparent background:
+1. A folder named after the character (lowercase, no spaces), delivered as a zip,
+   containing exactly these seven files. Each is a single horizontal row of
+   equal-size cells, left to right in playback order, PNG with a transparent
+   background:
 
   file            frames  fps  loops  what it shows
   idle.png          10     10   yes   standing, breathing; small motion only
@@ -22,34 +21,63 @@ WHAT TO DELIVER
   jump.png           6     12   no    crouch, push off, rise; last frame is held while going up
   fall.png           4     12   no    turning from rising to falling; last frame is held
   fall_loop.png      3     10   yes   falling, small flutter of limbs/cloth/hair
-  shove.png          7     16   no    a quick push or strike forward, then recover
+  attack.png         7     16   no    one attack forward, then recover to the idle pose
+
+   The attack: if the character has a weapon, it attacks WITH that weapon (a sword
+   swings or thrusts, a gun fires, a staff strikes). With no weapon, it punches,
+   kicks, shoves, bites or headbutts, whatever suits the character. Build it as
+   anticipation (1-2 frames), strike (1-2 frames, the widest pose), recovery back
+   to idle.
 
    Also put a "sheet.json" in the folder with: the cell width and height, the y of
    the ground line in the cell, the x of the point between the feet in the idle,
    and the frames/fps/loop table above.
 
-2. An artifact (one interactive HTML page) that previews the animations, so I can
-   judge them before importing. It must:
-   - embed the seven sheets (as data URIs, no external files) and play all seven
-     at the same time, each at its own fps from the table, with its name, frame
-     count and fps as a label;
-   - play looping animations forever, and play the non-looping ones once, hold the
-     last frame for about a second, then restart;
-   - draw with nearest-neighbour scaling (image-rendering: pixelated) at an integer
-     zoom, with a zoom control (1x to 8x);
-   - use a dark purple background (#1a1028) with a toggle to a checkerboard, so
-     stray pixels and halos show up;
-   - have a toggle that draws the ground line and the feet x on every animation,
-     so I can see if the character slides or sinks;
-   - have a "flip" toggle to mirror the character facing left;
-   - have pause and step-one-frame buttons, and show the current frame number;
-   - include one combined view that plays idle → walk → run → jump → fall →
-     fall_loop → shove in sequence on a single character, to check they match
-     each other.
+2. A preview page (see PREVIEW PAGE below), so I can judge the animations before
+   importing.
 
 The frame counts and fps are fixed: the game plays them at exactly those speeds.
-The shove must read fully within its 7 frames (about 440 ms), and the fall within
+The attack must read fully within its 7 frames (about 440 ms), and the fall within
 its 4 frames (about 330 ms), because the game cuts to the next state after that.
+
+HOW TO ANIMATE (read this before drawing anything)
+This is frame-by-frame pixel-art animation, not an image that gets warped.
+
+1. Study the references. Look at every image I sent and write down what the
+   character is made of: head, hair or helmet, torso, each arm, each hand, each
+   leg, each foot, weapon or carried item, cloth, tail, ears, anything that hangs
+   or trails. Note each part's colours, its size relative to the head, and where it
+   attaches. This parts list is your model sheet; keep it and reuse it.
+2. Research the motion. Before each animation, search online for pixel-art
+   references of that motion (walk cycles, run cycles, jump arcs, falling poses,
+   attack anticipation and recovery, and the same for four-legged or unusual
+   bodies if that is what the character is). Look at how many key poses they use
+   and how each body part moves between them. Do not copy anyone's art; learn the
+   poses and the timing.
+3. Plan key poses first. For each animation, decide the key poses (for a walk:
+   contact, down, passing, up, for each leg) and only then the frames between.
+4. Draw the next frame from the previous one, part by part. For every new frame,
+   go through the parts list: where is the head now, the torso, each arm, each
+   hand, each leg, each foot, the weapon, the cloth? Move each part on purpose.
+   Check the frame against the one before it and the one after it.
+5. Analyse every frame you produce. After drawing a frame, look at it again and
+   identify each body part in it. If a part is missing, duplicated, changed size,
+   changed colour or detached, redraw the frame.
+6. Animate like pixel art:
+   - pose to pose, with clear readable silhouettes; hold a strong pose rather than
+     adding mushy in-betweens;
+   - parts move in whole steps; no blur, no smears, no morphing or melting between
+     frames, no ghost trails;
+   - the same clusters of pixels and the same outline thickness in every frame;
+   - small motion (breathing, cloth, hair) is a shift of a few pixels, not a
+     redraw of the whole character;
+   - the character must look hand-animated at a low frame count, not like a video
+     that was pixelated afterwards.
+7. Use subagents when it helps. For example: one subagent per animation, each
+   given the approved design frame and the parts list; one to research references
+   for a motion; and one reviewer that checks every sheet against the rules and
+   the parts list and reports the frames that break them. You stay responsible for
+   consistency between sheets.
 
 RULES FOR EVERY FRAME
 1. Side view, facing RIGHT. The game mirrors the sprite for left.
@@ -58,40 +86,89 @@ RULES FOR EVERY FRAME
 3. Same character, same scale, same proportions, same colours and same outfit in
    every frame. No drifting details between frames or between sheets.
 4. Feet on the same ground line in every cell, and the body at the same horizontal
-   position in the cell. In idle, walk, run and shove at least one foot touches that
-   line in every frame. In jump, fall and fall_loop the character is in the air but
-   stays at the same horizontal position; do not move it up or down the cell to
-   show height, the game does that.
+   position in the cell. In idle, walk, run and attack at least one foot touches
+   that line in every frame. In jump, fall and fall_loop the character is in the
+   air but stays at the same horizontal position; do not move it up or down the
+   cell to show height, the game does that.
 5. The character animates in place. Walk and run cycles do not travel across the cell.
 6. Loops must be seamless: the last frame leads back into the first, and is not a
    copy of the first.
 7. Fully transparent background. No ground, no drop shadow, no glow, no outline
-   halo, no motion blur, no slash trails, no dust or spark effects. The game adds
-   its own shadow.
+   halo, no motion blur, no dust. The game adds its own shadow. The attack may show
+   the weapon's own effect (a muzzle flash, a short blade arc) only if it is
+   compact, hard-edged and gone by the recovery frames.
 8. Hard edges: every pixel is either fully opaque or fully transparent.
 9. Keep poses compact. Nothing should swing far outside the body (no long wind-up
-   behind the back in the shove), because the widest pose sets the frame size for
+   behind the back in the attack), because the widest pose sets the frame size for
    all animations.
 10. If the character carries something (a weapon, a bag), it stays in every
-    animation, held the same way.
+    animation, held the same way, and it is what the attack uses.
 11. Limited palette with clear shading steps, readable at small size on a dark
-    purple night background. Give the head a clear silhouette; a label floats above it.
+    background. Give the head a clear silhouette; a label floats above it.
 
 STYLE REFERENCE
 Match the feel of a classic 16-bit side-scroller hero: about 3 to 4 heads tall,
 strong silhouette, a few shading steps per colour, readable face. Idle is calm
 (breathing, cloth or hair moving slightly). Walk is relaxed, run is clearly faster
 with a forward lean and bigger arm swing, jump has a visible crouch before take-off,
-fall has limbs and cloth trailing upward.
+fall has limbs and cloth trailing upward, the attack snaps out and settles back.
+
+PREVIEW PAGE
+One self-contained HTML file. Style it with the dssoca design system, loaded from
+its CDN, and use its classes rather than writing your own component styles:
+
+  <html lang="en" data-theme="dark" data-size-variant="md">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/dssoca@0.19/dist/theme.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/dssoca@0.19/dist/vanilla.css">
+
+  Classes: ss-card (children .head, .body, .foot), ss-btn (.primary, .ghost),
+  ss-badge (.neutral, .info, .positive, .caution), ss-metric (children .label,
+  .val), ss-segmented (children button.segment, .selected), ss-switch, ss-input,
+  ss-table. Colours and fonts come from its CSS variables (--ss-bg, --ss-fg,
+  --ss-fg-muted, --ss-line, --ss-font-mono, --ss-font-body). Only layout CSS and
+  the canvases are yours.
+
+The sprite sheets are embedded as PNG data URIs: the page fetches no image files.
+It must have every one of these features:
+
+- Header: the character's name, one line describing the motion study, and three
+  figures: number of animations, total frames, cell size.
+- A sticky toolbar that controls everything on the page at once:
+  - Pause / Play (one button that changes label);
+  - Step frame (pauses and advances every animation by one frame);
+  - Restart (all animations and the combined sequence back to frame 1);
+  - Checkerboard toggle (light checkerboard behind the sprites instead of the dark
+    background, to reveal stray pixels and halos);
+  - Ground guides toggle (a dashed line at the ground y, and a small cross at the
+    feet x, drawn over every canvas);
+  - Flip left toggle (mirror the character horizontally);
+  - Zoom slider from 1x to 8x in whole steps, with the current value shown;
+  - a status readout: PLAYING or PAUSED.
+- Combined sequence: ONE canvas where a single character plays idle, walk, run,
+  jump, fall, fall_loop (twice) and attack in order, then repeats. Next to it:
+  the current and next state as a title, a row of seven pills with the current
+  state highlighted, a progress bar across the whole sequence, and a line with
+  the frame number of the current state (Frame 03 / 10), its fps, and the elapsed
+  time over the total (1.2 s / 4.4 s).
+- Individual animations: a grid of seven cards, all playing at the same time,
+  each at its own fps. Each card shows the name, "N frames · M fps", the canvas,
+  a live frame counter (Frame 03 / 10), and whether it loops. Looping ones play
+  forever; one-shot ones (jump, fall, attack) play once, hold the last frame for
+  one second, then restart.
+- Canvases draw with nearest-neighbour scaling (image-rendering: pixelated, image
+  smoothing off), on a dark background (#1a1028) unless the checkerboard is on.
+- Footer: a note that the PNGs are embedded and nothing is fetched, the ground y,
+  the idle feet x, and confirmation that alpha is binary.
+- It works at phone width: the grid collapses to one column and the toolbar wraps.
 
 HOW TO WORK
-- First show me a single idle frame as the character design and wait for my OK
-  before drawing the rest.
-- Then produce the seven sheets, build the preview artifact from those exact
-  files, and look at it yourself before showing me: fix any animation that
-  slides, sinks, flickers or changes the character.
+- First show me a single idle frame as the character design, with the parts list,
+  and wait for my OK before drawing the rest.
+- Then produce the seven sheets following HOW TO ANIMATE, build the preview page
+  from those exact files, and look at it yourself before showing me: fix any
+  animation that slides, sinks, flickers, morphs or changes the character.
 - When I approve the preview, give me the folder as a zip. The PNGs in the zip
-  must be the same ones the artifact plays.
+  must be the same ones the preview plays.
 - Tell me about any frame where you had to bend a rule.
 
 Here are my reference images:

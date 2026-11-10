@@ -309,7 +309,7 @@ Take screenshots in the middle of each animation (run, jump, fall off a roof edg
 
 ### Art made by an image model
 
-Kratos, Vorcaro, Orelha and Bolsonaro are the pattern. The owner sends reference pictures to an image model with the prompt in `docs/character-prompt.md` and gets back a folder: seven one-row sheets (`idle`, `walk`, `run`, `jump`, `fall`, `fall_loop`, `shove`) with the hero's counts and speeds (10@10, 10@12, 10@14, 6@12, 4@12, 3@10, 7@16), facing right, one cell size, transparent background, plus a `sheet.json` (cell size, ground row, feet x). The owner then says "add this character" or "replace X with this" and points at the folder.
+Kratos, Vorcaro, Orelha and Bolsonaro are the pattern. The owner sends reference pictures to an image model with the prompt in `docs/character-prompt.md` and gets back a folder: seven one-row sheets (`idle`, `walk`, `run`, `jump`, `fall`, `fall_loop`, and `attack`, which is the game's `shove`; older packs call the file `shove.png` and both are accepted) with the hero's counts and speeds (10@10, 10@12, 10@14, 6@12, 4@12, 3@10, 7@16), facing right, one cell size, transparent background, plus a `sheet.json` (cell size, ground row, feet x). The owner then says "add this character" or "replace X with this" and points at the folder.
 
 **Don't change the art.** No shrinking, recolouring, redrawing, rescaling a frame or dropping frames: the owner wants the pixels as delivered. The recipe (`pack.ts`) may only move whole frames, and the game draws the sheet smaller.
 

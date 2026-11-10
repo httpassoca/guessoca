@@ -4,7 +4,8 @@
    * servidor confere, `apps/server/src/admin.ts`) e a guarda só nesta aba.
    *
    * Abas: **Visão geral** (números, o que está trocado, baixar tudo, o pedido de personagem para um modelo de imagem),
-   * **Personagens** (cada um com as sete animações tocando, o atlas, baixar e trocar a folha), **Cenário** (os objetos do
+   * **Personagens** (uma lista à esquerda para escolher um, e à direita as sete animações dele tocando, o atlas, baixar e
+   * trocar a folha), **Cenário** (os objetos do
    * telhado, a cidade ao fundo, os balões), **Sons** (os efeitos, que são código, e a música) e **Arquivos** (a tabela
    * de todos os arquivos servidos).
    *
@@ -152,7 +153,9 @@
   }
 
   // ── como ver as animações ──
-  let zoom = $state(112);
+  /** o personagem escolhido na barra lateral da aba Personagens */
+  let picked = $state(0);
+  let zoom = $state(160);
   let guides = $state(false);
   let flip = $state(false);
   let backdrop = $state<'noite' | 'xadrez' | 'claro'>('noite');
@@ -304,8 +307,23 @@
           </div>
         </section>
       {:else if tab === 'personagens'}
+        {@const c = CHARACTER_ART[picked] ?? CHARACTER_ART[0]}
+        {@const n = CHARACTER_ART.indexOf(c)}
+        {@const a = byPath.get(pathOf(c.sheet))}
+        {@const k = artScale(c.atlas)}
+        <div class="gs-sys-split">
+        <nav class="gs-sys-side" aria-label="Personagens">
+          {#each CHARACTER_ART as o, i (i)}
+            <button class="gs-sys-pick" class:selected={i === n} type="button" aria-current={i === n} style:--c={o.color} onclick={() => (picked = i)}>
+              <Swatch n={i} size={32} />
+              <span class="gs-sys-pick-name"><strong>{o.model}</strong><span class="gs-sys-muted">Personagem {i + 1} · {o.name}</span></span>
+              {#if byPath.get(pathOf(o.sheet))?.overridden}<span class="ss-badge caution">trocado</span>{/if}
+            </button>
+          {/each}
+        </nav>
+        <div class="gs-sys-detail">
         <section class="gs-sys-controls" aria-label="Como ver as animações">
-          <label>Tamanho <input type="range" min="48" max="224" step="8" bind:value={zoom} /><span class="gs-sys-num">{zoom} px</span></label>
+          <label>Tamanho <input type="range" min="48" max="320" step="8" bind:value={zoom} /><span class="gs-sys-num">{zoom} px</span></label>
           <label>Velocidade
             <select class="ss-input" bind:value={speed}>{#each [1, 0.5, 0.25, 0.1] as s (s)}<option value={s}>{s}×</option>{/each}</select>
           </label>
@@ -322,9 +340,6 @@
           </span>
         </section>
 
-        {#each CHARACTER_ART as c, n (n)}
-          {@const a = byPath.get(pathOf(c.sheet))}
-          {@const k = artScale(c.atlas)}
           <section class="ss-card gs-sys-char" style:--c={c.color}>
             <div class="head gs-sys-row">
               <Swatch {n} size={28} />
@@ -339,7 +354,7 @@
                   {@const an = c.atlas.animations[name]}
                   <figure>
                     <Anim sheet={sheets[url(pathOf(c.sheet))]} atlas={c.atlas} {name} {now} height={zoom} {guides} {flip} />
-                    <figcaption><strong>{name}</strong>{an.frames} quadros · {an.fps} fps<br />{an.loop ? 'em loop' : 'uma vez'}</figcaption>
+                    <figcaption><strong>{name === 'shove' ? 'shove (o ataque)' : name}</strong>{an.frames} quadros · {an.fps} fps<br />{an.loop ? 'em loop' : 'uma vez'}</figcaption>
                   </figure>
                 {/each}
               </div>
@@ -355,7 +370,8 @@
               </div>
             </div>
           </section>
-        {/each}
+        </div>
+        </div>
       {:else if tab === 'cenario'}
         {@const roof = byPath.get(pathOf(rooftopSheet))}
         <section class="ss-card">
@@ -488,6 +504,16 @@
   .gs-sys-right { text-align: right; }
   .gs-sys-num { font-family: var(--ss-font-mono); font-variant-numeric: tabular-nums; white-space: nowrap; }
   .gs-sys-pre { max-height: 420px; overflow: auto; margin: 8px 0 0; padding: 12px; border: 1px solid var(--ss-line); background: var(--ss-bg-inset); font: var(--ss-ui-xs)/1.5 var(--ss-font-mono); white-space: pre-wrap; }
+  .gs-sys-split { display: grid; grid-template-columns: 240px minmax(0, 1fr); gap: 16px; align-items: start; }
+  .gs-sys-side { position: sticky; top: 71px; display: flex; flex-direction: column; gap: 4px; max-height: calc(100vh - 91px); overflow-y: auto; }
+  .gs-sys-pick { all: unset; box-sizing: border-box; display: flex; align-items: center; gap: 10px; padding: 8px 10px; border: 1px solid var(--ss-line); border-left: 3px solid var(--c); cursor: pointer; }
+  .gs-sys-pick:hover { background: var(--ss-hover); }
+  .gs-sys-pick:focus-visible { outline: 2px solid var(--gs-focus); outline-offset: 2px; }
+  .gs-sys-pick.selected { background: color-mix(in srgb, var(--ss-fg) 9%, transparent); border-color: var(--ss-line-strong); border-left-color: var(--c); }
+  .gs-sys-pick-name { display: flex; flex-direction: column; min-width: 0; flex: 1; font-size: var(--ss-ui-xs); }
+  .gs-sys-pick-name strong { font-size: var(--ss-ui-sm); text-transform: capitalize; }
+  .gs-sys-detail { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+  @media (max-width: 760px) { .gs-sys-split { grid-template-columns: 1fr; } .gs-sys-side { position: static; flex-direction: row; flex-wrap: wrap; max-height: none; } }
   .gs-sys-controls { position: sticky; top: 55px; z-index: 4; display: flex; align-items: center; gap: 16px; flex-wrap: wrap; padding: 8px 12px; border: 1px solid var(--ss-line); background: var(--ss-bg); }
   .gs-sys-controls label { display: inline-flex; align-items: center; gap: 8px; color: var(--ss-fg-muted); }
   .gs-sys-controls select { width: auto; }

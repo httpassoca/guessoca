@@ -1,7 +1,7 @@
 /**
  * A receita comum dos personagens que chegam **prontos, em sete folhas**: a arte que o dono pede a um modelo de imagem
  * (o pedido está em `docs/art.md`, "Art made by an image model"), uma folha por animação (`idle.png`, `walk.png`,
- * `run.png`, `jump.png`, `fall.png`, `fall_loop.png`, `shove.png`), cada uma uma linha de células iguais, o personagem
+ * `run.png`, `jump.png`, `fall.png`, `fall_loop.png`, e `attack.png` ou `shove.png`, ver `packFiles`), cada uma uma linha de células iguais, o personagem
  * olhando para a direita. O Kratos (`kratos.ts`), o Vorcaro (`vorcaro.ts`), o Orelha (`orelha.ts`) e o Bolsonaro (`bolsonaro.ts`) são só os números de cada um (`PackConfig`).
  *
  * A regra: **a receita não muda nenhum pixel da arte**. Não encolhe, não recolore, não redesenha, não aumenta um quadro,
@@ -23,6 +23,15 @@ import { blank, blit, bounds, crop, type Image } from './image';
 
 /** As folhas de um pacote: uma por animação, `<nome>.png`. */
 export const SHEETS = ANIMATION_NAMES;
+
+/**
+ * O arquivo de cada folha de um pacote, como `[animação, arquivo]`. O empurrão do jogo é o ataque do personagem: o pedido
+ * da arte (`apps/web/src/lib/system/character-prompt.txt`) chama a folha de `attack.png`, e os pacotes mais antigos de
+ * `shove.png`. Vale `attack.png` se o pacote tiver (`has` diz se um arquivo existe na pasta); senão, `shove.png`.
+ */
+export function packFiles(has: (file: string) => boolean): (readonly [AnimationName, string])[] {
+  return SHEETS.map((name) => [name, name === 'shove' && has('attack.png') ? 'attack.png' : `${name}.png`] as const);
+}
 
 /**
  * Quadros, fps e loop que o pedido da arte fixa: os do herói. O empurrão, 7 a 16 fps ≈ 437 ms, cabe em
