@@ -11,23 +11,15 @@
  * arquivo que toca o disco (com `png.ts`); as receitas são puras. `bun run sprites:preview` (`preview.ts`) lê o que
  * sai daqui e amplia para conferir.
  */
-import { existsSync, mkdirSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { emoteSheet, type EmoteLang } from './emotes';
 import { characters } from './characters';
-import { buildBolsonaro } from './bolsonaro';
-import { buildEve } from './eve';
 import { buildHero, ANIMATIONS } from './hero';
-import { buildKatarina } from './katarina';
-import { buildKnight } from './knight';
-import { buildKratos } from './kratos';
-import { packFiles } from './pack';
-import { buildMista } from './mista';
-import { buildOldSnake } from './oldsnake';
-import { buildOrelha } from './orelha';
-import { buildPinocchio } from './pinocchio';
-import { buildPunisher } from './punisher';
-import { buildVorcaro } from './vorcaro';
+import type { Atlas } from './atlas';
+import type { Image } from './image';
+import { buildPack, packFiles } from './pack';
+import { PACKS } from './packs';
 import { buildSkeleton, SHEETS as SKELETON_SHEETS } from './skeleton';
 import { rooftopSheet } from './rooftop';
 import { SKYLINES, skyline } from './skyline';
@@ -60,101 +52,36 @@ console.log(`telhado: ${Object.keys(rooftop.atlas.frames).length} objetos em ${r
  * o que a receita recebe em `sheets[nome]`) e `build` (a receita: uma folha por variante, na ordem dos lugares do modelo
  * em `characters()`, e um atlas).
  */
-const models = [
+const models: { model: string; pack: string; how: string; files: (readonly [string, string])[]; build: (sheets: Readonly<Record<string, Image>>) => { sheets: Image[]; atlas: Atlas } }[] = [
   {
-    model: 'hero' as const,
+    model: 'hero',
     pack: join(root, 'assets-src/male_hero_free/individual_sheets'),
     how: 'Copie o "male_hero_free" da Ozzbit Games para assets-src/ (ver README).',
     files: HERO_SHEETS.map((n) => [n, `male_hero-${n}.png`] as const),
     build: buildHero,
   },
   {
-    model: 'skeleton' as const,
+    model: 'skeleton',
     pack: join(root, 'assets-src/skeleton'),
     how: 'Copie as folhas do cavaleiro esqueleto (IDLE.png, WALK.png, ...) para assets-src/skeleton/ (ver README).',
     files: SKELETON_SHEETS.map((n) => [n, `${n}.png`] as const),
     build: buildSkeleton,
   },
-  {
-    model: 'kratos' as const,
-    pack: join(root, 'assets-src/kratos'),
-    how: 'Copie as sete folhas do Kratos (idle.png, walk.png, ... de células de 116×160) para assets-src/kratos/ (ver README).',
-    files: packFiles((file) => existsSync(join(root, 'assets-src/kratos', file))),
-    build: buildKratos,
-  },
-  {
-    model: 'vorcaro' as const,
-    pack: join(root, 'assets-src/vorcaro'),
-    how: 'Copie as sete folhas do Vorcaro (idle.png, walk.png, ... de células de 256×384) para assets-src/vorcaro/ (ver README).',
-    files: packFiles((file) => existsSync(join(root, 'assets-src/vorcaro', file))),
-    build: buildVorcaro,
-  },
-  {
-    model: 'orelha' as const,
-    pack: join(root, 'assets-src/orelha'),
-    how: 'Copie as sete folhas do Orelha (idle.png, walk.png, ..., attack.png, de células de 96×64) para assets-src/orelha/ (ver README).',
-    files: packFiles((file) => existsSync(join(root, 'assets-src/orelha', file))),
-    build: buildOrelha,
-  },
-  {
-    model: 'bolsonaro' as const,
-    pack: join(root, 'assets-src/bolsonaro'),
-    how: 'Copie as sete folhas do Bolsonaro (idle.png, walk.png, ... de células de 208×192) para assets-src/bolsonaro/ (ver README).',
-    files: packFiles((file) => existsSync(join(root, 'assets-src/bolsonaro', file))),
-    build: buildBolsonaro,
-  },
-  {
-    model: 'knight' as const,
-    pack: join(root, 'assets-src/knight'),
-    how: 'Copie as sete folhas do cavaleiro (idle.png, walk.png, ..., attack.png, de células de 96×96) para assets-src/knight/ (ver README).',
-    files: packFiles((file) => existsSync(join(root, 'assets-src/knight', file))),
-    build: buildKnight,
-  },
-  {
-    model: 'oldsnake' as const,
-    pack: join(root, 'assets-src/oldsnake'),
-    how: 'Copie as sete folhas do Old Snake (idle.png, walk.png, ..., attack.png, de células de 128×128) para assets-src/oldsnake/ (ver README).',
-    files: packFiles((file) => existsSync(join(root, 'assets-src/oldsnake', file))),
-    build: buildOldSnake,
-  },
-  {
-    model: 'pinocchio' as const,
-    pack: join(root, 'assets-src/pinocchio'),
-    how: 'Copie as sete folhas do Pinóquio (idle.png, walk.png, ..., attack.png, de células de 160×128) para assets-src/pinocchio/ (ver README).',
-    files: packFiles((file) => existsSync(join(root, 'assets-src/pinocchio', file))),
-    build: buildPinocchio,
-  },
-  {
-    model: 'eve' as const,
-    pack: join(root, 'assets-src/eve'),
-    how: 'Copie as sete folhas da Eve (idle.png, walk.png, ..., attack.png, de células de 192×192) para assets-src/eve/ (ver README).',
-    files: packFiles((file) => existsSync(join(root, 'assets-src/eve', file))),
-    build: buildEve,
-  },
-  {
-    model: 'katarina' as const,
-    pack: join(root, 'assets-src/katarina'),
-    how: 'Copie as sete folhas da Katarina (idle.png, walk.png, ..., attack.png, de células de 144×144) para assets-src/katarina/ (ver README).',
-    files: packFiles((file) => existsSync(join(root, 'assets-src/katarina', file))),
-    build: buildKatarina,
-  },
-  {
-    model: 'punisher' as const,
-    pack: join(root, 'assets-src/punisher'),
-    how: 'Copie as sete folhas do Justiceiro (idle.png, walk.png, ..., attack.png, de células de 224×192) para assets-src/punisher/ (ver README).',
-    files: packFiles((file) => existsSync(join(root, 'assets-src/punisher', file))),
-    build: buildPunisher,
-  },
-  {
-    model: 'mista' as const,
-    pack: join(root, 'assets-src/mista'),
-    how: 'Copie as sete folhas do Mista (idle.png, walk.png, ..., attack.png, de células de 160×176) para assets-src/mista/ (ver README).',
-    files: packFiles((file) => existsSync(join(root, 'assets-src/mista', file))),
-    build: buildMista,
-  },
+  // os de sete folhas: um por entrada de `PACKS` (`packs.ts`)
+  ...PACKS.map((p) => ({
+    model: p.model,
+    pack: join(root, 'assets-src', p.dir),
+    how: `Copie as sete folhas de ${p.config.name} (idle.png, walk.png, ..., attack.png, de células de ${p.config.cellW}×${p.config.cellH}) para assets-src/${p.dir}/ (ver README).`,
+    files: packFiles((file) => existsSync(join(root, 'assets-src', p.dir, file)), p.config.files),
+    build: (sheets: Readonly<Record<string, Image>>) => buildPack(sheets, p.config),
+  })),
 ];
 const list = characters();
 const missing: string[] = [];
+// os atlas de todos os modelos num arquivo só, `atlases.json` (o cliente importa um arquivo, não um por modelo). Um modelo
+// cujo pacote falta fica com o atlas que já estava lá.
+const atlasesPath = join(atlasOut, 'atlases.json');
+const atlases: Record<string, Atlas> = existsSync(atlasesPath) ? JSON.parse(readFileSync(atlasesPath, 'utf8')) : {};
 for (const m of models) {
   const absent = m.files.filter(([, file]) => !existsSync(join(m.pack, file))).map(([, file]) => file);
   if (absent.length) {
@@ -165,9 +92,11 @@ for (const m of models) {
   const built = m.build(Object.fromEntries(m.files.map(([name, file]) => [name, readPng(join(m.pack, file))])));
   const slots = list.flatMap((c, n) => (c.model === m.model ? [n] : []));
   for (const [i, n] of slots.entries()) await writeSheet(join(out, list[n].sheet.replace(/^\/sprites\//, '')), built.sheets[i]);
-  writeFileSync(join(atlasOut, `${m.model}.json`), JSON.stringify(built.atlas, null, 2) + '\n');
+  atlases[m.model] = built.atlas;
   console.log(`${m.model}: personagens ${slots.join(', ')}, folhas de ${built.sheets[0].width}×${built.sheets[0].height}, quadro ${built.atlas.frame.w}×${built.atlas.frame.h}`);
 }
+// só os atlas de quem está na lista, na ordem dela
+writeFileSync(atlasesPath, JSON.stringify(Object.fromEntries([...new Set(list.map((c) => c.atlas))].flatMap((m) => (atlases[m] ? [[m, atlases[m]]] : []))), null, 2) + '\n');
 writeFileSync(join(atlasOut, 'characters.json'), JSON.stringify(list, null, 2) + '\n');
 
 const langs: EmoteLang[] = ['pt-BR', 'en-US'];

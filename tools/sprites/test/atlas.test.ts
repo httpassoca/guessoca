@@ -1,6 +1,8 @@
 import { describe, expect, test } from 'bun:test';
 import { ANIMATION_NAMES, layout, type ModelSpec } from '../src/atlas';
+import { CHARACTERS } from '../../../packages/rules/src';
 import { characters } from '../src/characters';
+import { PACKS } from '../src/packs';
 import { blank, getPixel, rgbOf, setPixel, type Image } from '../src/image';
 
 function fill(img: Image, x: number, y: number, w: number, h: number, hex: string) {
@@ -53,17 +55,20 @@ describe('a montagem do atlas', () => {
 describe('os personagens', () => {
   const list = characters();
 
-  test('treze, um de cada modelo, cada um com a sua folha e o seu atlas', () => {
-    expect(list).toHaveLength(13);
-    expect(list.map((c) => c.model)).toEqual(['hero', 'skeleton', 'kratos', 'vorcaro', 'orelha', 'bolsonaro', 'knight', 'oldsnake', 'pinocchio', 'eve', 'katarina', 'punisher', 'mista']);
+  test('o herói, o esqueleto e os de sete folhas na ordem do registro, cada um com a sua folha e o seu atlas', () => {
+    expect(list).toHaveLength(CHARACTERS);
+    expect(list.map((c) => c.model)).toEqual(['hero', 'skeleton', ...PACKS.map((p) => p.model)]);
     // o pixel art pequeno em PNG; a arte grande dos de sete folhas em WebP sem perda
-    expect(list.map((c) => c.sheet)).toEqual(['/sprites/char-0.png', '/sprites/char-1.png', '/sprites/char-2.webp', '/sprites/char-3.webp', '/sprites/char-4.webp', '/sprites/char-5.webp', '/sprites/char-6.webp', '/sprites/char-7.webp', '/sprites/char-8.webp', '/sprites/char-9.webp', '/sprites/char-10.webp', '/sprites/char-11.webp', '/sprites/char-12.webp']);
+    expect(list.map((c) => c.sheet)).toEqual(list.map((c, n) => `/sprites/char-${n}.${n < 2 ? 'png' : 'webp'}`));
     for (const c of list) expect(c.atlas).toBe(c.model);
   });
 
-  test('cores de interface únicas, em #rrggbb, e os nomes', () => {
-    expect(new Set(list.map((c) => c.color)).size).toBe(13);
+  test('cores de interface e modelos únicos, em #rrggbb', () => {
+    expect(new Set(list.map((c) => c.color)).size).toBe(list.length);
+    expect(new Set(list.map((c) => c.model)).size).toBe(list.length);
     for (const c of list) expect(c.color).toMatch(/^#[0-9a-f]{6}$/);
-    expect(list.map((c) => c.name)).toEqual(['loiro', 'vermelho', 'kratos', 'vorcaro', 'orelha', 'bolsonaro', 'cavaleiro', 'oldsnake', 'pinocchio', 'eve', 'katarina', 'justiceiro', 'mista']);
+    expect(list.slice(0, 2).map((c) => c.name)).toEqual(['loiro', 'vermelho']);
+    // e um modelo é um nome simples: vira chave de JSON e aparece em mensagens
+    for (const p of PACKS) expect(p.model).toMatch(/^[a-z]+$/);
   });
 });

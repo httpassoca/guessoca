@@ -89,5 +89,54 @@
     "color": "#2f8fd0",
     "sheet": "/sprites/char-12.webp",
     "atlas": "mista"
+  },
+  {
+    "model": "starplatinum",
+    "name": "star platinum",
+    "color": "#8f5fd6",
+    "sheet": "/sprites/char-13.webp",
+    "atlas": "starplatinum"
+  },
+  {
+    "model": "josuke",
+    "name": "josuke",
+    "color": "#3b4a9e",
+    "sheet": "/sprites/char-14.webp",
+    "atlas": "josuke"
+  },
+  {
+    "model": "joker",
+    "name": "joker",
+    "color": "#d8243c",
+    "sheet": "/sprites/char-15.webp",
+    "atlas": "joker"
+  },
+  {
+    "model": "giorno",
+    "name": "giorno",
+    "color": "#e86aa6",
+    "sheet": "/sprites/char-16.webp",
+    "atlas": "giorno"
+  },
+  {
+    "model": "zed",
+    "name": "zed",
+    "color": "#b0343a",
+    "sheet": "/sprites/char-17.webp",
+    "atlas": "zed"
+  },
+  {
+    "model": "acolito",
+    "name": "acólito",
+    "color": "#d9d2c4",
+    "sheet": "/sprites/char-18.webp",
+    "atlas": "acolito"
+  },
+  {
+    "model": "guimas",
+    "name": "guimas",
+    "color": "#4a4a55",
+    "sheet": "/sprites/char-19.webp",
+    "atlas": "guimas"
   }
 ]

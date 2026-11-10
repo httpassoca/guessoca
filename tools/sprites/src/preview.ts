@@ -6,7 +6,7 @@
  *
  * - `<modelo>-<animação>.png`: os quadros de uma animação lado a lado, do primeiro personagem do modelo (o mesmo atlas
  *   vale para as outras cores), cada quadro num xadrez com borda e tiques vermelhos embaixo e à esquerda, na coluna e na linha da âncora (o pé);
- * - `characters-idle.png`: o primeiro quadro do parado dos treze personagens, na ordem dos lugares 0–12;
+ * - `characters-idle.png`: o primeiro quadro do parado de todos os personagens, na ordem dos lugares;
  * - `rooftop.png`, `emotes-<língua>.png` e `skyline-<camada>.png`: os objetos do telhado, os balões e a cidade.
  *
  * Tudo a `SCALE`× (4). A montagem (`contactLayout`, `contactSheet`, `upscale`) é pura e testada em
@@ -124,13 +124,14 @@ if (import.meta.main) {
   };
   const sheetOf = (url: string) => readSheet(join(sheets, url.replace(/^\/sprites\//, '')));
 
-  // os personagens: uma imagem por animação de cada modelo, e o parado dos treze
+  // os personagens: uma imagem por animação de cada modelo, e o parado de todos
   const list = json<CharacterEntry[]>('characters.json');
+  const allAtlases = json<Record<string, Atlas>>('atlases.json');
   const idles: Image[] = [];
   const idleAnchors: { x: number; y: number }[] = [];
   const seen = new Set<string>();
   for (const c of list) {
-    const atlas = json<Atlas>(`${c.atlas}.json`);
+    const atlas = allAtlases[c.atlas];
     const sheet = await sheetOf(c.sheet);
     idles.push(animationFrames(sheet, atlas, 'idle')[0]);
     idleAnchors.push(atlas.anchor);

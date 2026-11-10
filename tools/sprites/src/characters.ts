@@ -1,75 +1,50 @@
 /**
- * Os treze personagens (`character` 0..12 no protocolo), na ordem dos lugares: 0 o herói loiro (`HAIRS` em `hero.ts`), 1 o
- * esqueleto de capa vermelha (`CAPES` em `skeleton.ts`), 2 o Kratos, 3 o Vorcaro, 4 o Orelha (o cachorro), 5 o Bolsonaro
- * no dinossauro, 6 o cavaleiro de máscara, 7 o Old Snake, 8 o Pinóquio, 9 a Eve, 10 a Katarina, 11 o Justiceiro e 12 o Mista (os onze de sete folhas, `pack.ts`). `index.ts` grava a lista em
- * `apps/web/src/lib/sprites/characters.json`, que o cliente (`apps/web/src/lib/sprites/characters.ts`) lê para achar a
- * folha, o atlas e a cor de cada um; e grava cada folha em `apps/web/public/sprites/char-N.<formato>` no lugar `N`.
- *
- * O elenco já teve onze: quatro cores de cabelo do herói e três capas do esqueleto. Com mais modelos, ficou uma de cada.
+ * Os personagens (`character` 0..N−1 no protocolo), na ordem dos lugares: o herói (uma folha por cor de cabelo em `HAIRS`,
+ * hoje só o loiro), o esqueleto (uma por capa em `CAPES`, hoje só a vermelha) e os de sete folhas, na ordem de `PACKS`
+ * (`packs.ts`). `index.ts` grava a lista em `apps/web/src/lib/sprites/characters.json`, que o cliente
+ * (`apps/web/src/lib/sprites/characters.ts`) lê para achar a folha, o atlas e a cor de cada um; e grava cada folha em
+ * `apps/web/public/sprites/char-N.<formato>` no lugar `N`.
  *
  * Como mudar:
- * - **Outra cor de um modelo**: mais uma rampa em `HAIRS` ou `CAPES` (cada rampa é um lugar a mais); a cor na interface
- *   é a base da rampa, então ponha `--gs-char-N` em `apps/web/src/app.css` (um teste do cliente confere).
- * - **Mais ou menos lugares**: a sala tem `CHARACTERS = 13` em `@guess/rules` (o protocolo valida 0..12); esta lista tem
- *   que ter esse tamanho. Mudar é mexer em `CHARACTERS`, num `--gs-char-N` por lugar e nos testes de faixa (rules,
- *   protocol, create, identity). O número que cada navegador lembra passa a apontar para outro personagem.
- * - **Um modelo novo**: um `Model` novo aqui (e no cliente), uma receita `build<Modelo>` que devolve uma folha por variante
- *   e um `Atlas` (`atlas.ts`), a entrada dele nesta lista (a ordem da lista é a ordem dos lugares), uma entrada em
- *   `models` em `index.ts` (a pasta do pacote e os arquivos), e o atlas em `ATLASES` no cliente
- *   (`apps/web/src/lib/sprites/characters.ts`).
+ * - **Mais um personagem de sete folhas**: uma entrada em `PACKS` (`packs.ts`) e mais um em `CHARACTERS`
+ *   (`@guess/rules`); um teste confere que a lista tem esse tamanho.
+ * - **Outra cor do herói ou do esqueleto**: mais uma rampa em `HAIRS` ou `CAPES` (cada rampa é um lugar a mais).
+ * - **Um modelo de outro tipo** (arte que precisa de receita própria, como o herói): uma receita `build<Modelo>`, a
+ *   entrada dele em `characters()` e em `models` de `index.ts`.
+ * - Mudar a ordem ou tirar alguém renumera os lugares: o número que cada navegador lembra passa a apontar para outro.
  */
-import { BOLSONARO_COLOR } from './bolsonaro';
-import { EVE_COLOR } from './eve';
 import { HAIRS } from './hero';
-import { KATARINA_COLOR } from './katarina';
-import { KNIGHT_COLOR } from './knight';
-import { KRATOS_COLOR } from './kratos';
+import { PACKS } from './packs';
 import { CAPES } from './skeleton';
-import { OLDSNAKE_COLOR } from './oldsnake';
-import { MISTA_COLOR } from './mista';
-import { ORELHA_COLOR } from './orelha';
-import { PUNISHER_COLOR } from './punisher';
-import { PINOCCHIO_COLOR } from './pinocchio';
-import { VORCARO_COLOR } from './vorcaro';
 
-/** Os modelos de personagem; cada um tem uma receita, um pacote em `assets-src/` e um atlas `<modelo>.json`. */
-export type Model = 'hero' | 'skeleton' | 'kratos' | 'vorcaro' | 'orelha' | 'bolsonaro' | 'knight' | 'oldsnake' | 'pinocchio' | 'eve' | 'katarina' | 'punisher' | 'mista';
+/** O nome de um modelo: `hero`, `skeleton` ou o `model` de uma entrada de `PACKS`. É a chave do atlas dele. */
+export type Model = string;
 
 /**
- * O formato da folha de cada modelo: PNG para o pixel art no tamanho do jogo; WebP sem perda para a arte grande que o
- * jogo desenha encolhida (o Kratos e o Vorcaro, este 2 MB em PNG e 1,3 MB em WebP, os mesmos pixels).
+ * O formato da folha de um modelo: PNG para o pixel art no tamanho do jogo (o herói e o esqueleto); WebP sem perda para
+ * a arte grande que o jogo desenha encolhida (todos os de sete folhas: os mesmos pixels, uns 30 % menos bytes).
  */
-export const SHEET_FORMAT: Record<Model, 'png' | 'webp'> = { hero: 'png', skeleton: 'png', kratos: 'webp', vorcaro: 'webp', orelha: 'webp', bolsonaro: 'webp', knight: 'webp', oldsnake: 'webp', pinocchio: 'webp', eve: 'webp', katarina: 'webp', punisher: 'webp', mista: 'webp' };
+export const sheetFormat = (model: Model): 'png' | 'webp' => (model === 'hero' || model === 'skeleton' ? 'png' : 'webp');
 
 /** Uma linha de `characters.json`: o personagem `N` é a entrada `N`. */
 export interface CharacterEntry {
   model: Model;
-  /** o nome da cor (do cabelo ou da capa), em português; não aparece na interface hoje */
+  /** o nome (da cor do cabelo ou da capa, ou do personagem), em português; não aparece na interface hoje */
   name: string;
-  /** a cor do personagem na interface, `#rrggbb`: a base da rampa (o mesmo valor de `--gs-char-N` no CSS) */
+  /** a cor do personagem na interface, `#rrggbb` */
   color: string;
-  /** a folha, servida do `public`: `/sprites/char-N.png` (ou `.webp`, conforme `SHEET_FORMAT`) */
+  /** a folha, servida do `public`: `/sprites/char-N.png` (ou `.webp`, conforme `sheetFormat`) */
   sheet: string;
-  /** o atlas do modelo (`hero.json`, `skeleton.json`, `kratos.json`, `vorcaro.json`, `orelha.json`, `bolsonaro.json`, `knight.json`, `oldsnake.json`, `pinocchio.json`, `eve.json`, `katarina.json`, `punisher.json` ou `mista.json`) */
+  /** o atlas do modelo: a chave em `atlases.json` */
   atlas: Model;
 }
 
-/** A lista dos treze, na ordem dos lugares: o herói, o esqueleto e os onze de sete folhas. */
+/** A lista, na ordem dos lugares: o herói, o esqueleto e os de sete folhas. */
 export function characters(): CharacterEntry[] {
   const list: Pick<CharacterEntry, 'model' | 'name' | 'color'>[] = [
-    ...HAIRS.map((h) => ({ model: 'hero' as const, name: h.name, color: `#${h.ramp[1]}` })),
-    ...CAPES.map((c) => ({ model: 'skeleton' as const, name: c.name, color: `#${c.ramp[1]}` })),
-    { model: 'kratos', name: 'kratos', color: `#${KRATOS_COLOR}` },
-    { model: 'vorcaro', name: 'vorcaro', color: `#${VORCARO_COLOR}` },
-    { model: 'orelha', name: 'orelha', color: `#${ORELHA_COLOR}` },
-    { model: 'bolsonaro', name: 'bolsonaro', color: `#${BOLSONARO_COLOR}` },
-    { model: 'knight', name: 'cavaleiro', color: `#${KNIGHT_COLOR}` },
-    { model: 'oldsnake', name: 'oldsnake', color: `#${OLDSNAKE_COLOR}` },
-    { model: 'pinocchio', name: 'pinocchio', color: `#${PINOCCHIO_COLOR}` },
-    { model: 'eve', name: 'eve', color: `#${EVE_COLOR}` },
-    { model: 'katarina', name: 'katarina', color: `#${KATARINA_COLOR}` },
-    { model: 'punisher', name: 'justiceiro', color: `#${PUNISHER_COLOR}` },
-    { model: 'mista', name: 'mista', color: `#${MISTA_COLOR}` },
+    ...HAIRS.map((h) => ({ model: 'hero', name: h.name, color: `#${h.ramp[1]}` })),
+    ...CAPES.map((c) => ({ model: 'skeleton', name: c.name, color: `#${c.ramp[1]}` })),
+    ...PACKS.map((p) => ({ model: p.model, name: p.name, color: `#${p.color}` })),
   ];
-  return list.map((c, n) => ({ ...c, sheet: `/sprites/char-${n}.${SHEET_FORMAT[c.model]}`, atlas: c.model }));
+  return list.map((c, n) => ({ ...c, sheet: `/sprites/char-${n}.${sheetFormat(c.model)}`, atlas: c.model }));
 }

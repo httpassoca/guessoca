@@ -1,4 +1,5 @@
 import { describe, expect, test } from 'bun:test';
+import { CHARACTERS } from '@guess/rules';
 import { CODE_RE, isWebp, parseClientMessage, parsePresence, parseRoomInit, TOKEN_RE, type Presence } from '../src';
 
 describe('parseClientMessage', () => {
@@ -49,9 +50,9 @@ describe('parseClientMessage: o jogo', () => {
     }
   });
 
-  test('personagem de 0 a 12', () => {
-    expect(p({ type: 'character', character: 12 })).toEqual({ type: 'character', character: 12 });
-    expect(p({ type: 'character', character: 13 })).toBeNull();
+  test('personagem de 0 a CHARACTERS − 1', () => {
+    expect(p({ type: 'character', character: CHARACTERS - 1 })).toEqual({ type: 'character', character: CHARACTERS - 1 });
+    expect(p({ type: 'character', character: CHARACTERS })).toBeNull();
     expect(p({ type: 'character', character: 1.5 })).toBeNull();
   });
 

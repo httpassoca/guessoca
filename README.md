@@ -74,7 +74,7 @@ apps/web           Vite + Svelte 5 + PixiJS v8 + dssoca
                            desistir ou votar, os post-its como posso vê-los, o ranking, a contagem regressiva
   src/lib/image.ts         a imagem do post-it: reduz a 512 px, WebP baixando a qualidade até caber, sobe por POST
   src/lib/effects.ts       "efeitos de tela" (os filtros de filme) ligados ou não, por navegador (localStorage)
-  src/lib/sprites/         os atlas gerados (`characters.json`, `hero.json`, `skeleton.json`, `kratos.json`, `vorcaro.json`, `orelha.json`, `bolsonaro.json`, `knight.json`, `oldsnake.json`, `pinocchio.json`, `eve.json`, `katarina.json`, `punisher.json`, `mista.json`, `emotes.json`, `rooftop.json`),
+  src/lib/sprites/         os atlas gerados (`characters.json`, `atlases.json`, `emotes.json`, `rooftop.json`),
                            `characters.ts`, que diz de que modelo é cada personagem, a folha, a cor e onde está cada quadro
                            no atlas do modelo, e `rooftop.ts`, o mesmo para os objetos do telhado e as faixas da cidade
   src/lib/world/            o telhado no navegador: controls (teclas → `Input`), loop (60 passos por segundo), presence (manda
@@ -109,18 +109,9 @@ tools/sprites      `bun run sprites` (@guess/sprites): as receitas que geram as 
   src/hero.ts        o herói: fatia as folhas do pacote, tira a espada do golpe, uma folha por cor de cabelo (hoje só o loiro)
   src/skeleton.ts    o cavaleiro esqueleto: tira o rastro dos golpes, desenha correr, pular e cair, uma folha por capa (hoje só a vermelha)
   src/pack.ts        a receita dos personagens de sete folhas (arte de modelo de imagem): não muda pixel, só põe os quadros no lugar
-  src/kratos.ts      o Kratos: os números dele para `pack.ts`
-  src/vorcaro.ts     o Vorcaro: os números dele para `pack.ts`
-  src/orelha.ts      o Orelha, o cachorro: os números dele para `pack.ts`
-  src/bolsonaro.ts   o Bolsonaro no dinossauro: os números dele para `pack.ts`
-  src/knight.ts      o cavaleiro de máscara: os números dele para `pack.ts`
-  src/oldsnake.ts    o Old Snake: os números dele para `pack.ts`
-  src/pinocchio.ts   o Pinóquio: os números dele para `pack.ts`
-  src/eve.ts         a Eve: os números dela para `pack.ts`
-  src/katarina.ts    a Katarina: os números dela para `pack.ts`
-  src/punisher.ts    o Justiceiro: os números dele para `pack.ts`
-  src/mista.ts       o Mista: os números dele para `pack.ts`
-  src/characters.ts  os treze personagens (0 herói, 1 esqueleto, 2 Kratos, 3 Vorcaro, 4 Orelha, 5 Bolsonaro, 6 cavaleiro, 7 Old Snake, 8 Pinóquio, 9 Eve, 10 Katarina, 11 Justiceiro, 12 Mista), que viram `characters.json`
+  src/packs.ts       o registro dos personagens de sete folhas, na ordem dos lugares: um personagem é uma entrada aqui
+  src/kratos.ts …    os números (`PackConfig`) dos primeiros personagens, um arquivo cada, com a história de cada um
+  src/characters.ts  a lista de todos os personagens (o herói, o esqueleto e os de `packs.ts`), que vira `characters.json`
   src/emotes.ts      os balões `?`, `!`, `haha`, "eu?"/"me?" com uma fonte 3×5 em texto
   src/rooftop.ts     o telhado em grades de texto: a paleta, a prancheta (`Sketch`) que carimba grades, tampo, muretas,
                      fachadas, as três caixas do mapa (ar-condicionado, chaminé, caixa-d'água), antenas, letreiros de neon,
@@ -157,26 +148,17 @@ Como a arte funciona e como importar arte nova (personagens, animações, objeto
 [`docs/art.md`](docs/art.md). `bun run sprites:preview` gera folhas de contato ampliadas do que está versionado em
 `.preview/` (fora do git) para conferir no olho.
 
-Há treze modelos de personagem. O herói é o "male hero" (versão grátis) da [Ozzbit Games](https://ozzbit-games.itch.io),
+Há vinte personagens, um de cada modelo. O herói é o "male hero" (versão grátis) da [Ozzbit Games](https://ozzbit-games.itch.io),
 com licença só para uso pessoal e não comercial, modificações permitidas e crédito obrigatório (ADR 0007). O cavaleiro
-esqueleto, o Kratos, o Vorcaro, o Orelha, o Bolsonaro, o cavaleiro, o Old Snake, o Pinóquio, a Eve, a Katarina, o Justiceiro e o Mista são arte do dono do jogo, sem restrição nem crédito (emendas da ADR 0007). Os pacotes ficam fora do git, em
+esqueleto e todos os de sete folhas (`tools/sprites/src/packs.ts`) são arte do dono do jogo, sem restrição nem crédito (emendas da ADR 0007). Os pacotes ficam fora do git, em
 `assets-src/` (ignorado), e só as folhas que o pipeline gera são versionadas em `apps/web/public/sprites/` (os atlas em
 `apps/web/src/lib/sprites/`). O CI e o Docker usam o que está versionado e nunca precisam dos pacotes.
 
 ```
 cp -r ~/dev/tmp/male_hero_free assets-src/   # uma vez, na máquina do dono
 cp -r <folhas do esqueleto> assets-src/skeleton/   # IDLE.png, WALK.png, FWD_SWING.png, DOWN_SWING.png, ...
-cp <folhas do Kratos> assets-src/kratos/           # idle.png, walk.png, run.png, jump.png, fall.png, fall_loop.png, shove.png
-cp <folhas do Vorcaro> assets-src/vorcaro/         # as mesmas sete
-cp <folhas do Orelha> assets-src/orelha/           # as mesmas sete
-cp <folhas do Bolsonaro> assets-src/bolsonaro/     # as mesmas sete
-cp <folhas do cavaleiro> assets-src/knight/        # as mesmas, com attack.png no lugar de shove.png
-cp <folhas do Old Snake> assets-src/oldsnake/      # idem
-cp <folhas do Pinóquio> assets-src/pinocchio/      # idem
-cp <folhas da Eve> assets-src/eve/                 # idem
-cp <folhas da Katarina> assets-src/katarina/       # idem
-cp <folhas do Justiceiro> assets-src/punisher/     # idem
-cp <folhas do Mista> assets-src/mista/             # idem
+cp -r <pasta de um personagem> assets-src/<dir>/   # os de sete folhas: idle.png, walk.png, run.png, jump.png, fall.png,
+                                                   # fall_loop.png e attack.png (ou shove.png); `dir` é o de `packs.ts`
 bun run sprites                             # refaz as folhas e os atlas
 ```
 
@@ -197,37 +179,14 @@ O que sai:
     com a capa puxada para baixo e a perna encolhida; cair é esse corpo com a capa do golpe para a frente girada 90° para
     voar para cima atrás das costas. O empurrão é o golpe para a frente, cinco quadros, com o pé de trás no lugar do
     parado.
-  - `char-2`: o Kratos, feito por um modelo de imagem a pedido do dono.
-    Sete folhas com células de 116×160, desenhadas no jogo pela metade (`scale` 1/2, uns 60 de altura). Trocou a
-    primeira versão, que era um GIF dele girando com as animações desenhadas por código.
-  - `char-3`: o Vorcaro, o homem de terno, feito por um modelo de imagem a pedido do dono. A arte já tem as sete
-    animações e vem grande (células de 256×384). Como no Kratos, a receita (`pack.ts`) não muda nenhum pixel: só põe o pé de todo quadro na linha
-    do chão e anda o correr para a frente. A folha sai no tamanho da arte, em WebP sem perda (os mesmos pixels,
-    1,3 MB em vez de 2 MB em PNG), e o atlas leva `scale` (1/6): é o jogo que a desenha menor.
-  - `char-4`: o Orelha, o cachorro, feito por um modelo de imagem a pedido do dono (a segunda arte dele, do pedido
-    novo). Células de 96×64, 15 de altura e 20 de comprimento (0,3 adulto: na altura do joelho de uma pessoa). É o único
-    de quatro patas: mais comprido que alto, com a cabeça na frente. O ataque é uma mordida.
-  - `char-5`: o Bolsonaro, uma caricatura dele de faixa presidencial montado num tiranossauro, com uma arma de raio;
-    feito por um modelo de imagem a pedido do dono. Células de 208×192, desenhado a 0,47 (1,4 adulto: 70 de altura, 80 de
-    comprimento). O empurrão é um tiro, com o clarão da arma.
-  - `char-6`: o cavaleiro, pequeno, de máscara branca com chifres e capa azul-acinzentada; um desenho novo que o dono
-    mandou. Células de 96×96, desenhado a 0,55 (35 de altura). O ataque é uma investida.
-  - `char-7`: o Old Snake, o soldado velho de bandana, colete e fuzil; um desenho novo que o dono mandou, pixel art de
-    25 cores. Células de 128×128, desenhado a 0,5 (49 de altura). O ataque é um tiro de fuzil.
-  - `char-8`: o Pinóquio, o rapaz de cabelo escuro, camisa branca, braço mecânico e sabre; um desenho novo que o dono
-    mandou, pixel art de 29 cores. Células de 160×128, desenhado a 0,47 (50 de altura). O ataque é uma estocada.
-  - `char-9`: a Eve, a espadachim de rabo de cavalo escuro e traje verde-esmeralda, com uma espada longa; um desenho
-    novo que o dono mandou, pixel art de 33 cores. Células de 192×192, desenhada a 0,36 (50 de altura). O ataque é uma
-    estocada.
-  - `char-10`: a Katarina, a assassina de cabelo vermelho comprido, com duas adagas; um desenho novo que o dono mandou,
-    pixel art de 48 cores. Células de 144×144, desenhada com 50 de altura (um adulto). O ataque é um golpe de adaga.
-  - `char-11`: o Justiceiro, de sobretudo preto, caveira branca no peito e pistola; um desenho novo que o dono mandou.
-    Células de 224×192, 59 de altura (1,19 adulto, um lutador alto). O ataque é um tiro.
-  - `char-12`: o Mista, o pistoleiro de gorro vermelho, suéter azul e revólver; um desenho novo que o dono mandou.
-    Células de 160×176, 52 de altura (um adulto). O ataque é um tiro.
-- `characters.json`: os treze, cada um com o modelo, o nome da cor, a cor na interface, a folha e o atlas. Um atlas por
-  modelo (`hero.json`, `skeleton.json`, `kratos.json`, `vorcaro.json`, `orelha.json`, `bolsonaro.json`, `knight.json`, `oldsnake.json`, `pinocchio.json`, `eve.json`, `katarina.json`, `punisher.json`, `mista.json`): tamanho do quadro, âncora (entre os pés), a cabeça, o parado, as linhas das
-  animações com quadros, fps e loop, e o crédito (ou null).
+  - `char-2` em diante: os personagens de sete folhas, na ordem de `PACKS` (`tools/sprites/src/packs.ts`): arte feita por
+    um modelo de imagem a pedido do dono. A receita (`pack.ts`) não muda nenhum pixel: só põe o pé de todo quadro na
+    linha do chão. A folha sai no tamanho da arte, em WebP sem perda, e o atlas leva `scale`: é o jogo que a desenha
+    menor. Um adulto tem 50 de altura no mundo; cada personagem tem o seu tamanho (o cachorro fica no joelho, o do
+    dinossauro é o maior). A nota de cada um está em `packs.ts` ou no arquivo dele, e a história na ADR 0007.
+- `characters.json`: todos, na ordem dos lugares, cada um com o modelo, o nome, a cor na interface, a folha e o atlas.
+- `atlases.json`: um atlas por modelo: tamanho do quadro, âncora (entre os pés), a cabeça, o parado, as linhas das
+  animações com quadros, fps e loop, a escala, e o crédito (ou null).
 - `emotes-pt-BR.png` e `emotes-en-US.png`: os balões das teclas 1–4; só o "eu?"/"me?" muda de uma para a outra.
 - `rooftop.png` (atlas em `rooftop.json`): o telhado neon-noir, todo desenhado em grades de texto em
   `tools/sprites/src/rooftop.ts`, com uma paleta só (azul e roxo fundos, concreto molhado, neon magenta e ciano, janela
@@ -245,8 +204,8 @@ O que sai:
 ### Pedir um personagem ou objeto novo
 
 - **Outra cor de cabelo** ou **outra capa**: mais uma rampa (um lugar a mais) em `HAIRS` (sombra, base, brilho) em
-  `tools/sprites/src/hero.ts` ou em `CAPES` (sombra, base) em `tools/sprites/src/skeleton.ts`. São treze personagens
-  (não exclusivos; a sala tem até oito pessoas): o herói, o esqueleto, o Kratos, o Vorcaro, o Orelha, o Bolsonaro, o cavaleiro, o Old Snake, o Pinóquio, a Eve, a Katarina, o Justiceiro e o Mista, na ordem de `characters.ts`. A cor do personagem na interface é
+  `tools/sprites/src/hero.ts` ou em `CAPES` (sombra, base) em `tools/sprites/src/skeleton.ts`. São vinte personagens
+  (não exclusivos; a sala tem até oito pessoas), na ordem de `characters.ts`. A cor do personagem na interface é
   a base da rampa; atualize `--gs-char-N` em `apps/web/src/app.css` (o teste confere).
 - **Variantes do esqueleto**: a capa é `771818` (sombra) e `982b2b` (base), os únicos vermelhos da arte além do olho
   (`fe0707`, que fica). Diga a cor da capa nova, ou outra peça (a espada, os ossos) e a cor; uma animação nova ou
@@ -308,5 +267,5 @@ certbot) são guiados por `bash deploy/wizard.sh`, que termina provando HTTPS e 
 ## Créditos
 
 Herói: [Ozzbit Games](https://ozzbit-games.itch.io) (pacote "male hero", uso pessoal e não comercial). O pacote original
-não está no repositório; só as folhas geradas pelo pipeline (ADR 0007). O cavaleiro esqueleto, o Kratos, o Vorcaro, o Orelha, o Bolsonaro, o cavaleiro, o Old Snake, o Pinóquio, a Eve, a Katarina, o Justiceiro e o Mista são arte do dono do jogo.
+não está no repositório; só as folhas geradas pelo pipeline (ADR 0007). O cavaleiro esqueleto e os personagens de sete folhas são arte do dono do jogo.
 Guessoca não é comercial e não tem anúncios.
