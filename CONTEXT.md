@@ -81,7 +81,7 @@ O mundo sempre ligado: entrar na sala põe a pessoa no telhado. Lobby, jogo e fi
 _Evitar_: mapa, fase, level, cenário, cena
 
 **Personagem** (`character`):
-O corpo de cada pessoa no telhado. São nove, de quatro modelos: o herói, com quatro cores de cabelo (castanho, preto, loiro, ruivo), o cavaleiro esqueleto, com três capas (vermelha, azul, roxa), o Kratos e o Vorcaro (o homem de terno). Cada pessoa escolhe um, e duas pessoas podem usar o mesmo. Os corpos são sólidos: não se atravessa um grupo, pula-se por cima, e dá para ficar na cabeça de alguém e ser carregado.
+O corpo de cada pessoa no telhado. São dez, de cinco modelos: o herói, com quatro cores de cabelo (castanho, preto, loiro, ruivo), o cavaleiro esqueleto, com três capas (vermelha, azul, roxa), o Kratos, o Vorcaro (o homem de terno) e o Orelha (o cachorro). Cada pessoa escolhe um, e duas pessoas podem usar o mesmo. Os corpos são sólidos: não se atravessa um grupo, pula-se por cima, e dá para ficar na cabeça de alguém e ser carregado.
 _Evitar_: avatar, boneco, skin, sprite (é o desenho), herói
 
 **Empurrão** (`shove`):

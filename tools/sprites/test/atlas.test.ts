@@ -53,17 +53,17 @@ describe('a montagem do atlas', () => {
 describe('os personagens', () => {
   const list = characters();
 
-  test('nove, quatro heróis, três esqueletos, o Kratos no lugar 6 e o Vorcaro no 8, cada um com a sua folha e o seu atlas', () => {
-    expect(list).toHaveLength(9);
-    expect(list.map((c) => c.model)).toEqual(['hero', 'hero', 'hero', 'hero', 'skeleton', 'skeleton', 'kratos', 'skeleton', 'vorcaro']);
-    expect(list.map((c) => c.sheet)).toEqual(Array.from({ length: 9 }, (_, n) => `/sprites/char-${n}.${n === 6 || n === 8 ? 'webp' : 'png'}`)); // o Kratos e o Vorcaro, arte grande, em WebP sem perda
+  test('dez, quatro heróis, três esqueletos, o Kratos no lugar 6, o Vorcaro no 8 e o Orelha no 9, cada um com a sua folha e o seu atlas', () => {
+    expect(list).toHaveLength(10);
+    expect(list.map((c) => c.model)).toEqual(['hero', 'hero', 'hero', 'hero', 'skeleton', 'skeleton', 'kratos', 'skeleton', 'vorcaro', 'orelha']);
+    expect(list.map((c) => c.sheet)).toEqual(Array.from({ length: 10 }, (_, n) => `/sprites/char-${n}.${n === 6 || n >= 8 ? 'webp' : 'png'}`)); // o Kratos, o Vorcaro e o Orelha, arte grande, em WebP sem perda
     for (const c of list) expect(c.atlas).toBe(c.model);
   });
 
   test('cores de interface únicas, em #rrggbb, e nomes únicos por modelo', () => {
-    expect(new Set(list.map((c) => c.color)).size).toBe(9);
+    expect(new Set(list.map((c) => c.color)).size).toBe(10);
     for (const c of list) expect(c.color).toMatch(/^#[0-9a-f]{6}$/);
     expect(list.slice(0, 4).map((c) => c.name)).toEqual(['castanho', 'preto', 'loiro', 'ruivo']);
-    expect(list.slice(4).map((c) => c.name)).toEqual(['vermelho', 'azul', 'kratos', 'roxo', 'vorcaro']);
+    expect(list.slice(4).map((c) => c.name)).toEqual(['vermelho', 'azul', 'kratos', 'roxo', 'vorcaro', 'orelha']);
   });
 });

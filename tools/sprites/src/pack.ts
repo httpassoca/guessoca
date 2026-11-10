@@ -2,7 +2,7 @@
  * A receita comum dos personagens que chegam **prontos, em sete folhas**: a arte que o dono pede a um modelo de imagem
  * (o pedido está em `docs/art.md`, "Art made by an image model"), uma folha por animação (`idle.png`, `walk.png`,
  * `run.png`, `jump.png`, `fall.png`, `fall_loop.png`, `shove.png`), cada uma uma linha de células iguais, o personagem
- * olhando para a direita. O Kratos (`kratos.ts`) e o Vorcaro (`vorcaro.ts`) são só os números de cada um (`PackConfig`).
+ * olhando para a direita. O Kratos (`kratos.ts`), o Vorcaro (`vorcaro.ts`) e o Orelha (`orelha.ts`) são só os números de cada um (`PackConfig`).
  *
  * A regra: **a receita não muda nenhum pixel da arte**. Não encolhe, não recolore, não redesenha, não aumenta um quadro,
  * não tira quadro. Ela só **muda quadros inteiros de lugar** (o ponto mais baixo de cada um vai para a linha do chão; uma
@@ -56,8 +56,10 @@ export interface PackConfig {
   spec: ModelSpec;
   /** unidades do mundo por pixel do quadro: a altura que ele deve ter no jogo ÷ a altura na arte */
   worldScale: number;
-  /** quantas linhas do alto do parado são cabeça (do alto ao queixo) */
+  /** quantas linhas do alto do parado são cabeça (do alto ao queixo): o que há nelas dá o meio do rosto */
   headRows: number;
+  /** o lado do quadrado do rosto, se não for `headRows` mais um sétimo (um bicho de quatro patas, com a cabeça na frente) */
+  headSize?: number;
   /** quantas linhas de baixo do parado são sola (para achar o meio dos pés) */
   feetRows: number;
 }
@@ -97,18 +99,18 @@ export function feetX(idle: Image, rows: number): number {
   return f.x + f.w / 2;
 }
 
-/** O quadrado da cabeça: do alto do parado, centrado no que há nas `rows` linhas da cabeça, com um sétimo de folga. */
-export function headBox(idle: Image, rows: number): Atlas['head'] {
+/** O quadrado da cabeça: do alto do parado, centrado no que há nas `rows` linhas da cabeça, com um sétimo de folga (ou de lado `side`). */
+export function headBox(idle: Image, rows: number, side?: number): Atlas['head'] {
   const b = bounds(idle)!;
   const h = bounds(crop(idle, 0, b.y, idle.width, rows))!;
   const pad = Math.round(rows / 7);
-  const size = rows + pad;
+  const size = side ?? rows + pad;
   return { x: Math.round(h.x + h.w / 2 - size / 2), y: Math.max(0, b.y - Math.floor(pad / 2)), size };
 }
 
 /** A folha (no tamanho da arte) e o atlas (com `scale`) de um personagem de sete folhas. */
 export function buildPack(sheets: Readonly<Record<string, Image>>, c: PackConfig): { sheets: Image[]; atlas: Atlas } {
   const rows = derive(sheets, c);
-  const { sheet, atlas } = layout(rows, c.spec, { anchorX: feetX(rows[0][0], c.feetRows), head: (idle) => headBox(idle, c.headRows) });
+  const { sheet, atlas } = layout(rows, c.spec, { anchorX: feetX(rows[0][0], c.feetRows), head: (idle) => headBox(idle, c.headRows, c.headSize) });
   return { sheets: [sheet], atlas: { ...atlas, scale: c.worldScale } };
 }
