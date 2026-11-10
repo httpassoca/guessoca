@@ -35,7 +35,7 @@ describe('post-it sobre a cabeça', () => {
   });
 
   test('o post-it fica acima do topo da cabeça de cada modelo, dentro do quadro', () => {
-    for (const n of [0, 1, 2, 3, 4, 5, 6, 7, 8]) {
+    for (const n of [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]) {
       const { atlas } = character(n);
       const k = atlas.scale ?? 1; // o Vorcaro é arte grande, desenhada encolhida
       expect(headY(n)).toBeGreaterThanOrEqual((atlas.anchor.y - atlas.head.y) * k);

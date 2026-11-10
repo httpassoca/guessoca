@@ -1,7 +1,7 @@
 /**
- * Os nove personagens (`character` 0..8 no protocolo), na ordem dos lugares: 0 o herói loiro (`HAIRS` em `hero.ts`), 1 o
+ * Os dez personagens (`character` 0..9 no protocolo), na ordem dos lugares: 0 o herói loiro (`HAIRS` em `hero.ts`), 1 o
  * esqueleto de capa vermelha (`CAPES` em `skeleton.ts`), 2 o Kratos, 3 o Vorcaro, 4 o Orelha (o cachorro), 5 o Bolsonaro
- * no dinossauro, 6 o cavaleiro de máscara, 7 o Old Snake e 8 o Pinóquio (os sete de sete folhas, `pack.ts`). `index.ts` grava a lista em
+ * no dinossauro, 6 o cavaleiro de máscara, 7 o Old Snake, 8 o Pinóquio e 9 a Eve (os oito de sete folhas, `pack.ts`). `index.ts` grava a lista em
  * `apps/web/src/lib/sprites/characters.json`, que o cliente (`apps/web/src/lib/sprites/characters.ts`) lê para achar a
  * folha, o atlas e a cor de cada um; e grava cada folha em `apps/web/public/sprites/char-N.<formato>` no lugar `N`.
  *
@@ -10,7 +10,7 @@
  * Como mudar:
  * - **Outra cor de um modelo**: mais uma rampa em `HAIRS` ou `CAPES` (cada rampa é um lugar a mais); a cor na interface
  *   é a base da rampa, então ponha `--gs-char-N` em `apps/web/src/app.css` (um teste do cliente confere).
- * - **Mais ou menos lugares**: a sala tem `CHARACTERS = 9` em `@guess/rules` (o protocolo valida 0..8); esta lista tem
+ * - **Mais ou menos lugares**: a sala tem `CHARACTERS = 10` em `@guess/rules` (o protocolo valida 0..9); esta lista tem
  *   que ter esse tamanho. Mudar é mexer em `CHARACTERS`, num `--gs-char-N` por lugar e nos testes de faixa (rules,
  *   protocol, create, identity). O número que cada navegador lembra passa a apontar para outro personagem.
  * - **Um modelo novo**: um `Model` novo aqui (e no cliente), uma receita `build<Modelo>` que devolve uma folha por variante
@@ -19,6 +19,7 @@
  *   (`apps/web/src/lib/sprites/characters.ts`).
  */
 import { BOLSONARO_COLOR } from './bolsonaro';
+import { EVE_COLOR } from './eve';
 import { HAIRS } from './hero';
 import { KNIGHT_COLOR } from './knight';
 import { KRATOS_COLOR } from './kratos';
@@ -29,13 +30,13 @@ import { PINOCCHIO_COLOR } from './pinocchio';
 import { VORCARO_COLOR } from './vorcaro';
 
 /** Os modelos de personagem; cada um tem uma receita, um pacote em `assets-src/` e um atlas `<modelo>.json`. */
-export type Model = 'hero' | 'skeleton' | 'kratos' | 'vorcaro' | 'orelha' | 'bolsonaro' | 'knight' | 'oldsnake' | 'pinocchio';
+export type Model = 'hero' | 'skeleton' | 'kratos' | 'vorcaro' | 'orelha' | 'bolsonaro' | 'knight' | 'oldsnake' | 'pinocchio' | 'eve';
 
 /**
  * O formato da folha de cada modelo: PNG para o pixel art no tamanho do jogo; WebP sem perda para a arte grande que o
  * jogo desenha encolhida (o Kratos e o Vorcaro, este 2 MB em PNG e 1,3 MB em WebP, os mesmos pixels).
  */
-export const SHEET_FORMAT: Record<Model, 'png' | 'webp'> = { hero: 'png', skeleton: 'png', kratos: 'webp', vorcaro: 'webp', orelha: 'webp', bolsonaro: 'webp', knight: 'webp', oldsnake: 'webp', pinocchio: 'webp' };
+export const SHEET_FORMAT: Record<Model, 'png' | 'webp'> = { hero: 'png', skeleton: 'png', kratos: 'webp', vorcaro: 'webp', orelha: 'webp', bolsonaro: 'webp', knight: 'webp', oldsnake: 'webp', pinocchio: 'webp', eve: 'webp' };
 
 /** Uma linha de `characters.json`: o personagem `N` é a entrada `N`. */
 export interface CharacterEntry {
@@ -46,11 +47,11 @@ export interface CharacterEntry {
   color: string;
   /** a folha, servida do `public`: `/sprites/char-N.png` (ou `.webp`, conforme `SHEET_FORMAT`) */
   sheet: string;
-  /** o atlas do modelo (`hero.json`, `skeleton.json`, `kratos.json`, `vorcaro.json`, `orelha.json`, `bolsonaro.json`, `knight.json`, `oldsnake.json` ou `pinocchio.json`) */
+  /** o atlas do modelo (`hero.json`, `skeleton.json`, `kratos.json`, `vorcaro.json`, `orelha.json`, `bolsonaro.json`, `knight.json`, `oldsnake.json`, `pinocchio.json` ou `eve.json`) */
   atlas: Model;
 }
 
-/** A lista dos nove, na ordem dos lugares: o herói, o esqueleto e os sete de sete folhas. */
+/** A lista dos dez, na ordem dos lugares: o herói, o esqueleto e os oito de sete folhas. */
 export function characters(): CharacterEntry[] {
   const list: Pick<CharacterEntry, 'model' | 'name' | 'color'>[] = [
     ...HAIRS.map((h) => ({ model: 'hero' as const, name: h.name, color: `#${h.ramp[1]}` })),
@@ -62,6 +63,7 @@ export function characters(): CharacterEntry[] {
     { model: 'knight', name: 'cavaleiro', color: `#${KNIGHT_COLOR}` },
     { model: 'oldsnake', name: 'oldsnake', color: `#${OLDSNAKE_COLOR}` },
     { model: 'pinocchio', name: 'pinocchio', color: `#${PINOCCHIO_COLOR}` },
+    { model: 'eve', name: 'eve', color: `#${EVE_COLOR}` },
   ];
   return list.map((c, n) => ({ ...c, sheet: `/sprites/char-${n}.${SHEET_FORMAT[c.model]}`, atlas: c.model }));
 }

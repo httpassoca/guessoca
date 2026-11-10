@@ -61,5 +61,12 @@
     "color": "#5b4b8a",
     "sheet": "/sprites/char-8.webp",
     "atlas": "pinocchio"
+  },
+  {
+    "model": "eve",
+    "name": "eve",
+    "color": "#2bb8a3",
+    "sheet": "/sprites/char-9.webp",
+    "atlas": "eve"
   }
 ]

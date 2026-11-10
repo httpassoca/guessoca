@@ -1,12 +1,12 @@
 /**
  * `bun run sprites`: roda as receitas sobre os pacotes em `assets-src/` (fora do git, ADR 0007) e escreve as folhas que o
  * jogo usa em `apps/web/public/sprites/` (`char-N.png`, ou `char-N.webp` para a arte grande do Kratos e do Vorcaro, uma por personagem) e os atlas em
- * `apps/web/src/lib/sprites/` (`hero.json`, `skeleton.json`, `kratos.json`, `vorcaro.json`, `orelha.json`, `bolsonaro.json`, `knight.json`, `oldsnake.json`, `pinocchio.json` e `characters.json`, que liga cada personagem ao seu).
+ * `apps/web/src/lib/sprites/` (`hero.json`, `skeleton.json`, `kratos.json`, `vorcaro.json`, `orelha.json`, `bolsonaro.json`, `knight.json`, `oldsnake.json`, `pinocchio.json`, `eve.json` e `characters.json`, que liga cada personagem ao seu).
  * Só a saída vai para o git; o CI e o Docker nunca precisam dos pacotes.
  * O telhado (objetos em grade de texto e a cidade ao fundo) não usa o pacote e sai primeiro, mesmo sem ele.
  *
  * Ordem: `rooftop.png` + `skyline-*.png` + `rooftop.json` (de `rooftop.ts` e `skyline.ts`); depois cada modelo de
- * `models` (`hero.ts`, `skeleton.ts`, e `kratos.ts`, `vorcaro.ts`, `orelha.ts`, `bolsonaro.ts`, `knight.ts`, `oldsnake.ts` e `pinocchio.ts`, os de sete folhas de `pack.ts`), com as folhas nos lugares que `characters.ts` dá a ele; `characters.json`;
+ * `models` (`hero.ts`, `skeleton.ts`, e `kratos.ts`, `vorcaro.ts`, `orelha.ts`, `bolsonaro.ts`, `knight.ts`, `oldsnake.ts`, `pinocchio.ts` e `eve.ts`, os de sete folhas de `pack.ts`), com as folhas nos lugares que `characters.ts` dá a ele; `characters.json`;
  * `emotes-<língua>.png` e `emotes.json` (`emotes.ts`); e por fim apaga nomes antigos que não existem mais. É o único
  * arquivo que toca o disco (com `png.ts`); as receitas são puras. `bun run sprites:preview` (`preview.ts`) lê o que
  * sai daqui e amplia para conferir.
@@ -16,6 +16,7 @@ import { join, resolve } from 'node:path';
 import { emoteSheet, type EmoteLang } from './emotes';
 import { characters } from './characters';
 import { buildBolsonaro } from './bolsonaro';
+import { buildEve } from './eve';
 import { buildHero, ANIMATIONS } from './hero';
 import { buildKnight } from './knight';
 import { buildKratos } from './kratos';
@@ -119,6 +120,13 @@ const models = [
     how: 'Copie as sete folhas do Pinóquio (idle.png, walk.png, ..., attack.png, de células de 160×128) para assets-src/pinocchio/ (ver README).',
     files: packFiles((file) => existsSync(join(root, 'assets-src/pinocchio', file))),
     build: buildPinocchio,
+  },
+  {
+    model: 'eve' as const,
+    pack: join(root, 'assets-src/eve'),
+    how: 'Copie as sete folhas da Eve (idle.png, walk.png, ..., attack.png, de células de 192×192) para assets-src/eve/ (ver README).',
+    files: packFiles((file) => existsSync(join(root, 'assets-src/eve', file))),
+    build: buildEve,
   },
 ];
 const list = characters();
