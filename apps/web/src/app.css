@@ -294,6 +294,8 @@ html, body { margin: 0; min-height: 100%; background: var(--ss-bg); }
 .gs-turn-left.gs-warn { background: currentColor; }
 .gs-turn-left.paused { opacity: 0.5; }
 .gs-turn .who { font: 500 var(--ss-ui-md)/20px var(--ss-font-body); white-space: nowrap; }
+/* o relógio da vez no cinza do "Desistir" (botão fantasma); nos últimos segundos, a cor de aviso */
+.gs-turn .gs-clock:not(.gs-warn) { color: var(--ss-fg-muted); }
 .gs-turn .gs-clock.paused { opacity: 0.5; }
 .gs-turn .acts, .gs-vote .acts { display: flex; gap: 8px; margin-left: auto; }
 .gs-turn > .gs-hint { margin-left: auto; padding-right: 8px; }

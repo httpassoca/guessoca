@@ -1,18 +1,20 @@
 /**
- * O tocador: um AudioContext só, para a aba inteira, criado (ou retomado) no primeiro `pointerdown` ou `keydown`, por
+ * O tocador: um AudioContext só, para a aba inteira, com duas mesas de som (`settings.ts`): a do mapa (pular, empurrar,
+ * a trilha) e a do jogo (votação, acerto, fim de vez), cada uma com o seu volume no menu. O contexto é criado (ou retomado) no primeiro `pointerdown` ou `keydown`, por
  * causa das regras de autoplay do navegador. Antes disso, e enquanto os efeitos carregam, os sons são descartados,
  * nunca enfileirados. Cada efeito vira um AudioBuffer uma vez, na primeira vez que toca. Cola de navegador, sem teste.
  *
  * A trilha do jogo (`setMusic`) é diferente: um `<audio>` em loop (a faixa tem uns 14 minutos; decodificar inteira
- * gastaria centenas de MB) ligado ao mesmo ganho mestre, com os fades de `music.ts` aplicados num ganho próprio. Se o
+ * gastaria centenas de MB) ligado à mesa do mapa, com os fades de `music.ts` aplicados num ganho próprio. Se o
  * jogo começa antes da primeira interação, ela entra quando o áudio ligar.
  */
 import { fadeStep, loopGain, MUSIC_URL, MUSIC_VOLUME } from './music';
 import type { SfxName } from './sfx';
-import { gainOf, rememberedSound, rememberMuted, rememberVolume, type SoundSettings } from './settings';
+import { gainOf, MIXERS, mixerOf, rememberedSound, rememberMuted, rememberVolume, type Mixer, type SoundSettings } from './settings';
 
 let ctx: AudioContext | null = null;
-let master: GainNode | null = null;
+/** um ganho por mesa de som, os dois ligados à saída */
+let buses: Record<Mixer, GainNode> | null = null;
 let sfx: typeof import('./sfx') | null = null;
 const buffers = new Map<SfxName, AudioBuffer>();
 let settings: SoundSettings | null = null;
@@ -26,9 +28,8 @@ export function installAudioUnlock(): () => void {
     try {
       if (!ctx) {
         ctx = new AudioContext();
-        master = ctx.createGain();
-        master.gain.value = gainOf(current());
-        master.connect(ctx.destination);
+        const bus = (m: Mixer) => { const g = ctx!.createGain(); g.gain.value = gainOf(current(), m); g.connect(ctx!.destination); return g; };
+        buses = { map: bus('map'), game: bus('game') };
         syncMusic();
         import('./sfx').then((m) => { sfx = m; }).catch((err) => console.error('som: sem efeitos', err));
       }
@@ -48,7 +49,7 @@ export function installAudioUnlock(): () => void {
 
 /** Toca um efeito, se o áudio já está ligado e o som não está mudo; senão, nada. Nunca lança (roda dentro do laço do telhado). */
 export function playSfx(name: SfxName) {
-  if (!ctx || !master || !sfx || ctx.state !== 'running' || gainOf(current()) === 0) return;
+  if (!ctx || !buses || !sfx || ctx.state !== 'running' || gainOf(current(), mixerOf(name)) === 0) return;
   try {
     let buffer = buffers.get(name);
     if (!buffer) {
@@ -59,7 +60,7 @@ export function playSfx(name: SfxName) {
     }
     const src = ctx.createBufferSource();
     src.buffer = buffer;
-    src.connect(master);
+    src.connect(buses[mixerOf(name)]);
     src.start();
   } catch (err) { console.error('som: não tocou', name, err); }
 }
@@ -74,7 +75,7 @@ export function setMusic(on: boolean) {
 }
 
 function syncMusic() {
-  if (!ctx || !master || !musicOn) return;
+  if (!ctx || !buses || !musicOn) return;
   if (music) { if (music.el.paused) startMusic(); return; }
   try {
     const el = new Audio(MUSIC_URL);
@@ -82,7 +83,7 @@ function syncMusic() {
     el.preload = 'auto';
     const gain = ctx.createGain();
     gain.gain.value = 0;
-    ctx.createMediaElementSource(el).connect(gain).connect(master);
+    ctx.createMediaElementSource(el).connect(gain).connect(buses[mixerOf('music')]);
     music = { el, gain, level: 0, last: performance.now(), timer: setInterval(tickMusic, 50) };
     startMusic();
   } catch (err) { console.error('som: sem trilha', err); }
@@ -106,14 +107,14 @@ function tickMusic() {
   if (!musicOn && music.level === 0 && !music.el.paused) music.el.pause();
 }
 
-/** O volume e o mudo de agora (o que o navegador lembra). */
+/** Os volumes das duas mesas e o mudo de agora (o que o navegador lembra). */
 export const soundSettings = (): SoundSettings => ({ ...current() });
 
-/** Muda o volume ou o mudo: vale na hora e fica lembrado pelo navegador. */
+/** Muda o volume de uma mesa ou o mudo: vale na hora e fica lembrado pelo navegador. */
 export function setSoundSettings(patch: Partial<SoundSettings>) {
   const next = { ...current(), ...patch };
-  if (patch.volume !== undefined) rememberVolume(next.volume);
+  for (const m of MIXERS) if (patch[m] !== undefined) rememberVolume(m, next[m]);
   if (patch.muted !== undefined) rememberMuted(next.muted);
   settings = next; // não relê o storage: no modo privado ele não guarda, e o som ainda tem que mudar
-  if (ctx && master) master.gain.setValueAtTime(gainOf(settings), ctx.currentTime);
+  if (ctx && buses) for (const m of MIXERS) buses[m].gain.setValueAtTime(gainOf(settings, m), ctx.currentTime);
 }

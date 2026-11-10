@@ -1,32 +1,51 @@
 /**
- * O volume (0 a 100) e o mudo, lembrados pelo navegador inteiro (localStorage), como o apelido em `identity.ts`.
+ * O som que o navegador lembra (localStorage), como o apelido em `identity.ts`: dois volumes (0 a 100), um por mesa de
+ * som, e o mudo, que vale para as duas. As mesas: `map`, os sons do telhado (pular, empurrar e a trilha da chuva), e
+ * `game`, os sons do jogo (votação, acertou, fim de vez). `mixerOf` diz de que mesa é cada som.
  */
 import { local, readKey, writeKey, type MaybeStore } from '../identity';
+import type { SfxName } from './sfx';
 
-const VOLUME_KEY = 'guess.volume';
+/** o volume único de antes das duas mesas: quem já tinha um guardado começa com ele nas duas */
+const LEGACY_VOLUME_KEY = 'guess.volume';
+const VOLUME_KEY = 'guess.volume.';
 const MUTED_KEY = 'guess.muted';
 export const DEFAULT_VOLUME = 60;
 
-export interface SoundSettings { volume: number; muted: boolean }
+/** Uma mesa de som: os sons do mapa (o telhado) ou os do jogo. */
+export type Mixer = 'map' | 'game';
+export const MIXERS: readonly Mixer[] = ['map', 'game'];
+
+/** O volume de cada mesa (0 a 100) e o mudo, que cala as duas. */
+export interface SoundSettings { map: number; game: number; muted: boolean }
+
+/** De que mesa é cada som: pular, empurrar e a trilha são do mapa; votação, acerto e fim de vez são do jogo. */
+export function mixerOf(sound: SfxName | 'music'): Mixer {
+  return sound === 'jump' || sound === 'shove' || sound === 'music' ? 'map' : 'game';
+}
 
 const clampVolume = (v: number) => Math.min(100, Math.max(0, Math.round(v)));
+const volumeOf = (s: string): number | null => {
+  const n = s === '' ? NaN : Number(s);
+  return Number.isFinite(n) ? clampVolume(n) : null;
+};
 
 /** O que este navegador lembra; volume estragado volta ao padrão, fora de 0..100 vai ao limite. */
 export function soundIn(store: MaybeStore): SoundSettings {
-  const s = readKey(store, VOLUME_KEY);
-  const n = s === '' ? NaN : Number(s);
-  return { volume: Number.isFinite(n) ? clampVolume(n) : DEFAULT_VOLUME, muted: readKey(store, MUTED_KEY) === '1' };
+  const legacy = volumeOf(readKey(store, LEGACY_VOLUME_KEY)) ?? DEFAULT_VOLUME;
+  const of = (m: Mixer) => volumeOf(readKey(store, VOLUME_KEY + m)) ?? legacy;
+  return { map: of('map'), game: of('game'), muted: readKey(store, MUTED_KEY) === '1' };
 }
-export const rememberVolumeIn = (store: MaybeStore, volume: number) => writeKey(store, VOLUME_KEY, String(clampVolume(volume)));
+export const rememberVolumeIn = (store: MaybeStore, mixer: Mixer, volume: number) => writeKey(store, VOLUME_KEY + mixer, String(clampVolume(volume)));
 export const rememberMutedIn = (store: MaybeStore, muted: boolean) => writeKey(store, MUTED_KEY, muted ? '1' : '0');
 
-/** O ganho de saída: 0 no mudo; o volume ao quadrado, que o ouvido acha mais linear que o volume cru. */
-export function gainOf(s: SoundSettings): number {
+/** O ganho de saída de uma mesa: 0 no mudo; o volume ao quadrado, que o ouvido acha mais linear que o volume cru. */
+export function gainOf(s: SoundSettings, mixer: Mixer): number {
   if (s.muted) return 0;
-  const v = clampVolume(s.volume) / 100;
+  const v = clampVolume(s[mixer]) / 100;
   return v * v;
 }
 
 export const rememberedSound = () => soundIn(local());
-export const rememberVolume = (volume: number) => rememberVolumeIn(local(), volume);
+export const rememberVolume = (mixer: Mixer, volume: number) => rememberVolumeIn(local(), mixer, volume);
 export const rememberMuted = (muted: boolean) => rememberMutedIn(local(), muted);
