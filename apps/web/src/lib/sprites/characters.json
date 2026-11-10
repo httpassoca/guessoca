@@ -40,5 +40,12 @@
     "color": "#3f9b4a",
     "sheet": "/sprites/char-5.webp",
     "atlas": "bolsonaro"
+  },
+  {
+    "model": "knight",
+    "name": "cavaleiro",
+    "color": "#dfe3ee",
+    "sheet": "/sprites/char-6.webp",
+    "atlas": "knight"
   }
 ]

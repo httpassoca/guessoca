@@ -1,12 +1,12 @@
 /**
  * `bun run sprites`: roda as receitas sobre os pacotes em `assets-src/` (fora do git, ADR 0007) e escreve as folhas que o
  * jogo usa em `apps/web/public/sprites/` (`char-N.png`, ou `char-N.webp` para a arte grande do Kratos e do Vorcaro, uma por personagem) e os atlas em
- * `apps/web/src/lib/sprites/` (`hero.json`, `skeleton.json`, `kratos.json`, `vorcaro.json`, `orelha.json`, `bolsonaro.json` e `characters.json`, que liga cada personagem ao seu).
+ * `apps/web/src/lib/sprites/` (`hero.json`, `skeleton.json`, `kratos.json`, `vorcaro.json`, `orelha.json`, `bolsonaro.json`, `knight.json` e `characters.json`, que liga cada personagem ao seu).
  * Só a saída vai para o git; o CI e o Docker nunca precisam dos pacotes.
  * O telhado (objetos em grade de texto e a cidade ao fundo) não usa o pacote e sai primeiro, mesmo sem ele.
  *
  * Ordem: `rooftop.png` + `skyline-*.png` + `rooftop.json` (de `rooftop.ts` e `skyline.ts`); depois cada modelo de
- * `models` (`hero.ts`, `skeleton.ts`, e `kratos.ts`, `vorcaro.ts`, `orelha.ts` e `bolsonaro.ts`, os de sete folhas de `pack.ts`), com as folhas nos lugares que `characters.ts` dá a ele; `characters.json`;
+ * `models` (`hero.ts`, `skeleton.ts`, e `kratos.ts`, `vorcaro.ts`, `orelha.ts`, `bolsonaro.ts` e `knight.ts`, os de sete folhas de `pack.ts`), com as folhas nos lugares que `characters.ts` dá a ele; `characters.json`;
  * `emotes-<língua>.png` e `emotes.json` (`emotes.ts`); e por fim apaga nomes antigos que não existem mais. É o único
  * arquivo que toca o disco (com `png.ts`); as receitas são puras. `bun run sprites:preview` (`preview.ts`) lê o que
  * sai daqui e amplia para conferir.
@@ -17,6 +17,7 @@ import { emoteSheet, type EmoteLang } from './emotes';
 import { characters } from './characters';
 import { buildBolsonaro } from './bolsonaro';
 import { buildHero, ANIMATIONS } from './hero';
+import { buildKnight } from './knight';
 import { buildKratos } from './kratos';
 import { packFiles } from './pack';
 import { buildOrelha } from './orelha';
@@ -96,6 +97,13 @@ const models = [
     files: packFiles((file) => existsSync(join(root, 'assets-src/bolsonaro', file))),
     build: buildBolsonaro,
   },
+  {
+    model: 'knight' as const,
+    pack: join(root, 'assets-src/knight'),
+    how: 'Copie as sete folhas do cavaleiro (idle.png, walk.png, ..., attack.png, de células de 96×96) para assets-src/knight/ (ver README).',
+    files: packFiles((file) => existsSync(join(root, 'assets-src/knight', file))),
+    build: buildKnight,
+  },
 ];
 const list = characters();
 const missing: string[] = [];
@@ -125,7 +133,7 @@ for (const lang of langs) {
 writeFileSync(join(atlasOut, 'emotes.json'), JSON.stringify(emoteAtlas, null, 2) + '\n');
 // nomes de antes do esqueleto (os atlas moravam no `public`, as folhas eram `hero-N.png`): se ainda estão lá, saem
 // e as folhas dos lugares que saíram quando o elenco passou de onze para seis (e as que mudaram de formato no lugar)
-for (const stale of ['hero.json', 'emotes.json', 'char-2.png', 'char-3.png', 'char-4.png', 'char-5.png', 'char-6.png', 'char-6.webp', 'char-7.png', 'char-8.png', 'char-8.webp', 'char-9.webp', 'char-10.webp', ...Array.from({ length: 8 }, (_, n) => `hero-${n}.png`)]) rmSync(join(out, stale), { force: true });
+for (const stale of ['hero.json', 'emotes.json', 'char-2.png', 'char-3.png', 'char-4.png', 'char-5.png', 'char-6.png', 'char-7.png', 'char-8.png', 'char-8.webp', 'char-9.webp', 'char-10.webp', ...Array.from({ length: 8 }, (_, n) => `hero-${n}.png`)]) rmSync(join(out, stale), { force: true });
 if (missing.length) {
   console.error(`faltou o pacote de: ${missing.join(', ')}`);
   process.exitCode = 1;

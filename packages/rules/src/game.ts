@@ -16,8 +16,8 @@ export const TURN_STEP = 15_000;
 export const VOTE_MS = 15_000;
 /** Texto do post-it: tamanho máximo depois de aparado. */
 export const POSTIT_MAX = 40;
-/** Personagens: seis, de 0 a 5; não são exclusivos (duas pessoas podem usar o mesmo). */
-export const CHARACTERS = 6;
+/** Personagens: sete, de 0 a 6; não são exclusivos (duas pessoas podem usar o mesmo). */
+export const CHARACTERS = 7;
 /** O jogo começa com pelo menos esta turma jogando. */
 export const MIN_PLAYERS = 2;
 
@@ -58,7 +58,7 @@ export interface GameState {
   order: string[];
   /** o moderador escolheu só moderar: não entra em `order` no próximo lobby (nem neste) */
   onlyModerate: string[];
-  /** personagem de cada membro (0..5) */
+  /** personagem de cada membro (0..6) */
   characters: Record<string, number>;
   /**
    * dono → autor. Enquanto `customAuthors` é false, é o círculo sobre `order` (cada um escreve para o próximo) e é
@@ -91,7 +91,7 @@ export interface Ctx {
 
 export type GameAction =
   // lobby
-  /** escolhe o próprio personagem, qualquer um dos seis, mesmo que outra pessoa já use (qualquer fase) */
+  /** escolhe o próprio personagem, qualquer um dos sete, mesmo que outra pessoa já use (qualquer fase) */
   | { type: 'character'; character: number }
   /** moderador: nova ordem das vezes; tem de ser uma permutação de `order` (lobby ou jogo) */
   | { type: 'order'; order: string[] }
