@@ -95,3 +95,4 @@ Seven packs came with this change, all from the current prompt, sized by their `
 - **`float`**. Star Platinum hovers: his walk, run and attack frames sit a few pixels above the ground, each at its own height. Dropping every frame to the ground would have removed the hover and made the frames jitter, so those animations keep the height the art gave them, measured from the idle's ground line.
 - **`files`**. Josuke's `fall.png` is a landing (down to the floor and back to idle), drawn that way at the owner's request, but the game plays `fall` at the top of the jump, where a landing makes no sense. His `fall` therefore uses the `fall_loop.png` sheet, and the landing is unused until the game has a landing animation.
 
+The owner also set the masked knight to 0.2 of an adult (10 units tall, from 35): the smallest character, below a person's knee and smaller than the dog.

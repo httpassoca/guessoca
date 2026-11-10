@@ -11,14 +11,18 @@
  */
 import type { Atlas } from './atlas';
 import type { Hex, Image } from './image';
-import { buildPack, PACK_SPEC, type PackConfig } from './pack';
+import { buildPack, PACK_SPEC, worldScaleFor, type PackConfig } from './pack';
 
 /** A cor do cavaleiro na interface (`--gs-char-6` no CSS): o branco frio da máscara. */
 export const KNIGHT_COLOR: Hex = 'dfe3ee';
 
-/** Os números do cavaleiro. `worldScale` 0,55 dá 35 de altura no mundo (o herói tem 37): ele é pequeno. */
+/**
+ * Os números do cavaleiro. Ele tem 0,2 de um adulto (`worldScaleFor`, a regra de tamanho de `pack.ts`): 10 de altura no
+ * mundo, o menor personagem do jogo, abaixo do joelho de uma pessoa e menor que o cachorro (15). Já teve 35 (0,69), até
+ * o dono pedir 0,2.
+ */
 export const KNIGHT: PackConfig = {
-  name: 'o cavaleiro', cellW: 96, cellH: 96, padX: 0, shifts: {}, spec: PACK_SPEC, worldScale: 0.55, headRows: 30, feetRows: 4,
+  name: 'o cavaleiro', cellW: 96, cellH: 96, padX: 0, shifts: {}, spec: PACK_SPEC, worldScale: worldScaleFor(0.2, 63), headRows: 30, feetRows: 4,
 };
 
 /** A folha e o atlas do cavaleiro a partir das sete folhas do pacote. */

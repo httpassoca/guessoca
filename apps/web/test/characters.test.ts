@@ -24,7 +24,7 @@ describe('personagens', () => {
     const tall = (model: string) => { const a = CHARACTER_ART.find((c) => c.model === model)!.atlas; return Math.round((a.anchor.y - a.stand.y) * artScale(a)); };
     expect(CHARACTER_ART.map((c) => artScale(c.atlas) < 1)).toEqual(CHARACTER_ART.map((c) => c.sheet.endsWith('.webp')));
     // um adulto tem 50: a Eve e o Pinóquio são a medida; o cachorro fica no joelho, o do dinossauro é o maior
-    expect(['hero', 'skeleton', 'kratos', 'vorcaro', 'orelha', 'bolsonaro', 'knight', 'eve', 'pinocchio', 'josuke', 'starplatinum'].map(tall)).toEqual([37, 51, 61, 50, 15, 70, 35, 50, 50, 50, 58]);
+    expect(['hero', 'skeleton', 'kratos', 'vorcaro', 'orelha', 'bolsonaro', 'knight', 'eve', 'pinocchio', 'josuke', 'starplatinum'].map(tall)).toEqual([37, 51, 61, 50, 15, 70, 10, 50, 50, 50, 58]);
     const dog = CHARACTER_ART.find((c) => c.model === 'orelha')!.atlas;
     expect(dog.stand.w).toBeGreaterThan(dog.stand.h); // quatro patas: mais comprido que alto
   });
