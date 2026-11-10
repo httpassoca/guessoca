@@ -45,7 +45,7 @@
     "model": "kratos",
     "name": "kratos",
     "color": "#cdbfb4",
-    "sheet": "/sprites/char-6.png",
+    "sheet": "/sprites/char-6.webp",
     "atlas": "kratos"
   },
   {

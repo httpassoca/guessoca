@@ -16,6 +16,8 @@ The character pack (`assets-src/`) is gitignored by license (ADR 0007): only the
 
 Before touching any art (characters, animations, props, backgrounds, maps, emotes, the film look), read `docs/art.md`.
 
+When the owner hands over a character folder ("add this character", "replace X with this"), follow "Art made by an image model" in `docs/art.md`. Never change the pixels of art the owner supplies: only move whole frames, and let the game draw it smaller. The prompt the owner uses to get such folders is `docs/character-prompt.md`.
+
 ## Agent skills
 
 ### Issue tracker

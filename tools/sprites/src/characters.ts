@@ -24,9 +24,9 @@ export type Model = 'hero' | 'skeleton' | 'kratos' | 'vorcaro';
 
 /**
  * O formato da folha de cada modelo: PNG para o pixel art no tamanho do jogo; WebP sem perda para a arte grande que o
- * jogo desenha encolhida (o Vorcaro: 2 MB em PNG, 1,3 MB em WebP, os mesmos pixels).
+ * jogo desenha encolhida (o Kratos e o Vorcaro, este 2 MB em PNG e 1,3 MB em WebP, os mesmos pixels).
  */
-export const SHEET_FORMAT: Record<Model, 'png' | 'webp'> = { hero: 'png', skeleton: 'png', kratos: 'png', vorcaro: 'webp' };
+export const SHEET_FORMAT: Record<Model, 'png' | 'webp'> = { hero: 'png', skeleton: 'png', kratos: 'webp', vorcaro: 'webp' };
 
 /** O lugar do Kratos na lista. */
 export const KRATOS_SLOT = 6;

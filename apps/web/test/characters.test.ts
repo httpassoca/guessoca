@@ -9,6 +9,7 @@ describe('personagens', () => {
     expect(CHARACTER_ART).toHaveLength(CHARACTERS);
     expect(CHARACTER_ART.map((c) => c.model)).toEqual(['hero', 'hero', 'hero', 'hero', 'skeleton', 'skeleton', 'kratos', 'skeleton', 'vorcaro']);
     expect(character(3).sheet).toBe('/sprites/char-3.png');
+    expect(character(6).sheet).toBe('/sprites/char-6.webp');
     expect(character(8).sheet).toBe('/sprites/char-8.webp');
     expect(character(5).atlas).toBe(character(4).atlas);
     expect(character(7).atlas).toBe(character(4).atlas);
@@ -26,8 +27,10 @@ describe('personagens', () => {
     CHARACTER_ART.forEach((c, n) => expect(css).toContain(`--gs-char-${n}: ${c.color};`));
   });
 
-  test('só o Vorcaro é arte grande desenhada encolhida; os outros valem 1 unidade por pixel', () => {
-    expect(CHARACTER_ART.map((c) => artScale(c.atlas) < 1)).toEqual([false, false, false, false, false, false, false, false, true]);
+  test('o Kratos e o Vorcaro são arte grande desenhada encolhida; os outros valem 1 unidade por pixel', () => {
+    expect(CHARACTER_ART.map((c) => artScale(c.atlas) < 1)).toEqual([false, false, false, false, false, false, true, false, true]);
+    const k = character(6).atlas;
+    expect(Math.round((k.anchor.y - k.stand.y) * artScale(k))).toBe(61);
     const v = character(8).atlas;
     expect(Math.round((v.anchor.y - v.stand.y) * artScale(v))).toBe(50);
   });

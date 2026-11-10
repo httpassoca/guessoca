@@ -108,9 +108,9 @@ tools/sprites      `bun run sprites` (@guess/sprites): as receitas que geram as 
   src/atlas.ts       o que os dois modelos têm em comum: as animações na ordem do jogo e a montagem da folha e do atlas
   src/hero.ts        o herói: fatia as folhas do pacote, tira a espada do golpe, quatro cores de cabelo
   src/skeleton.ts    o cavaleiro esqueleto: tira o rastro dos golpes, desenha correr, pular e cair, três capas
-  src/kratos.ts      o Kratos: do quadro de lado de um GIF de giro, desenha as sete animações
-  src/vorcaro.ts     o Vorcaro: as folhas grandes feitas por um modelo de imagem, só com os quadros postos no lugar
-  src/gif.ts         lê um GIF animado como folha de uma linha
+  src/pack.ts        a receita dos personagens de sete folhas (arte de modelo de imagem): não muda pixel, só põe os quadros no lugar
+  src/kratos.ts      o Kratos: os números dele para `pack.ts`
+  src/vorcaro.ts     o Vorcaro: os números dele para `pack.ts`
   src/characters.ts  os nove personagens (0–3 herói, 4, 5 e 7 esqueleto, 6 Kratos, 8 Vorcaro), que viram `characters.json`
   src/emotes.ts      os balões `?`, `!`, `haha`, "eu?"/"me?" com uma fonte 3×5 em texto
   src/rooftop.ts     o telhado em grades de texto: a paleta, a prancheta (`Sketch`) que carimba grades, tampo, muretas,
@@ -157,8 +157,8 @@ esqueleto, o Kratos e o Vorcaro são arte do dono do jogo, sem restrição nem c
 ```
 cp -r ~/dev/tmp/male_hero_free assets-src/   # uma vez, na máquina do dono
 cp -r <folhas do esqueleto> assets-src/skeleton/   # IDLE.png, WALK.png, FWD_SWING.png, DOWN_SWING.png, ...
-cp <kratos.gif> assets-src/kratos/kratos.gif       # o giro de 8 quadros de 64×64
-cp <folhas do Vorcaro> assets-src/vorcaro/         # idle.png, walk.png, run.png, jump.png, fall.png, fall_loop.png, shove.png
+cp <folhas do Kratos> assets-src/kratos/           # idle.png, walk.png, run.png, jump.png, fall.png, fall_loop.png, shove.png
+cp <folhas do Vorcaro> assets-src/vorcaro/         # as mesmas sete
 bun run sprites                             # refaz as folhas e os atlas
 ```
 
@@ -167,7 +167,7 @@ com erro.
 
 O que sai:
 
-- `char-0.png` … `char-7.png` e `char-8.webp`: uma folha por personagem, com uma linha por animação, na mesma ordem em todos os modelos:
+- `char-N.png` (e `char-6.webp` e `char-8.webp`, a arte grande): uma folha por personagem, com uma linha por animação, na mesma ordem em todos os modelos:
   parado, andando, correndo, pulo, queda, queda em loop e empurrão.
   - `char-0` … `char-3`: o herói, igual menos o cabelo (castanho, preto, loiro, ruivo). O empurrão é o golpe do pacote
     sem a espada: as cores da lâmina e do cabo saem por cor, o rastro branco por ser uma mancha branca grande, e o
@@ -179,12 +179,11 @@ O que sai:
     com a capa puxada para baixo e a perna encolhida; cair é esse corpo com a capa do golpe para a frente girada 90° para
     voar para cima atrás das costas. O empurrão é o golpe para a frente, cinco quadros, com o pé de trás no lugar do
     parado.
-  - `char-6`: o Kratos, arte do dono, no lugar que era do esqueleto de capa verde. A arte é um GIF dele girando parado,
-    sem nenhuma animação do jogo, então a receita desenha as sete a partir do quadro de lado: corta o quadro no quadril,
-    faz das pernas duas (a de trás escurecida) que vão e voltam a partir do quadril e encolhem no joelho, e inclina, sobe
-    e desce o tronco; no empurrão dá um passo e estica a mão da espada. É um substituto até existirem folhas desenhadas.
+  - `char-6`: o Kratos, feito por um modelo de imagem a pedido do dono, no lugar que era do esqueleto de capa verde.
+    Sete folhas com células de 116×160, desenhadas no jogo pela metade (`scale` 1/2, uns 60 de altura). Trocou a
+    primeira versão, que era um GIF dele girando com as animações desenhadas por código.
   - `char-8`: o Vorcaro, o homem de terno, feito por um modelo de imagem a pedido do dono. A arte já tem as sete
-    animações e vem grande (células de 256×384). A receita não muda nenhum pixel: só põe o pé de todo quadro na linha
+    animações e vem grande (células de 256×384). Como no Kratos, a receita (`pack.ts`) não muda nenhum pixel: só põe o pé de todo quadro na linha
     do chão e anda o correr para a frente. A folha sai no tamanho da arte, em WebP sem perda (os mesmos pixels,
     1,3 MB em vez de 2 MB em PNG), e o atlas leva `scale` (1/6): é o jogo que a desenha menor.
 - `characters.json`: os nove, cada um com o modelo, o nome da cor, a cor na interface, a folha e o atlas. Um atlas por
