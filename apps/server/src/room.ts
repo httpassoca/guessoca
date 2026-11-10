@@ -361,7 +361,8 @@ export function referencedImages(s: RoomState): Set<string> {
 
 /**
  * A sala como este token a vê, na hora `now`. Sem tokens; só ids públicos. Visitante (ainda sem apelido) tem `you`
- * null. O próprio post-it, antes de revelado, vai sem texto e sem imagem: nem a tela nem a rede mostram.
+ * null. O próprio post-it, antes de revelado, vai sem texto e sem imagem: nem a tela nem a rede mostram. No lobby, o
+ * mesmo vale para todo post-it que a pessoa não escreve: os palpites só aparecem quando o jogo começa.
  */
 export function snapshotFor(s: RoomState, token: string, now: number): RoomSnapshot {
   const g = s.game;
@@ -369,7 +370,8 @@ export function snapshotFor(s: RoomState, token: string, now: number): RoomSnaps
   const postits: Record<string, PostitView> = {};
   for (const [owner, p] of Object.entries(g.postits)) {
     const isRevealed = revealed(g, owner);
-    const hidden = owner === you && !isRevealed;
+    // no lobby só quem escreve vê o que escreveu (nem o moderador vê os dos outros); no jogo, todos menos o dono
+    const hidden = (owner === you && !isRevealed) || (g.phase === 'lobby' && g.authors[owner] !== you);
     postits[owner] = {
       text: hidden ? null : p.text,
       image: hidden || p.image === null ? null : imageUrl(s.code, p.image),

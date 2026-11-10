@@ -41,7 +41,7 @@ O autor escreve o post-it; o dono o usa na testa. Por padrão a ordem é um cír
 _Evitar_: escritor, alvo, target, destinatário
 
 **Pronto** (`ready`):
-O autor terminou o post-it. Os outros veem o post-it ao vivo enquanto ele é escrito, no lobby, e o autor edita até apertar "Pronto". Se o autor muda, o post-it é apagado e deixa de estar pronto. O jogo não começa sozinho: o moderador aperta "Começar", que pede todo post-it com texto, pronto ou não; o moderador escreve os que faltam.
+O autor terminou o post-it. No lobby só o autor vê o que escreve: nem a turma nem o moderador veem os post-its dos outros antes de o jogo começar (só se já têm texto e se estão prontos). O autor edita até apertar "Pronto", e pode desfazer o pronto para editar de novo. Se o autor muda, o post-it é apagado e deixa de estar pronto. O jogo não começa sozinho: o moderador aperta "Começar", que pede todo post-it com texto, pronto ou não; o moderador escreve os que faltam.
 _Evitar_: enviar, confirmar, submit
 
 **Imagem** (`image`):
