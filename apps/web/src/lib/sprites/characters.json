@@ -61,5 +61,12 @@
     "color": "#6f8fc0",
     "sheet": "/sprites/char-8.webp",
     "atlas": "vorcaro"
+  },
+  {
+    "model": "orelha",
+    "name": "orelha",
+    "color": "#c57a3a",
+    "sheet": "/sprites/char-9.webp",
+    "atlas": "orelha"
   }
 ]

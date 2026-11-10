@@ -27,3 +27,8 @@ A fourth model, Vorcaro (a man in a suit), is art the owner had an image model m
 Kratos's turnaround GIF and the recipe that drew his animations in code are gone. The owner had an image model make a full set for him too: seven sheets in `assets-src/kratos/`, 116×160 cells, with a `sheet.json` describing them. He keeps slot 6 and his UI colour.
 
 Since both image-model characters follow the same rules, they share one recipe, `tools/sprites/src/pack.ts`: it changes no pixel, drops every frame's lowest point onto the ground line, optionally shifts an animation sideways, and writes the sheet at the art's size with `scale` in the atlas. `kratos.ts` and `vorcaro.ts` are only numbers (`PackConfig`). Kratos is drawn at 1/2 (about 60 units tall, as before); his sheet is lossless WebP like Vorcaro's. The GIF decoder (`gif.ts`) had no other user and was removed. The prompt the owner gives the image model is kept in `docs/character-prompt.md`, and the import steps in `docs/art.md`.
+
+## Amendment: a fifth model, Orelha the dog, and a tenth slot
+
+Orelha, a dog, is another image-model pack from the owner (`assets-src/orelha/`, 168×116 cells, `credit` null), imported through `pack.ts` with no pixel changed and drawn at 0.3 (30 units tall, 43 long). `CHARACTERS` goes from 9 to 10 and he is slot 9. He is the first four-legged character, wider than tall with the head at the front, which needed two things: `PackConfig.headSize`, so the face square can be larger than the rows that hold only head, and a picker laid out as two rows of five, whose cells are wide enough to show every character whole (the single row of narrow cells clipped him at both ends).
+

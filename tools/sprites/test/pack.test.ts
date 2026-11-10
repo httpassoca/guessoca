@@ -5,6 +5,7 @@ import { SHOVE_COOLDOWN_MS } from '@guess/world';
 import { ANIMATION_NAMES } from '../src/atlas';
 import { blank, bounds, crop, palette, rgbOf, setPixel, type Image } from '../src/image';
 import { KRATOS, buildKratos } from '../src/kratos';
+import { ORELHA, buildOrelha } from '../src/orelha';
 import { PACK_SPEC, buildPack, cellsOf, derive, place, type PackConfig } from '../src/pack';
 import { readPng } from '../src/png';
 import { VORCARO, buildVorcaro } from '../src/vorcaro';
@@ -84,6 +85,12 @@ describe('personagem de sete folhas', () => {
     expect(first.data).toEqual(tight(cellsOf(sheet(1), C)[0]).data);
   });
 
+  test('um bicho de quatro patas pode ter o quadrado do rosto maior que as linhas só de cabeça', () => {
+    const { atlas } = buildPack(pack(), { ...C, headSize: 24 });
+    expect(atlas.head.size).toBe(24);
+    expect(atlas.head.x + 12).toBe(atlas.stand.x + (16 - 12 + 5));
+  });
+
   test('sem uma folha, ou com uma folha curta, erro dizendo o que falta e de quem', () => {
     const { walk: _, ...rest } = pack();
     expect(() => buildPack(rest, C)).toThrow(/Boneco.*walk/);
@@ -95,6 +102,7 @@ describe('personagem de sete folhas', () => {
 for (const who of [
   { c: KRATOS, dir: 'kratos', build: buildKratos, ground: 145, height: 121, world: 61 },
   { c: VORCARO, dir: 'vorcaro', build: buildVorcaro, ground: 352, height: 302, world: 50 },
+  { c: ORELHA, dir: 'orelha', build: buildOrelha, ground: 109, height: 100, world: 30 },
 ]) {
   const dir = join(import.meta.dir, '../../../assets-src', who.dir);
   describe.skipIf(!existsSync(join(dir, 'idle.png')))(`${who.c.name}: a arte de verdade`, () => {
