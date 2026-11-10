@@ -17,7 +17,7 @@
     "sprites:preview": "bun tools/sprites/src/preview.ts",
     "docker:build": "docker build --tag guessoca .",
     "docker:load": "gunzip -c guessoca.tar.gz | docker load",
-    "docker:start": "docker run --name guessoca -d --restart unless-stopped -p 127.0.0.1:3003:3000 guessoca",
+    "docker:start": "docker run --name guessoca -d --restart unless-stopped -p 127.0.0.1:3003:3000 -v guessoca-data:/app/data $([ -f \"$HOME/.guessoca.env\" ] && echo --env-file \"$HOME/.guessoca.env\") guessoca",
     "docker:stop": "docker stop guessoca && docker rm guessoca"
   },
   "devDependencies": {

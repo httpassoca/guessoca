@@ -231,6 +231,31 @@ O que sai:
 
 Depois de mudar uma receita: `bun run sprites`, conferir as folhas e versionar o que mudou em `apps/web/`.
 
+## Sistema
+
+`/sistema` é a página do dono do jogo: ver, baixar e trocar tudo o que o jogo usa (ADR 0009). Pede uma senha, que o
+servidor confere pelo SHA-256 dela, dado só pelo ambiente (`GUESS_ADMIN_HASH`); nem a senha nem o hash ficam no
+repositório. Sem a variável o sistema fica desligado. No servidor ela vem de `~/.guessoca.env`, que o `docker:start` passa
+ao container se existir:
+
+```
+printf 'GUESS_ADMIN_HASH=%s\n' "$(printf %s 'A SENHA' | sha256sum | cut -d' ' -f1)" > ~/.guessoca.env
+chmod 600 ~/.guessoca.env
+cd ~/dev/guessoca && npm run docker:stop; npm run docker:start
+```
+
+Para testar na sua máquina: `GUESS_ADMIN_HASH=<hash> PORT=3111 bun apps/server/src/index.ts`.
+
+- **Ver**: cada personagem com as sete animações tocando (tamanho, velocidade, pausa, quadro a quadro, linha do chão e
+  âncora), os objetos do telhado, a cidade ao fundo, os balões, a música e os efeitos sonoros, e a tabela de todos os
+  arquivos servidos.
+- **Baixar**: cada arquivo, cada atlas, cada efeito em WAV, ou tudo num zip.
+- **Trocar**: um arquivo de `/sprites/` ou `/music/` por outro do mesmo formato e, se imagem, do mesmo tamanho em
+  pixels. Vale na hora, e "Desfazer troca" volta o original. As trocas ficam em `data/overrides/` (no Docker, o volume
+  `guessoca-data` em `/app/data`) e **sobrevivem a um deploy**: se uma folha nova do repositório não aparece no ar, veja
+  se há uma troca valendo na primeira aba.
+- **Só com deploy**: personagem novo, outra quantidade de quadros, outro fps, efeitos sonoros, mapa.
+
 ## Deploy
 
 Um push na `main` põe o jogo em https://guess.passoca.dev (ADR 0001): o workflow roda `check` e `test`, builda a imagem no
