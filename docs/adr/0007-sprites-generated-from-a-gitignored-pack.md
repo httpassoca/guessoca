@@ -46,3 +46,9 @@ The owner supplied another seven-sheet pack (`assets-src/knight/`, 96×96 cells,
 
 Imported through `pack.ts` with no pixel changed, drawn at 0.55 (35 units tall), slot 6; `CHARACTERS` goes from 6 to 7. It is the first pack whose attack sheet is `attack.png`. The picker becomes rows of four, whose cells are wider than the portrait window, so every character shows whole.
 
+## Amendment: an eighth model, Old Snake
+
+Another seven-sheet pack from the owner (`assets-src/oldsnake/`, 128×128 cells, 25 colours, `credit` null): an old soldier with a bandana, a vest and a rifle, drawn in the likeness of Old Snake from Metal Gear Solid 4. The owner had it generated for this game (it came out of an agent's output folder with a `sheet.json` in the prompt's format); it is not another game's extracted art, so it follows the same rule as Kratos and the knight. Imported through `pack.ts` with no pixel changed, drawn at 0.5 (49 units tall), slot 7; `CHARACTERS` goes from 7 to 8. His attack is a rifle shot with a small muzzle flash, which the current prompt allows.
+
+The sprite tool no longer keeps a hand-written list of stale `char-*` files to delete: that list once deleted the sheet of a slot that had come back into use. It now removes any `char-N.png` or `char-N.webp` in the output folder that isn't a sheet of the current cast.
+

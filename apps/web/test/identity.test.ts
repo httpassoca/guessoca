@@ -33,13 +33,13 @@ describe('identidade', () => {
 });
 
 describe('o que mais o navegador e a aba lembram', () => {
-  test('o último personagem, por navegador; fora de 0..6 é nenhum', async () => {
+  test('o último personagem, por navegador; fora de 0..7 é nenhum', async () => {
     const { characterIn, rememberCharacterIn } = await import('../src/lib/identity');
     const browser = fakeStorage();
     expect(characterIn(browser)).toBeNull();
     rememberCharacterIn(browser, 5);
     expect(characterIn(browser)).toBe(5);
-    browser.setItem('guess.character', '7');
+    browser.setItem('guess.character', '8');
     expect(characterIn(browser)).toBeNull();
     browser.setItem('guess.character', 'x');
     expect(characterIn(browser)).toBeNull();
