@@ -6,11 +6,13 @@
   import { t } from '../i18n.svelte';
   import { navigate } from '../route.svelte';
   import { setSoundSettings, soundSettings } from '../sound/player';
+  import { MIXERS, type Mixer } from '../sound/settings';
 
-  /** O menu (Esc, ou ≡ no canto): idioma, som (volume e mudo, lembrados pelo navegador), efeitos de tela, atalhos, o crédito e sair para o início. */
+  /** O menu (Esc, ou ≡ no canto): idioma, som (um volume para os sons do mapa, outro para os do jogo, e o mudo; lembrados pelo navegador), efeitos de tela, atalhos, o crédito e sair para o início. */
   let { code, onclose }: { code: string; onclose: () => void } = $props();
   let sound = $state(soundSettings());
-  function setVolume(volume: number) { sound.volume = volume; setSoundSettings({ volume }); }
+  const MIXER_LABEL = { map: 'menu.soundMap', game: 'menu.soundGame' } as const;
+  function setVolume(mixer: Mixer, volume: number) { sound[mixer] = volume; setSoundSettings({ [mixer]: volume }); }
   function setMuted(muted: boolean) { sound.muted = muted; setSoundSettings({ muted }); }
   let back = $state<HTMLButtonElement>();
   $effect(() => { back?.focus(); });
@@ -24,15 +26,17 @@
     <div class="gs-menu-body">
       <div class="gs-rows">
       <div class="gs-line"><span>{t('lang.label')}</span><LangSwitch /></div>
-      <div class="gs-line">
-        <span>{t('menu.sound')}</span>
-        <span class="gs-sound">
-          <input class="gs-range" type="range" min="0" max="100" step="1" aria-label={t('menu.volume')} value={sound.volume} disabled={sound.muted}
-            oninput={(e) => setVolume(Number(e.currentTarget.value))} />
-          <span class="gs-volume">{sound.volume}</span>
-          <span class="gs-mute">{t('menu.mute')} <Switch on={sound.muted} label={t('menu.mute')} ontoggle={setMuted} /></span>
-        </span>
-      </div>
+      {#each MIXERS as m (m)}
+        <div class="gs-line">
+          <span class="gs-two">{t(MIXER_LABEL[m])}<span class="gs-hint">{t(m === 'map' ? 'menu.soundMapHint' : 'menu.soundGameHint')}</span></span>
+          <span class="gs-sound">
+            <input class="gs-range" type="range" min="0" max="100" step="1" aria-label={t(MIXER_LABEL[m])} value={sound[m]} disabled={sound.muted}
+              oninput={(e) => setVolume(m, Number(e.currentTarget.value))} />
+            <span class="gs-volume">{sound[m]}</span>
+          </span>
+        </div>
+      {/each}
+      <div class="gs-line"><span>{t('menu.mute')}</span><Switch on={sound.muted} label={t('menu.mute')} ontoggle={setMuted} /></div>
       <EffectsSwitch />
       </div>
 

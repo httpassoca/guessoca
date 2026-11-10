@@ -21,7 +21,7 @@
 {:else}
   <aside class="gs-float gs-notepad" style:left="{left}px" style:width="{width}px" aria-label={t('notepad.title')}>
     <div class="gs-float-head">
-      <div class="heading"><h3 class="gs-float-title">{t('notepad.title')}</h3><span class="gs-hint">{t('notepad.hint')}</span></div>
+      <div class="heading"><h3 class="gs-float-title">{t('notepad.title')}</h3></div>
       <button class="ss-btn ghost gs-sm" type="button" aria-expanded="true" onclick={() => onminimize(true)}>{t('notepad.minimize')} <Kbd keys={['N']} /></button>
     </div>
     <label class="ss-textarea">
