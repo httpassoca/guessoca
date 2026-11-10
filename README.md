@@ -199,9 +199,9 @@ O que sai:
     do chão e anda o correr para a frente. A folha sai no tamanho da arte, em WebP sem perda (os mesmos pixels,
     1,3 MB em vez de 2 MB em PNG), e o atlas leva `scale` (1/6): é o jogo que a desenha menor.
   - `char-4`: o Orelha, o cachorro, feito por um modelo de imagem a pedido do dono. Células de 168×116, desenhado a
-    0,3 (30 de altura, 43 de comprimento). É o único de quatro patas: mais comprido que alto, com a cabeça na frente.
+    0,2 (0,4 de um adulto: 20 de altura, 28 de comprimento, entre o joelho e a coxa de uma pessoa). É o único de quatro patas: mais comprido que alto, com a cabeça na frente.
   - `char-5`: o Bolsonaro, uma caricatura dele de faixa presidencial montado num tiranossauro, com uma arma de raio;
-    feito por um modelo de imagem a pedido do dono. Células de 208×192, desenhado a 0,3 (45 de altura, 52 de
+    feito por um modelo de imagem a pedido do dono. Células de 208×192, desenhado a 0,47 (1,4 adulto: 70 de altura, 80 de
     comprimento). O empurrão é um tiro, com o clarão da arma.
   - `char-6`: o cavaleiro, pequeno, de máscara branca com chifres e capa azul-acinzentada; um desenho novo que o dono
     mandou. Células de 96×96, desenhado a 0,55 (35 de altura). O ataque é uma investida.

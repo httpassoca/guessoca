@@ -27,7 +27,7 @@ describe('personagens', () => {
   test('o Kratos, o Vorcaro, o Orelha, o Bolsonaro, o cavaleiro, o Old Snake, o Pinóquio e a Eve são arte grande desenhada encolhida; os outros valem 1 unidade por pixel', () => {
     expect(CHARACTER_ART.map((c) => artScale(c.atlas) < 1)).toEqual([false, false, true, true, true, true, true, true, true, true]);
     const tall = (n: number) => { const a = character(n).atlas; return Math.round((a.anchor.y - a.stand.y) * artScale(a)); };
-    expect([0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map(tall)).toEqual([37, 51, 61, 50, 30, 45, 35, 49, 50, 50]);
+    expect([0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map(tall)).toEqual([37, 51, 61, 50, 20, 70, 35, 49, 50, 50]);
     const o = character(4).atlas;
     expect(o.stand.w).toBeGreaterThan(o.stand.h); // quatro patas: mais comprido que alto
   });

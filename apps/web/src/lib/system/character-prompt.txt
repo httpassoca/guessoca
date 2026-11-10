@@ -14,14 +14,26 @@ WHAT TO DELIVER
    equal-size cells, left to right in playback order, PNG with a transparent
    background:
 
-  file            frames  fps  loops  what it shows
-  idle.png          10     10   yes   standing, breathing; small motion only
-  walk.png          10     12   yes   one full walk cycle (both steps)
-  run.png           10     14   yes   one full run cycle, body leaning forward
-  jump.png           6     12   no    crouch, push off, rise; last frame is held while going up
-  fall.png           4     12   no    turning from rising to falling; last frame is held
-  fall_loop.png      3     10   yes   falling, small flutter of limbs/cloth/hair
-  attack.png         7     16   no    one attack forward, then recover to the idle pose
+  file           min frames  how long it lasts     loops  what it shows
+  idle.png           8       0.8-1.6 s per cycle   yes    standing, breathing; small motion only
+  walk.png           8       0.7-1.0 s per cycle   yes    one full walk cycle (both steps)
+  run.png            8       0.5-0.8 s per cycle   yes    one full run cycle, body leaning forward
+  jump.png           5       0.3-0.5 s             no     crouch, push off, rise; last frame is held while going up
+  fall.png           3       exactly 0.33 s        no     turning from rising to falling; last frame is held
+  fall_loop.png      3       0.3-0.5 s per cycle   yes    falling, small flutter of limbs/cloth/hair
+  attack.png         6       at most 0.45 s        no     one attack forward, then recover to the idle pose
+
+   The frame counts are minimums, not targets. For each animation, decide how
+   many frames this character needs (at most 16):
+   - start from the minimum and add frames where the motion would otherwise jump:
+     a heavy or large body, four legs, a long weapon arc, a two-part attack, or
+     cloth, hair, a tail or ears that follow through after the body stops;
+   - a simple, small or stiff character can stay at the minimum; do not pad an
+     animation with near-identical frames;
+   - more frames make the motion smoother, not longer: the duration stays inside
+     the range in the table, and fps = frames / duration (any value up to 36,
+     decimals allowed);
+   - write down, per animation, the count you chose and one line of why.
 
    The attack: if the character has a weapon, it attacks WITH that weapon (a sword
    swings or thrusts, a gun fires, a staff strikes). With no weapon, it punches,
@@ -31,14 +43,51 @@ WHAT TO DELIVER
 
    Also put a "sheet.json" in the folder with: the cell width and height, the y of
    the ground line in the cell, the x of the point between the feet in the idle,
-   and the frames/fps/loop table above.
+   "size" (the character's standing height as a multiple of the reference human,
+   see SIZE AND PROPORTIONS), "standing_height_px" (its height in pixels in the
+   first idle frame, from the top of the head to the ground line), and for each
+   animation its file, frames, fps and loop, exactly as you drew it.
 
 2. A preview page (see PREVIEW PAGE below), so I can judge the animations before
    importing.
 
-The frame counts and fps are fixed: the game plays them at exactly those speeds.
-The attack must read fully within its 7 frames (about 440 ms), and the fall within
-its 4 frames (about 330 ms), because the game cuts to the next state after that.
+The durations are hard limits: the game cuts to the next state after them. The
+whole attack must fit in 0.45 s and the whole fall in 0.33 s, however many frames
+you use, so set their fps from the frame count. The game plays each sheet at the
+frames and fps you write in sheet.json.
+
+SIZE AND PROPORTIONS
+Every character in the game stands next to the others, so size is part of the
+design. The game does not resize your art to fit: it draws every character at the
+same pixel density, so the size you draw IS the size in the game.
+
+- The reference is an ordinary adult human, standing: exactly 128 pixels from the
+  top of the head to the ground line. That is size 1.0.
+- Decide your character's size as a multiple of that, measured the same way
+  (top of the head or ears to the ground, standing in the idle), and draw it at
+  that many pixels: size x 128.
+
+    what it is                               size        pixels tall
+    small animal (cat, small dog, bird)      0.20-0.30   26-38    below the knee
+    dog, wolf, big animal on four legs       0.30-0.45   38-58    knee to mid-thigh
+    child, goblin, small creature            0.55-0.75   70-96    waist to chest
+    ordinary adult                           1.00        128
+    tall or heavy fighter                    1.10-1.25   141-160  a head taller
+    giant, ogre, mech                        1.30-1.50   166-192  the maximum
+
+  The knee of the reference human is at 0.28, the hip at 0.50, the chest at 0.75.
+- Width follows from the real proportions of the character at that size; never
+  squash or stretch it to fit a cell. A wide body (a beast, a rider on a mount,
+  someone in heavy armour) is simply wider. For a rider, the rider keeps human
+  proportions (the rider alone would be size 1.0) and the pair is taller and wider
+  as it really would be. Keep the widest standing pose under 1.6 x 128 pixels.
+- Heads, hands, feet and weapons keep the proportions of the reference image. Do
+  not enlarge the head to make a small character readable; a small character is
+  small.
+- Choose the cell size AFTER the size: big enough for the widest pose, with a few
+  pixels of margin.
+- Do not ask me for the size. Propose it yourself from what the character is and
+  state it with the designs in the first step; I will correct it if I disagree.
 
 HOW TO ANIMATE (read this before drawing anything)
 This is frame-by-frame pixel-art animation, not an image that gets warped.
@@ -81,8 +130,8 @@ This is frame-by-frame pixel-art animation, not an image that gets warped.
 
 RULES FOR EVERY FRAME
 1. Side view, facing RIGHT. The game mirrors the sprite for left.
-2. One cell size for all seven sheets. Pick whatever size suits the character (any
-   size is fine), but keep it identical everywhere.
+2. One cell size for all seven sheets, chosen to fit the character at its size
+   (see SIZE AND PROPORTIONS), identical everywhere.
 3. Same character, same scale, same proportions, same colours and same outfit in
    every frame. No drifting details between frames or between sheets.
 4. Feet on the same ground line in every cell, and the body at the same horizontal
@@ -131,8 +180,12 @@ its CDN, and use its classes rather than writing your own component styles:
 The sprite sheets are embedded as PNG data URIs: the page fetches no image files.
 It must have every one of these features:
 
-- Header: the character's name, one line describing the motion study, and three
-  figures: number of animations, total frames, cell size.
+- Header: the character's name, one line describing the motion study, and four
+  figures: number of animations, total frames, cell size, and size (for example
+  "0.40 x human").
+- A size check: the idle frame standing on the same ground line as a flat grey
+  silhouette of the reference human (128 px tall), at the same zoom, so the
+  character's height against a normal person is visible at a glance.
 - A sticky toolbar that controls everything on the page at once:
   - Pause / Play (one button that changes label);
   - Step frame (pauses and advances every animation by one frame);
@@ -162,8 +215,15 @@ It must have every one of these features:
 - It works at phone width: the grid collapses to one column and the toolbar wraps.
 
 HOW TO WORK
-- First show me a single idle frame as the character design, with the parts list,
-  and wait for my OK before drawing the rest.
+- First show me FOUR alternative designs of the character, as single idle frames
+  side by side on one image, labelled A, B, C and D. Make them real alternatives
+  (different readings of the reference: proportions, level of detail, palette,
+  how the outfit or weapon is drawn), not four copies. Draw each at its proposed
+  size next to the flat grey 128 px reference human, on one ground line, and
+  write under each its size (for example "0.40 x human, 51 px"). Then ask me
+  which one to use; I may pick one, or ask for a mix or another size. Do not draw
+  anything else until I answer.
+- When I have chosen, write the parts list for that design.
 - Then produce the seven sheets following HOW TO ANIMATE, build the preview page
   from those exact files, and look at it yourself before showing me: fix any
   animation that slides, sinks, flickers, morphs or changes the character.
