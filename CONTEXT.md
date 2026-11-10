@@ -7,7 +7,7 @@
 ### Sala
 
 **Sala** (`room`):
-O lugar onde uma turma se reúne para jogar. Qualquer pessoa cria uma sala e entra por um código de quatro letras ou pelo link `/sala/CODE`. Antes de entrar há o **pré-lobby** (`prelobby`), a tela de criar ou entrar: cada pessoa escolhe apelido e personagem, e quem cria escolhe também o tamanho da vez, quantas pessoas cabem (de 2 a 8) e se só vai moderar; o moderador ainda muda isso no lobby, sem deixar o limite abaixo da turma. Vive em memória: sobrevive ao fim do jogo e morre depois de dez minutos sem atividade, levando junto as imagens dos post-its.
+O lugar onde uma turma se reúne para jogar. Qualquer pessoa cria uma sala e entra por um código de quatro letras ou pelo link `/sala/CODE`. Antes de entrar há o **pré-lobby** (`prelobby`), a tela de criar ou entrar: cada pessoa escolhe apelido e personagem (o personagem ainda dá para trocar no lobby), e quem cria escolhe também o tamanho da vez, quantas pessoas cabem (de 2 a 8) e se só vai moderar; o moderador ainda muda isso no lobby, sem deixar o limite abaixo da turma. Vive em memória: sobrevive ao fim do jogo e morre depois de dez minutos sem atividade, levando junto as imagens dos post-its.
 _Evitar_: lobby, partida, servidor, mesa
 
 **Turma** (`members`):

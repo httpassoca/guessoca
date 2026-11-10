@@ -21,7 +21,8 @@ packages/rules     sala e jogo, puros (@guess/rules)
   src/index.ts       apelido limpo e com sufixo; MAX_MEMBERS (8)
   src/game.ts        o jogo (ADR 0008): `act(game, actor, moderador?, ação, ctx)`, `settle` (põe em dia com a hora e com quem
                      está online), `nextDeadline`, `addMember`/`removeMember`, `createGame({ turnMs })`. Lobby, com a escrita:
-                     ordem das vezes, autores em círculo (ou sorteados sem ninguém escrever para si), personagens únicos,
+                     ordem das vezes, autores em círculo (ou sorteados sem ninguém escrever para si, ou escolhidos à mão pelo moderador), personagens
+                     únicos (cada um troca o seu no lobby),
                      tamanho da vez, só moderar; cada dono da ordem tem um post-it já no lobby, que o autor (ou o moderador)
                      escreve ao vivo até "Pronto"; o post-it cujo autor muda é apagado (`cleared`). "Começar" é do moderador:
                      pelo menos duas pessoas e todo post-it com texto, pronto ou não; dali em diante os autores congelam.
@@ -90,7 +91,7 @@ apps/web           Vite + Svelte 5 + PixiJS v8 + dssoca
   src/lib/sound/           os efeitos sonoros: sfx (cinco sons como parâmetros do sfxr, gerados com o jsfxr; nenhum arquivo de
                            áudio), room (os sons da sala tirados da diferença entre snapshots: votação, acertou, fim de vez),
                            settings (volume e mudo por navegador) e player (um AudioContext, ligado na primeira interação)
-  src/lib/keys.ts          Enter = Acertei, Tab = passar, N = bloco, Esc = menu (fora de campo de texto)
+  src/lib/keys.ts          Tab = passar, N = bloco, Esc = menu (fora de campo de texto)
   src/lib/panels/          Room (o telhado atrás de tudo, a barra, a coluna da fase que recolhe, teclado), TurnBar (vez e votação
                            no alto), Roster (a tira de post-its embaixo), Lobby (ordem arrastável, autores, personagens, tamanho da vez), Writing
                            e PostitEditor (ao vivo, imagem, Pronto, moderador escreve os vazios), Playing (vez, votação, ranking),
@@ -133,12 +134,12 @@ deploy/            wizard.sh (passos humanos do deploy) e guess.passoca.dev.ngin
 | Espaço         | pular                       |
 | J              | empurrar                    |
 | 1–4            | emotes                      |
-| Enter          | Acertei (na sua vez)        |
 | Tab            | passar a vez                |
 | N              | bloco                       |
 | Esc            | menu                        |
+| Roda do mouse  | zoom do telhado             |
 
-O mouse é só para a interface.
+O mouse é para a interface; no telhado, só a roda (zoom).
 
 ## Sprites
 

@@ -8,11 +8,14 @@
   import { t } from '../i18n.svelte';
   import type { GameRequest } from '../room/remote';
   import { clockText, turnOptions, type RoomView } from '../room/view';
+  import { rememberCharacter } from '../identity';
+  import CharacterPicker from './CharacterPicker.svelte';
   import PostitEditor from './PostitEditor.svelte';
   import Turma from './Turma.svelte';
 
   /**
-   * O lobby, na coluna: a turma (ordem, quem escreve para quem, Sortear), o post-it que eu escrevo, para o moderador os
+   * O lobby, na coluna: a turma (ordem, quem escreve para quem, Sortear), o meu personagem (dá para trocar por um
+   * livre; fica lembrado no navegador), o post-it que eu escrevo, para o moderador os
    * que faltam (que ele pode escrever, menos o próprio) e as configurações da sala (o moderador muda; os outros veem).
    * Começar fica no pé da coluna (`Room`).
    */
@@ -23,6 +26,14 @@
   const caps = $derived(maxPlayersOptions(v.maxPlayersMin));
   const capIdx = $derived(caps.indexOf(room.maxPlayers));
   const onlyModerating = $derived(v.isModerator && v.isGhost);
+  /** quem pegou cada personagem, menos eu (o meu é o escolhido, não um ocupado) */
+  const taken = $derived(v.characters.map((m) => (m && m.id !== room.you ? m.nickname : null)));
+  const myCharacter = $derived(v.me?.character ?? null);
+  function pickCharacter(n: number) {
+    if (n === myCharacter) return;
+    rememberCharacter(n);
+    send({ type: 'character', character: n });
+  }
 
   /** os post-its que o moderador abriu para escrever; ficam abertos até ele fechar ou alguém marcar pronto */
   let opened = $state<string[]>([]);
@@ -39,6 +50,13 @@
   </div>
   <Turma {v} {room} {send} />
 </section>
+
+{#if myCharacter !== null}
+  <section class="gs-block gs-sec">
+    <div class="gs-sec-head"><h3>{t('pre.character')}</h3></div>
+    <CharacterPicker value={myCharacter} {taken} onpick={pickCharacter} />
+  </section>
+{/if}
 
 {#if v.writeFor}
   <section class="gs-block gs-sec">

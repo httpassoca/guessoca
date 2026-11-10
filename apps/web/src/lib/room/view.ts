@@ -274,3 +274,8 @@ export function devTools(loc: { hostname: string; search: string }, serverDev: b
   const local = loc.hostname === 'localhost' || loc.hostname === '127.0.0.1';
   return serverDev && (local || new URLSearchParams(loc.search).has('dev'));
 }
+
+/** Quanto da vez ainda sobra, de 1 (acabou de começar) a 0 (acabou): o fio da barra da vez. */
+export function turnFraction(left: number, turnMs: number): number {
+  return turnMs > 0 ? Math.max(0, Math.min(1, left / turnMs)) : 0;
+}

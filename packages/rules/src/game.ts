@@ -97,6 +97,11 @@ export type GameAction =
   | { type: 'order'; order: string[] }
   /** moderador: sorteia os autores sem ninguém escrever para si (lobby); apaga os post-its cujo autor mudou */
   | { type: 'shuffleAuthors' }
+  /**
+   * moderador: `author` passa a escrever para `owner` (lobby). Ninguém escreve para si e cada um tem um autor só, então
+   * os outros se ajeitam (`assign`); vale como o sorteio (mudar a ordem não desfaz) e apaga os post-its cujo autor mudou
+   */
+  | { type: 'assign'; author: string; owner: string }
   /** moderador: tamanho da vez, de `TURN_MIN` a `TURN_MAX` em passos de `TURN_STEP` (lobby) */
   | { type: 'turnMs'; ms: number }
   /** moderador: só moderar (sai de `order`, vira fantasma) ou voltar a jogar (lobby) */
@@ -262,6 +267,19 @@ function apply(g: GameState, actor: string, moderator: boolean, action: GameActi
       if (g.order.length < MIN_PLAYERS) return 'invalid';
       const before = g.authors;
       g.authors = derangement(g.order, ctx.rng);
+      g.customAuthors = true;
+      syncPostits(g, before, events);
+      return null;
+    }
+    case 'assign': {
+      if (!moderator) return 'notModerator';
+      if (g.phase !== 'lobby') return 'wrongPhase';
+      const { author, owner } = action;
+      if (author === owner || !g.order.includes(author) || !g.order.includes(owner)) return 'invalid';
+      const authors = assign(g.authors, author, owner);
+      if (!authors) return 'invalid';
+      const before = g.authors;
+      g.authors = authors;
       g.customAuthors = true;
       syncPostits(g, before, events);
       return null;
@@ -634,6 +652,29 @@ export function derangement(order: readonly string[], rng: () => number): Record
 function zip(owners: readonly string[], authors: readonly string[]): Record<string, string> {
   const out: Record<string, string> = {};
   owners.forEach((o, i) => (out[o] = authors[i]));
+  return out;
+}
+
+/**
+ * Os autores (dono → autor) com `author` escrevendo para `owner`, mexendo no mínimo: quem escrevia para `owner` fica com
+ * o alvo antigo de `author` (uma troca). Se esse alvo é ele mesmo (A→B→X: o B ficaria escrevendo para si), a cadeia é
+ * reordenada: A→X→B→(o alvo antigo de X). Null se não há arranjo (com duas pessoas só existe um).
+ */
+export function assign(authors: Readonly<Record<string, string>>, author: string, owner: string): Record<string, string> | null {
+  const targetOf = (a: string) => Object.keys(authors).find((o) => authors[o] === a);
+  const old = targetOf(author), other = authors[owner];
+  if (old === undefined || other === undefined || author === owner) return null;
+  const out = { ...authors };
+  if (old === owner) return out;
+  out[owner] = author;
+  if (other !== old) {
+    out[old] = other;
+    return out;
+  }
+  const next = targetOf(owner);
+  if (next === undefined) return null;
+  out[other] = owner;
+  out[next] = other;
   return out;
 }
 

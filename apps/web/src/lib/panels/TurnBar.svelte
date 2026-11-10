@@ -5,11 +5,12 @@
   import Kbd from '../hud/Kbd.svelte';
   import { t } from '../i18n.svelte';
   import type { GameRequest } from '../room/remote';
-  import { clockText, type RoomView } from '../room/view';
+  import { clockText, turnFraction, type RoomView } from '../room/view';
 
   /**
    * A vez e a votação, em cima e no meio do telhado: de quem é a vez, o relógio, Acertei / Passar / Desistir e a
-   * votação "X acertou?". `turnLeft` e `voteLeft` já vêm contados para agora.
+   * votação "X acertou?". `turnLeft` e `voteLeft` já vêm contados para agora. O fio na borda de baixo da barra é o
+   * tempo da vez: começa na largura toda e encolhe até zero (`turnLeft / room.turnMs`).
    */
   let { v, room, send, turnLeft, voteLeft }: { v: RoomView; room: RoomSnapshot; send: (r: GameRequest) => void; turnLeft: number; voteLeft: number } = $props();
 </script>
@@ -25,13 +26,14 @@
     {/if}
     {#if v.isPlayer && !v.done}
       <span class="acts">
-        <button class="ss-btn primary" type="button" disabled={!v.canClaim} onclick={() => send({ type: 'claim' })}>{t('play.claim')} <Kbd keys={['↵']} /></button>
+        <button class="ss-btn primary" type="button" disabled={!v.canClaim} onclick={() => send({ type: 'claim' })}>{t('play.claim')}</button>
         <button class="ss-btn" type="button" disabled={!v.canSkip} onclick={() => send({ type: 'skip' })}>{t('play.skip')} <Kbd keys={['Tab']} /></button>
         <Confirm label={t('play.giveUp')} disabled={!v.canGiveUp} onconfirm={() => send({ type: 'giveUp' })} />
       </span>
     {:else if v.done}
       <span class="gs-hint">{t('play.youAreDone')}</span>
     {/if}
+    {#if v.turn}<span class="gs-turn-left" class:gs-warn={v.turn.running && turnLeft < 10_000} class:paused={room.paused} style:width="{turnFraction(turnLeft, room.turnMs) * 100}%" aria-hidden="true"></span>{/if}
   </section>
 
   {#if v.vote}

@@ -81,11 +81,10 @@
 
   function onKey(e: KeyboardEvent) {
     const el = document.activeElement as HTMLElement | null;
-    const action = keyAction(e, { inTextField: isTextField(el), canClaim: v.canClaim && !menuOpen, canSkip: v.canSkip && !menuOpen, canNotepad: game && !menuOpen, canPanel: !menuOpen });
+    const action = keyAction(e, { inTextField: isTextField(el), canSkip: v.canSkip && !menuOpen, canNotepad: game && !menuOpen, canPanel: !menuOpen });
     if (!action) return;
     e.preventDefault();
     switch (action) {
-      case 'claim': send({ type: 'claim' }); break;
       case 'skip': send({ type: 'skip' }); break;
       case 'notepad': setNotepadMin(!notepadMin); break;
       case 'panel': setSide(!sideOpen); break;

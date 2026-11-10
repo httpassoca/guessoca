@@ -1,14 +1,14 @@
 import { describe, expect, test } from 'bun:test';
 import { isTextField, keyAction, swallowsSpace, worldKey, type KeyContext } from '../src/lib/keys';
 
-const myTurn: KeyContext = { inTextField: false, canClaim: true, canSkip: true, canNotepad: true, canPanel: true };
-const notMine: KeyContext = { inTextField: false, canClaim: false, canSkip: false, canNotepad: true, canPanel: true };
-const typing: KeyContext = { inTextField: true, canClaim: true, canSkip: true, canNotepad: true, canPanel: true };
+const myTurn: KeyContext = { inTextField: false, canSkip: true, canNotepad: true, canPanel: true };
+const notMine: KeyContext = { inTextField: false, canSkip: false, canNotepad: true, canPanel: true };
+const typing: KeyContext = { inTextField: true, canSkip: true, canNotepad: true, canPanel: true };
 const press = (key: string, extra = {}) => ({ key, ...extra });
 
 describe('teclado', () => {
-  test('Enter é Acertei e Tab passa a vez, só na própria vez', () => {
-    expect(keyAction(press('Enter'), myTurn)).toBe('claim');
+  test('Tab passa a vez, só na própria vez; Acertei não tem atalho (o Enter não faz nada)', () => {
+    expect(keyAction(press('Enter'), myTurn)).toBeNull();
     expect(keyAction(press('Tab'), myTurn)).toBe('skip');
     expect(keyAction(press('Enter'), notMine)).toBeNull();
     expect(keyAction(press('Tab'), notMine)).toBeNull(); // o Tab de sempre: anda entre os botões

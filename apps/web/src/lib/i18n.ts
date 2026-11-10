@@ -197,6 +197,7 @@ const pt = {
   'turma.writesFor': 'Escreve para {owner}',
   'turma.writesNobody': 'ainda não escreve para ninguém',
   'turma.you': 'você',
+  'turma.pickTarget': 'Para quem {name} escreve (trocar apaga os post-its que mudarem de autor)',
   'mod.handOverTo': 'Passar moderação para {name}',
   'mod.kickName': 'Expulsar {name}',
   'mod.markRightName': 'Marcar que {name} acertou',
@@ -208,6 +209,8 @@ const pt = {
   'notepad.open': 'Abrir o bloco',
   'keys.notepad': 'Bloco (abrir / minimizar)',
   'keys.panel': 'Painel (recolher / mostrar)',
+  'keys.zoom': 'Zoom do telhado',
+  'keys.wheel': 'Roda do mouse',
 };
 export type MsgKey = keyof typeof pt;
 
@@ -386,6 +389,7 @@ const en: Record<MsgKey, string> = {
   'turma.writesFor': 'Writes for {owner}',
   'turma.writesNobody': "doesn't write for anyone yet",
   'turma.you': 'you',
+  'turma.pickTarget': 'Who {name} writes for (changing it clears the post-its whose author changes)',
   'mod.handOverTo': 'Hand moderator to {name}',
   'mod.kickName': 'Kick {name}',
   'mod.markRightName': 'Mark that {name} got it',
@@ -397,6 +401,8 @@ const en: Record<MsgKey, string> = {
   'notepad.open': 'Open the notepad',
   'keys.notepad': 'Notepad (open / minimize)',
   'keys.panel': 'Panel (hide / show)',
+  'keys.zoom': 'Rooftop zoom',
+  'keys.wheel': 'Mouse wheel',
 };
 
 export const messages: Record<Lang, Record<MsgKey, string>> = { 'pt-BR': pt, 'en-US': en };

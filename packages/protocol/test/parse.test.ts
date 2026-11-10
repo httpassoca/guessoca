@@ -55,6 +55,13 @@ describe('parseClientMessage: o jogo', () => {
     expect(p({ type: 'character', character: 1.5 })).toBeNull();
   });
 
+  test('alvo à mão: autor e dono, ids de membro diferentes', () => {
+    expect(p({ type: 'assign', author: 'm1', owner: 'm2' })).toEqual({ type: 'assign', author: 'm1', owner: 'm2' });
+    expect(p({ type: 'assign', author: 'm1', owner: 'm1' })).toBeNull();
+    expect(p({ type: 'assign', author: 'm1' })).toBeNull();
+    expect(p({ type: 'assign', author: 'x y', owner: 'm2' })).toBeNull();
+  });
+
   test('ordem: ids de membro sem repetir', () => {
     expect(p({ type: 'order', order: ['m1', 'm2'] })).toEqual({ type: 'order', order: ['m1', 'm2'] });
     expect(p({ type: 'order', order: ['m1', 'm1'] })).toBeNull();

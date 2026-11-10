@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'bun:test';
 import { project, type View } from '@guess/world';
 import { character, frameIndex } from '../src/lib/sprites/characters';
-import { EMOTE_GAP, emoteAnchor, emoteY, headAnchor, headY, makeView, pickScale } from '../src/lib/world/view';
+import { EMOTE_GAP, emoteAnchor, emoteY, headAnchor, headY, makeView, pickScale, stepZoom } from '../src/lib/world/view';
 
 const HERO = character(0).atlas;
 const HEAD_Y = headY(0);
@@ -76,4 +76,24 @@ describe('quadro da animação pelo tempo', () => {
   });
 
   test('tempo negativo (relógio torto) é o primeiro quadro', () => expect(frameIndex(HERO, 'jump', -50)).toBe(0));
+});
+
+describe('zoom com a roda do mouse', () => {
+  test('soma passos inteiros à escala automática, entre 2 e 6', () => {
+    expect(makeView(1920, 1080).scale).toBe(3);
+    expect(makeView(1920, 1080, 0, 1).scale).toBe(4);
+    expect(makeView(1920, 1080, 0, -1).scale).toBe(2);
+    expect(makeView(1920, 1080, 0, -5).scale).toBe(2);
+    expect(makeView(1920, 1080, 0, 9).scale).toBe(6);
+  });
+
+  test('um passo da roda anda 1 e para nos limites, sem guardar passos além deles', () => {
+    expect(stepZoom(0, 1, 1920, 1080)).toBe(1);
+    expect(stepZoom(0, -1, 1920, 1080)).toBe(-1);
+    expect(stepZoom(-1, -1, 1920, 1080)).toBe(-1);
+    expect(stepZoom(3, 1, 1920, 1080)).toBe(3);
+    // um zoom guardado numa tela maior, além do que esta deixa: o primeiro passo de volta já muda a escala
+    expect(stepZoom(8, -1, 1920, 1080)).toBe(2);
+    expect(makeView(1920, 1080, 0, 2).scale).toBe(5);
+  });
 });

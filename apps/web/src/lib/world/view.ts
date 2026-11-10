@@ -27,15 +27,33 @@ export function pickScale(width: number, height: number): number {
   return Math.max(MIN_SCALE, Math.min(MAX_SCALE, s));
 }
 
+/**
+ * A escala com o zoom da pessoa: a automática mais `zoom` passos inteiros (a roda do mouse), sempre entre `MIN_SCALE` e
+ * `MAX_SCALE`, e sempre inteira (os pixels continuam quadrados).
+ */
+export function zoomedScale(width: number, height: number, zoom = 0): number {
+  return Math.max(MIN_SCALE, Math.min(MAX_SCALE, pickScale(width, height) + Math.trunc(zoom)));
+}
+
+/**
+ * O zoom depois de um passo da roda (`dir` +1 aproxima, −1 afasta): anda 1 a partir da escala que está na tela, e não
+ * acumula além dos limites (na escala máxima, aproximar de novo não guarda passos para desfazer depois).
+ */
+export function stepZoom(zoom: number, dir: 1 | -1, width: number, height: number): number {
+  const next = Math.max(MIN_SCALE, Math.min(MAX_SCALE, zoomedScale(width, height, zoom) + dir));
+  return next - pickScale(width, height);
+}
+
 /** onde fica o chão (y = 0, z = 0), como fração da altura da tela a partir do topo: 80% (céu em cima, queda embaixo) */
 const GROUND_AT = 0.8;
 
 /**
  * A parte que se vê de uma tela `width`×`height` com uma coluna de `inset` pixels cobrindo um lado: a câmera segue e
- * para nas pontas do mundo dentro dela. A escala é a da tela inteira (recolher a coluna não muda o tamanho do mundo).
+ * para nas pontas do mundo dentro dela. A escala é a da tela inteira (recolher a coluna não muda o tamanho do mundo),
+ * mais o `zoom` da pessoa.
  */
-export function makeView(width: number, height: number, inset = 0): View {
-  return { scale: pickScale(width, height), width: Math.max(1, width - inset), height, groundY: Math.round(height * GROUND_AT) };
+export function makeView(width: number, height: number, inset = 0, zoom = 0): View {
+  return { scale: zoomedScale(width, height, zoom), width: Math.max(1, width - inset), height, groundY: Math.round(height * GROUND_AT) };
 }
 
 /**

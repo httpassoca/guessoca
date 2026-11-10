@@ -39,7 +39,6 @@
       <div class="gs-section">
         <h3 class="gs-sub">{t('menu.keys')}</h3>
         <ul class="gs-keys">
-          <li><span>{t('play.claim')}</span><Kbd keys={['↵']} /></li>
           <li><span>{t('keys.skip')}</span><Kbd keys={['Tab']} /></li>
           <li><span>{t('keys.notepad')}</span><Kbd keys={['N']} /></li>
           <li><span>{t('keys.panel')}</span><Kbd keys={['P']} /></li>
@@ -47,6 +46,7 @@
           <li><span>{t('keys.walk')}</span><span><Kbd keys={['A', 'D']} /> <Kbd keys={['←', '→']} /></span></li>
           <li><span>{t('keys.depth')}</span><span><Kbd keys={['W', 'S']} /> <Kbd keys={['↑', '↓']} /></span></li>
           <li><span>{t('keys.run')}</span><Kbd keys={['Shift']} /></li>
+          <li><span>{t('keys.zoom')}</span><Kbd keys={[t('keys.wheel')]} /></li>
           <li><span>{t('keys.jump')}</span><Kbd keys={[t('keys.space')]} /></li>
           <li><span>{t('keys.shove')}</span><Kbd keys={['J']} /></li>
           <li><span>{t('keys.emotes')}</span><Kbd keys={['1', '2', '3', '4']} /></li>

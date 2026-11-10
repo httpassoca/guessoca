@@ -134,6 +134,57 @@ describe('lobby', () => {
     s.refuse('b', { type: 'shuffleAuthors' }, 'notModerator');
   });
 
+  /** para quem cada um escreve (autor → dono), o avesso de `authors` */
+  const targets = (s: Sim) => Object.fromEntries(Object.entries(s.game.authors).map(([owner, author]) => [author, owner]));
+
+  test('o moderador escolhe o alvo de alguém: quem escrevia para o alvo fica com o alvo antigo', () => {
+    const s = new Sim('a', 'b', 'c', 'd');
+    expect(targets(s)).toEqual({ a: 'b', b: 'c', c: 'd', d: 'a' });
+    s.do('a', { type: 'assign', author: 'a', owner: 'd' });
+    expect(targets(s)).toEqual({ a: 'd', b: 'c', c: 'b', d: 'a' });
+    expect(s.game.customAuthors).toBe(true);
+    s.do('a', { type: 'order', order: ['d', 'c', 'b', 'a'] });
+    expect(targets(s)).toEqual({ a: 'd', b: 'c', c: 'b', d: 'a' });
+  });
+
+  test('se a troca deixaria alguém escrevendo para si, a cadeia é reordenada', () => {
+    const s = new Sim('a', 'b', 'c', 'd');
+    s.do('a', { type: 'assign', author: 'a', owner: 'c' }); // a→b→c→d vira a→c→b→d
+    expect(targets(s)).toEqual({ a: 'c', c: 'b', b: 'd', d: 'a' });
+    const three = new Sim('a', 'b', 'c');
+    three.do('a', { type: 'assign', author: 'a', owner: 'c' });
+    expect(targets(three)).toEqual({ a: 'c', c: 'b', b: 'a' });
+    for (const g of [s, three]) for (const o of g.game.order) expect(g.game.authors[o]).not.toBe(o);
+  });
+
+  test('escolher o alvo apaga só os post-its cujo autor mudou', () => {
+    const s = new Sim('a', 'b', 'c', 'd', 'e');
+    for (const [author, owner] of [['a', 'b'], ['b', 'c'], ['c', 'd'], ['d', 'e'], ['e', 'a']]) s.do(author, { type: 'write', owner, text: owner.toUpperCase(), image: null });
+    const events = s.do('a', { type: 'assign', author: 'a', owner: 'e' }); // a↔d trocam de alvo: b e e mudam de autor
+    expect(targets(s)).toEqual({ a: 'e', b: 'c', c: 'd', d: 'b', e: 'a' });
+    expect(s.game.postits.c.text).toBe('C');
+    expect(s.game.postits.d.text).toBe('D');
+    expect(s.game.postits.a.text).toBe('A');
+    expect(s.game.postits.b.text).toBe('');
+    expect(s.game.postits.e.text).toBe('');
+    expect(events.filter((e) => e.type === 'cleared').map((e) => (e as { owner: string }).owner).sort()).toEqual(['b', 'e']);
+  });
+
+  test('escolher o alvo que já é o dela não muda nada; para si, de fora da turma ou sem ser moderador, recusa', () => {
+    const s = new Sim('a', 'b', 'c');
+    s.do('b', { type: 'write', owner: 'c', text: 'C', image: null });
+    s.do('a', { type: 'assign', author: 'b', owner: 'c' });
+    expect(s.game.postits.c.text).toBe('C');
+    s.refuse('a', { type: 'assign', author: 'a', owner: 'a' }, 'invalid');
+    s.refuse('a', { type: 'assign', author: 'a', owner: 'z' }, 'invalid');
+    s.refuse('b', { type: 'assign', author: 'a', owner: 'c' }, 'notModerator');
+    const two = new Sim('a', 'b');
+    two.do('a', { type: 'assign', author: 'a', owner: 'b' });
+    expect(targets(two)).toEqual({ a: 'b', b: 'a' });
+    two.start();
+    two.refuse('a', { type: 'assign', author: 'a', owner: 'b' }, 'wrongPhase');
+  });
+
   test('tamanho da vez: de 30 s a 3 min, de 15 em 15 s', () => {
     const s = new Sim('a', 'b');
     s.do('a', { type: 'turnMs', ms: TURN_MIN });

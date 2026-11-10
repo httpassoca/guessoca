@@ -11,7 +11,7 @@
 
   /**
    * O painel único da turma, na ordem das vezes. Cada linha: a vez, o rosto, o apelido e as marcas; no lobby, para quem a
-   * pessoa escreve (o alvo, o rosto e o nome) e em que pé está (o lápis escrevendo, o lápis parado, o pronto), e o
+   * pessoa escreve (o alvo, o rosto e o nome; o moderador troca o alvo numa lista, com três ou mais na turma) e em que pé está (o lápis escrevendo, o lápis parado, o pronto), e o
    * post-it dela ao vivo (o meu "?"); no jogo, o post-it e o estado (na vez, acertou, desistiu). O moderador tem, por
    * linha, ↑ ↓, passar a moderação e expulsar; no jogo, também marcar acertou ou não. Todo ícone se explica no tooltip
    * do dssoca. Os fantasmas vêm à parte, embaixo.
@@ -26,6 +26,13 @@
   const PROGRESS: Record<Progress, 'progress.empty' | 'progress.writing' | 'progress.ready'> = {
     empty: 'progress.empty', writing: 'progress.writing', ready: 'progress.ready',
   };
+  /** o moderador escolhe o alvo de cada um à mão; com duas pessoas só existe um arranjo */
+  const canAssign = $derived(v.isModerator && lobby && v.players.length > 2);
+  function assign(e: Event & { currentTarget: HTMLSelectElement }, author: string, current: string) {
+    const owner = e.currentTarget.value;
+    e.currentTarget.value = current; // a lista mostra o que a sala diz: muda quando o snapshot chegar
+    if (owner !== current) send({ type: 'assign', author, owner });
+  }
   const move = (id: string, d: -1 | 1) => send({ type: 'order', order: moveBy(ids, id, d) });
 </script>
 
@@ -87,11 +94,25 @@
             {#if lobby}
               {#if r.writesFor}
                 {@const target = r.writesFor.id === room.you ? t('turma.you') : r.writesFor.nickname}
-                <Tooltip text={t('turma.writesFor', { owner: target })}>
-                  <span class="gs-target" role="img" aria-label={t('turma.writesFor', { owner: target })}>
-                    <Icon name="target" /><Swatch n={r.writesFor.character} size={16} /><span class="name">{target}</span>
-                  </span>
-                </Tooltip>
+                {#if canAssign}
+                  {@const current = r.writesFor.id}
+                  <Tooltip text={t('turma.pickTarget', { name })}>
+                    <span class="gs-target pick">
+                      <Icon name="target" /><Swatch n={r.writesFor.character} size={16} />
+                      <select aria-label={t('turma.pickTarget', { name })} value={current} onchange={(e) => assign(e, r.member.id, current)}>
+                        {#each v.players.filter((p) => p.id !== r.member.id) as p (p.id)}
+                          <option value={p.id}>{p.id === room.you ? t('turma.you') : p.nickname}</option>
+                        {/each}
+                      </select>
+                    </span>
+                  </Tooltip>
+                {:else}
+                  <Tooltip text={t('turma.writesFor', { owner: target })}>
+                    <span class="gs-target" role="img" aria-label={t('turma.writesFor', { owner: target })}>
+                      <Icon name="target" /><Swatch n={r.writesFor.character} size={16} /><span class="name">{target}</span>
+                    </span>
+                  </Tooltip>
+                {/if}
                 <Tooltip text={t(PROGRESS[r.writing])}>
                   <span class="gs-progress {r.writing}" role="img" aria-label={t(PROGRESS[r.writing])}><Icon name={r.writing === 'ready' ? 'check' : 'pencil'} /></span>
                 </Tooltip>
