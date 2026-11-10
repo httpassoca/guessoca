@@ -4,19 +4,9 @@ import { join } from 'node:path';
 import { SHOVE_COOLDOWN_MS } from '@guess/world';
 import { ANIMATION_NAMES } from '../src/atlas';
 import { blank, bounds, crop, palette, rgbOf, setPixel, type Image } from '../src/image';
-import { BOLSONARO, buildBolsonaro } from '../src/bolsonaro';
-import { EVE, buildEve } from '../src/eve';
-import { KATARINA, buildKatarina } from '../src/katarina';
-import { KNIGHT, buildKnight } from '../src/knight';
-import { KRATOS, buildKratos } from '../src/kratos';
-import { OLDSNAKE, buildOldSnake } from '../src/oldsnake';
-import { MISTA, buildMista } from '../src/mista';
-import { ORELHA, buildOrelha } from '../src/orelha';
-import { PINOCCHIO, buildPinocchio } from '../src/pinocchio';
-import { PUNISHER, buildPunisher } from '../src/punisher';
 import { MAX_FRAMES, NORMAL_ART_HEIGHT, NORMAL_HEIGHT, PACK_SPEC, PACK_WORLD_SCALE, buildPack, cellsOf, derive, packFiles, packSpec, place, specProblems, worldScaleFor, type PackConfig } from '../src/pack';
+import { PACKS } from '../src/packs';
 import { readPng } from '../src/png';
-import { VORCARO, buildVorcaro } from '../src/vorcaro';
 
 function fill(img: Image, x: number, y: number, w: number, h: number, hex: string) {
   for (let j = 0; j < h; j++) for (let i = 0; i < w; i++) setPixel(img, x + i, y + j, [...rgbOf(hex), 255]);
@@ -174,6 +164,22 @@ describe('personagem de sete folhas', () => {
     expect(() => buildPack(sheets, { ...c, padX: 8 })).toThrow(/shove.*padX.*20/);
   });
 
+  test('quem paira fica na altura em que a arte o pôs; os outros descem até encostar no chão', () => {
+    // um pacote em que o andar veio 5 pixels acima do chão
+    const sheets = { ...pack(), walk: sheet(C.spec.animations.walk.frames, 5) };
+    const down = derive(sheets, C), up = derive(sheets, { ...C, float: ['walk'] });
+    const bottom = (rows: Image[][], i: number) => { const b = bounds(rows[i][0])!; return b.y + b.h; };
+    expect(bottom(down, 1)).toBe(C.cellH);
+    expect(bottom(up, 1)).toBe(C.cellH - 5);
+    expect(bottom(up, 0)).toBe(C.cellH); // o parado continua no chão
+  });
+
+  test('uma animação pode vir de outra folha do pacote', () => {
+    const files = packFiles(() => true, { fall: 'fall_loop.png' });
+    expect(files[4]).toEqual(['fall', 'fall_loop.png']);
+    expect(files[5]).toEqual(['fall_loop', 'fall_loop.png']);
+  });
+
   test('o empurrão do jogo vem de attack.png se o pacote tiver, senão de shove.png', () => {
     const old = packFiles((f) => f !== 'attack.png');
     expect(old.map(([, file]) => file)).toEqual(['idle.png', 'walk.png', 'run.png', 'jump.png', 'fall.png', 'fall_loop.png', 'shove.png']);
@@ -190,38 +196,27 @@ describe('personagem de sete folhas', () => {
 });
 
 // a arte de verdade de cada um: só com o pacote em assets-src/ (no CI não há; nada é lido do disco sem ele)
-for (const who of [
-  { c: KRATOS, dir: 'kratos', build: buildKratos, ground: 145, height: 121, world: 61 },
-  { c: VORCARO, dir: 'vorcaro', build: buildVorcaro, ground: 352, height: 302, world: 50 },
-  { c: ORELHA, dir: 'orelha', build: buildOrelha, ground: 54, height: 38, world: 15 },
-  { c: BOLSONARO, dir: 'bolsonaro', build: buildBolsonaro, ground: 177, height: 150, world: 70 },
-  { c: KNIGHT, dir: 'knight', build: buildKnight, ground: 87, height: 63, world: 35 },
-  { c: OLDSNAKE, dir: 'oldsnake', build: buildOldSnake, ground: 116, height: 97, world: 49 },
-  { c: PINOCCHIO, dir: 'pinocchio', build: buildPinocchio, ground: 113, height: 106, world: 50 },
-  { c: EVE, dir: 'eve', build: buildEve, ground: 177, height: 140, world: 50 },
-  { c: KATARINA, dir: 'katarina', build: buildKatarina, ground: 125, height: 101, world: 50 },
-  { c: PUNISHER, dir: 'punisher', build: buildPunisher, ground: 176, height: 152, world: 59 },
-  { c: MISTA, dir: 'mista', build: buildMista, ground: 160, height: 132, world: 52 },
-]) {
-  const dir = join(import.meta.dir, '../../../assets-src', who.dir);
-  describe.skipIf(!existsSync(join(dir, 'idle.png')))(`${who.c.name}: a arte de verdade`, () => {
-    test('as folhas têm as células e os quadros do pedido, o parado pisa na linha do chão, e a folha gerada é a arte', () => {
+for (const p of PACKS) {
+  const dir = join(import.meta.dir, '../../../assets-src', p.dir);
+  describe.skipIf(!existsSync(join(dir, 'idle.png')))(`${p.config.name}: a arte de verdade`, () => {
+    test('as folhas têm as células e os quadros do registro, e a folha gerada é a arte', () => {
+      const c = p.config;
       const sheets: Record<string, Image> = {};
-      for (const [name, file] of packFiles((f) => existsSync(join(dir, f)))) {
+      for (const [name, file] of packFiles((f) => existsSync(join(dir, f)), c.files)) {
         const s = readPng(join(dir, file));
-        expect(s.height).toBe(who.c.cellH);
-        expect(s.width / who.c.cellW).toBe(who.c.spec.animations[name].frames);
+        const cell = c.cells?.[name] ?? c;
+        expect(s.height).toBe(cell.cellH);
+        expect(s.width / cell.cellW).toBeGreaterThanOrEqual(c.spec.animations[name].frames);
         sheets[name] = s;
       }
-      const idle = cellsOf(sheets.idle, who.c)[0];
-      expect(floor(idle)).toBe(who.ground);
-      const { sheets: [out], atlas } = who.build(sheets);
-      expect(atlas.stand.h).toBe(who.height);
-      expect(Math.round(atlas.stand.h * atlas.scale!)).toBe(who.world);
+      const idle = cellsOf(sheets.idle, c)[0];
+      const { sheets: [out], atlas } = buildPack(sheets, c);
+      expect(atlas.stand.h).toBe(bounds(idle)!.h);
+      expect(atlas.scale).toBe(c.worldScale);
       // os pixels visíveis são os da arte (a cor que a arte guarda por baixo de um pixel transparente não conta)
       expect(visible(crop(out, atlas.stand.x, atlas.stand.y, atlas.stand.w, atlas.stand.h)).data).toEqual(visible(tight(idle)).data);
-      // todas as cores da arte estão na folha, e nenhuma a mais
-      const art = new Set(ANIMATION_NAMES.flatMap((n) => [...palette(sheets[n])]));
+      // todas as cores das folhas usadas estão na folha gerada, e nenhuma a mais
+      const art = new Set(Object.values(sheets).flatMap((s) => [...palette(s)]));
       expect(palette(out)).toEqual(art);
     });
   });

@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { MAX_MEMBERS, MIN_PLAYERS, NICKNAME_MAX, TURN_DEFAULT, TURN_MAX, TURN_MIN } from '@guess/rules';
+import { CHARACTERS, MAX_MEMBERS, MIN_PLAYERS, NICKNAME_MAX, TURN_DEFAULT, TURN_MAX, TURN_MIN } from '@guess/rules';
 import { checkCreate, checkJoin, createSettingsIn, DEFAULT_CREATE, maxPlayersOptions, rememberCreateSettingsIn } from '../src/lib/create';
 import { fakeStorage } from './fake-storage';
 
@@ -16,9 +16,9 @@ describe('criar a sala', () => {
     expect(long.ok && long.nickname.length).toBe(NICKNAME_MAX);
   });
 
-  test('o personagem tem de ser um dos treze', () => {
+  test('o personagem tem de ser um dos personagens', () => {
     expect(checkCreate(form({ character: null }))).toEqual({ ok: false, problems: ['character'] });
-    expect(checkCreate(form({ character: 13 }))).toEqual({ ok: false, problems: ['character'] });
+    expect(checkCreate(form({ character: CHARACTERS }))).toEqual({ ok: false, problems: ['character'] });
     expect(checkCreate(form({ character: -1 }))).toEqual({ ok: false, problems: ['character'] });
   });
 
@@ -48,7 +48,7 @@ describe('entrar na sala', () => {
 
   test('sem apelido ou sem personagem não entra', () => {
     expect(checkJoin('', 2)).toEqual({ ok: false, problems: ['nickname'] });
-    expect(checkJoin('Ana', 13)).toEqual({ ok: false, problems: ['character'] });
+    expect(checkJoin('Ana', CHARACTERS)).toEqual({ ok: false, problems: ['character'] });
     expect(checkJoin('Ana', null)).toEqual({ ok: false, problems: ['character'] });
   });
 });

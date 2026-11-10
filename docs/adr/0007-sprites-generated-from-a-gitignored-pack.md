@@ -86,3 +86,13 @@ All three are new drawings generated for the owner (the first two in the likenes
 
 The owner raised the prompt's minimums: every animation has at least 8 frames and the attack at least 18, and the attack may reach outside the character's cell. The game still shows the attack for `SHOVE_COOLDOWN_MS` (0.45 s), so 18 frames play at 40 fps; the limits in `pack.ts` moved to 24 frames and 60 fps. For the reach, `attack.png` may have a larger cell than the other sheets: `PackConfig.cells` gives an animation its own cell size and the offset that puts its feet where the idle's are. Because every frame of a model is cropped to one rectangle, a far-reaching attack widens all of them; `buildPack` rejects a sheet over 8192 px on a side instead of producing a texture some machines can't load. No existing pack uses either feature yet.
 
+## Amendment: a registry, and seven more characters
+
+Each new character had meant touching about twenty places (two type unions, the tool's model list, the client's imports, CSS variables nothing read, six tests and several documents). Now a seven-sheet character is **one entry in `PACKS`** (`tools/sprites/src/packs.ts`) plus one more in `CHARACTERS`. The tool builds every entry, writes all atlases into one `atlases.json` that the client imports, and the tests iterate the registry. The per-model atlas files and the `--gs-char-N` variables are gone. The picker scrolls, showing two rows and part of a third.
+
+Seven packs came with this change, all from the current prompt, sized by their `sheet.json` and imported with no pixel changed (slots 13 to 19, `CHARACTERS` 20): Star Platinum, Josuke, Joker (Persona), Giorno Giovanna, Zed, and two of the owner himself, Guimas in street clothes and as an acolyte. They are new drawings generated for the owner (the first five in the likeness of characters from JoJo's Bizarre Adventure, Persona 5 and League of Legends), not extracted game art. Two needed something new in `PackConfig`:
+
+- **`float`**. Star Platinum hovers: his walk, run and attack frames sit a few pixels above the ground, each at its own height. Dropping every frame to the ground would have removed the hover and made the frames jitter, so those animations keep the height the art gave them, measured from the idle's ground line.
+- **`files`**. Josuke's `fall.png` is a landing (down to the floor and back to idle), drawn that way at the owner's request, but the game plays `fall` at the top of the jump, where a landing makes no sense. His `fall` therefore uses the `fall_loop.png` sheet, and the landing is unused until the game has a landing animation.
+
+The owner also set the masked knight to 0.2 of an adult (10 units tall, from 35): the smallest character, below a person's knee and smaller than the dog.

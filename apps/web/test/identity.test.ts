@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 import { TOKEN_RE } from '@guess/protocol';
+import { CHARACTERS } from '@guess/rules';
 import { nicknameIn, rememberNicknameIn, tokenIn } from '../src/lib/identity';
 import { fakeStorage } from './fake-storage';
 
@@ -33,13 +34,13 @@ describe('identidade', () => {
 });
 
 describe('o que mais o navegador e a aba lembram', () => {
-  test('o último personagem, por navegador; fora de 0..12 é nenhum', async () => {
+  test('o último personagem, por navegador; fora da faixa é nenhum', async () => {
     const { characterIn, rememberCharacterIn } = await import('../src/lib/identity');
     const browser = fakeStorage();
     expect(characterIn(browser)).toBeNull();
     rememberCharacterIn(browser, 5);
     expect(characterIn(browser)).toBe(5);
-    browser.setItem('guess.character', '13');
+    browser.setItem('guess.character', String(CHARACTERS));
     expect(characterIn(browser)).toBeNull();
     browser.setItem('guess.character', 'x');
     expect(characterIn(browser)).toBeNull();

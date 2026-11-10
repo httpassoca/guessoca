@@ -1,40 +1,26 @@
 /**
  * Os personagens desenhados a partir das folhas geradas por `bun run sprites` (ADR 0007): `characters.json` diz de que
- * modelo é cada um (0 o herói, 1 o esqueleto, 2 o Kratos, 3 o Vorcaro, 4 o Orelha, 5 o Bolsonaro, 6 o cavaleiro, 7 o Old Snake, 8 o Pinóquio, 9 a Eve, 10 a Katarina, 11 o Justiceiro, 12 o Mista), a cor e a folha; cada modelo tem o seu atlas (`hero.json`,
- * `skeleton.json`, `kratos.json`, `vorcaro.json`, `orelha.json`, `bolsonaro.json`, `knight.json`, `oldsnake.json`, `pinocchio.json`, `eve.json`, `katarina.json`, `punisher.json`, `mista.json`) com o tamanho do quadro, a âncora, a cabeça e as animações. Puro, para os componentes e para o mundo
- * (Pixi) lerem do mesmo lugar.
+ * modelo é cada um, a cor e a folha, na ordem dos lugares; `atlases.json` tem o atlas de cada modelo (o tamanho do quadro,
+ * a âncora, a cabeça, as animações e a escala). Puro, para os componentes e para o mundo (Pixi) lerem do mesmo lugar.
  *
- * Entrada: os JSON ao lado, escritos por `tools/sprites/src/index.ts` (não editar à mão; `bun run sprites` refaz). As
- * folhas ficam em `apps/web/public/sprites/char-N.png`. Quem lê: `world/scene.ts` (os quadros), `world/view.ts` (a
- * altura da cabeça), `panels/Hero.svelte` e `panels/Swatch.svelte` (o retrato e o rosto). Coordenadas: tudo aqui está em
- * pixels do quadro (ou da folha, em `frameAt`), com a âncora entre os pés; 1 pixel do quadro = `artScale(atlas)` unidades
- * do mundo (1, menos no Vorcaro, cuja folha é a arte no tamanho em que foi feita).
+ * Entrada: os dois JSON ao lado, escritos por `tools/sprites/src/index.ts` (não editar à mão; `bun run sprites` refaz).
+ * As folhas ficam em `apps/web/public/sprites/char-N.<png|webp>`. Quem lê: `world/scene.ts` (os quadros), `world/view.ts`
+ * (a altura da cabeça), `panels/Hero.svelte` e `panels/Swatch.svelte` (o retrato e o rosto). Coordenadas: tudo aqui está
+ * em pixels do quadro (ou da folha, em `frameAt`), com a âncora entre os pés; 1 pixel do quadro = `artScale(atlas)`
+ * unidades do mundo (1 no pixel art feito no tamanho do jogo; menos nos de sete folhas, cuja folha é a arte no tamanho
+ * em que foi feita).
  *
- * Como mudar: um modelo novo é um atlas novo (`<modelo>.json`, gerado), importado aqui, com o nome em `Model` e em
- * `ATLASES`; o `Model` de `tools/sprites/src/characters.ts` tem que ter o mesmo nome. `CHARACTER_ART` é indexado pelo
- * lugar (0..12, o `character` do protocolo, `CHARACTERS` em `@guess/rules`): mudar que modelo ocupa que lugar é em
- * `tools/sprites/src/characters.ts`, e a cor nova vai também em `--gs-char-N` (`apps/web/src/app.css`; o teste confere).
+ * Como mudar: nada aqui. Um personagem novo é uma entrada em `tools/sprites/src/packs.ts` e mais um em `CHARACTERS`
+ * (`@guess/rules`); esta lista e os atlas vêm gerados. `CHARACTER_ART` é indexado pelo lugar (o `character` do protocolo).
  */
 import type { Anim } from '@guess/world';
+import atlases from './atlases.json';
 import list from './characters.json';
-import bolsonaro from './bolsonaro.json';
-import eve from './eve.json';
-import hero from './hero.json';
-import katarina from './katarina.json';
-import knight from './knight.json';
-import kratos from './kratos.json';
-import mista from './mista.json';
-import oldsnake from './oldsnake.json';
-import orelha from './orelha.json';
-import pinocchio from './pinocchio.json';
-import punisher from './punisher.json';
-import skeleton from './skeleton.json';
-import vorcaro from './vorcaro.json';
 
 /** As linhas da folha: as mesmas animações que o mundo escolhe (`Anim` em `@guess/world`). */
 export type AnimationName = Anim;
-/** Os modelos de personagem, cada um com um atlas `<modelo>.json`. */
-export type Model = 'hero' | 'skeleton' | 'kratos' | 'vorcaro' | 'orelha' | 'bolsonaro' | 'knight' | 'oldsnake' | 'pinocchio' | 'eve' | 'katarina' | 'punisher' | 'mista';
+/** O nome de um modelo de personagem: a chave do atlas dele em `atlases.json`. */
+export type Model = string;
 
 /** O atlas de um modelo, como `tools/sprites` escreve (`Atlas` em `tools/sprites/src/atlas.ts`). */
 export interface Atlas {
@@ -60,8 +46,8 @@ export interface Atlas {
  */
 export const artScale = (atlas: Atlas): number => atlas.scale ?? 1;
 
-/** Um atlas por modelo; `characters.json` diz qual cada personagem usa. */
-const ATLASES: Record<Model, Atlas> = { hero, skeleton, kratos, vorcaro, orelha, bolsonaro, knight, oldsnake, pinocchio, eve, katarina, punisher, mista };
+/** Um atlas por modelo (`atlases.json`); `characters.json` diz qual cada personagem usa. */
+const ATLASES = atlases as Record<Model, Atlas>;
 
 /** Tudo o que a interface e o mundo precisam de um personagem. */
 export interface CharacterArt {
@@ -75,12 +61,12 @@ export interface CharacterArt {
   atlas: Atlas;
 }
 
-/** Os treze personagens, na ordem dos lugares do protocolo (0 o herói, 1 o esqueleto, 2 o Kratos, 3 o Vorcaro, 4 o Orelha, 5 o Bolsonaro, 6 o cavaleiro, 7 o Old Snake, 8 o Pinóquio, 9 a Eve, 10 a Katarina, 11 o Justiceiro, 12 o Mista). */
+/** Os personagens, na ordem dos lugares do protocolo. */
 export const CHARACTER_ART: readonly CharacterArt[] = list.map((c) => ({
-  model: c.model as Model, name: c.name, color: c.color, sheet: c.sheet, atlas: ATLASES[c.atlas as Model],
+  model: c.model, name: c.name, color: c.color, sheet: c.sheet, atlas: ATLASES[c.atlas],
 }));
 
-/** O personagem `n` (0..12); fora da faixa, o primeiro. */
+/** O personagem `n`; fora da faixa, o primeiro. */
 export const character = (n: number): CharacterArt => CHARACTER_ART[n] ?? CHARACTER_ART[0];
 
 /** O canto do quadro `frame` da animação `name` na folha, em pixels da folha. */

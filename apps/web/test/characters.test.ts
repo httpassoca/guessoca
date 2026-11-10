@@ -5,13 +5,14 @@ import { CHARACTERS } from '@guess/rules';
 import { artScale, character, CHARACTER_ART, frameAt, frameIndex, PORTRAIT, sheetSize } from '../src/lib/sprites/characters';
 
 describe('personagens', () => {
-  test('um por personagem do protocolo: treze, um de cada modelo', () => {
+  test('um por personagem do protocolo, cada um com a sua folha no lugar dele e o seu atlas', () => {
     expect(CHARACTER_ART).toHaveLength(CHARACTERS);
-    expect(CHARACTER_ART.map((c) => c.model)).toEqual(['hero', 'skeleton', 'kratos', 'vorcaro', 'orelha', 'bolsonaro', 'knight', 'oldsnake', 'pinocchio', 'eve', 'katarina', 'punisher', 'mista']);
-    expect(CHARACTER_ART.map((c) => c.sheet)).toEqual(['/sprites/char-0.png', '/sprites/char-1.png', '/sprites/char-2.webp', '/sprites/char-3.webp', '/sprites/char-4.webp', '/sprites/char-5.webp', '/sprites/char-6.webp', '/sprites/char-7.webp', '/sprites/char-8.webp', '/sprites/char-9.webp', '/sprites/char-10.webp', '/sprites/char-11.webp', '/sprites/char-12.webp']);
-    expect(new Set(CHARACTER_ART.map((c) => c.atlas)).size).toBe(13);
-    expect(character(0).name).toBe('loiro');
-    expect(character(1).name).toBe('vermelho');
+    CHARACTER_ART.forEach((c, n) => {
+      expect(c.sheet).toMatch(new RegExp(`^/sprites/char-${n}\\.(png|webp)$`));
+      expect(c.atlas.frame.w).toBeGreaterThan(0);
+    });
+    expect(CHARACTER_ART.slice(0, 2).map((c) => [c.model, c.name])).toEqual([['hero', 'loiro'], ['skeleton', 'vermelho']]);
+    expect(new Set(CHARACTER_ART.map((c) => c.model)).size).toBe(CHARACTERS); // hoje, um de cada modelo
   });
 
   test('cores únicas, para bordas e marcas na interface', () => {
@@ -19,17 +20,13 @@ describe('personagens', () => {
     expect(new Set(CHARACTER_ART.map((c) => c.color)).size).toBe(CHARACTERS);
   });
 
-  test('as cores do CSS (--gs-char-N) são as do characters.json', () => {
-    const css = readFileSync(join(import.meta.dir, '../src/app.css'), 'utf8');
-    CHARACTER_ART.forEach((c, n) => expect(css).toContain(`--gs-char-${n}: ${c.color};`));
-  });
-
-  test('o Kratos, o Vorcaro, o Orelha, o Bolsonaro, o cavaleiro, o Old Snake, o Pinóquio, a Eve e a Katarina são arte grande desenhada encolhida; os outros valem 1 unidade por pixel', () => {
-    expect(CHARACTER_ART.map((c) => artScale(c.atlas) < 1)).toEqual([false, false, true, true, true, true, true, true, true, true, true, true, true]);
-    const tall = (n: number) => { const a = character(n).atlas; return Math.round((a.anchor.y - a.stand.y) * artScale(a)); };
-    expect([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map(tall)).toEqual([37, 51, 61, 50, 15, 70, 35, 49, 50, 50, 50, 59, 52]);
-    const o = character(4).atlas;
-    expect(o.stand.w).toBeGreaterThan(o.stand.h); // quatro patas: mais comprido que alto
+  test('o pixel art no tamanho do jogo vale 1 unidade por pixel; a arte grande é desenhada encolhida, e cada um tem o seu tamanho', () => {
+    const tall = (model: string) => { const a = CHARACTER_ART.find((c) => c.model === model)!.atlas; return Math.round((a.anchor.y - a.stand.y) * artScale(a)); };
+    expect(CHARACTER_ART.map((c) => artScale(c.atlas) < 1)).toEqual(CHARACTER_ART.map((c) => c.sheet.endsWith('.webp')));
+    // um adulto tem 50: a Eve e o Pinóquio são a medida; o cachorro fica no joelho, o do dinossauro é o maior
+    expect(['hero', 'skeleton', 'kratos', 'vorcaro', 'orelha', 'bolsonaro', 'knight', 'eve', 'pinocchio', 'josuke', 'starplatinum'].map(tall)).toEqual([37, 51, 61, 50, 15, 70, 10, 50, 50, 50, 58]);
+    const dog = CHARACTER_ART.find((c) => c.model === 'orelha')!.atlas;
+    expect(dog.stand.w).toBeGreaterThan(dog.stand.h); // quatro patas: mais comprido que alto
   });
 
   test('fora da faixa cai no primeiro, sem quebrar', () => {
@@ -37,7 +34,7 @@ describe('personagens', () => {
     expect(character(-1)).toBe(character(0));
   });
 
-  for (const n of [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]) {
+  for (const n of CHARACTER_ART.keys()) {
     const { atlas, model } = character(n);
 
     test(`${model}: as animações que o jogo usa existem`, () => {

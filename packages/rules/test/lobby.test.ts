@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 import {
+  CHARACTERS,
   circle,
   cleanPostit,
   createGame,
@@ -89,7 +90,7 @@ describe('lobby', () => {
     expect(s.game.characters).toEqual({ a: 0, b: 0 });
     s.join('c');
     expect(s.game.characters.c).toBe(1);
-    s.refuse('b', { type: 'character', character: 13 }, 'invalid');
+    s.refuse('b', { type: 'character', character: CHARACTERS }, 'invalid');
     s.refuse('b', { type: 'character', character: 1.5 }, 'invalid');
   });
 

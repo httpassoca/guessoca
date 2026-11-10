@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 import { project, type View } from '@guess/world';
-import { character, frameIndex } from '../src/lib/sprites/characters';
+import { character, CHARACTER_ART, frameIndex } from '../src/lib/sprites/characters';
 import { EMOTE_GAP, emoteAnchor, emoteY, headAnchor, headY, makeView, pickScale, stepZoom } from '../src/lib/world/view';
 
 const HERO = character(0).atlas;
@@ -35,7 +35,7 @@ describe('post-it sobre a cabeça', () => {
   });
 
   test('o post-it fica acima do topo da cabeça de cada modelo, dentro do quadro', () => {
-    for (const n of [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]) {
+    for (const n of CHARACTER_ART.keys()) {
       const { atlas } = character(n);
       const k = atlas.scale ?? 1; // o Vorcaro é arte grande, desenhada encolhida
       expect(headY(n)).toBeGreaterThanOrEqual((atlas.anchor.y - atlas.head.y) * k);

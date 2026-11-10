@@ -30,8 +30,8 @@ export const SHEETS = ANIMATION_NAMES;
  * da arte (`apps/web/src/lib/system/character-prompt.txt`) chama a folha de `attack.png`, e os pacotes mais antigos de
  * `shove.png`. Vale `attack.png` se o pacote tiver (`has` diz se um arquivo existe na pasta); senão, `shove.png`.
  */
-export function packFiles(has: (file: string) => boolean): (readonly [AnimationName, string])[] {
-  return SHEETS.map((name) => [name, name === 'shove' && has('attack.png') ? 'attack.png' : `${name}.png`] as const);
+export function packFiles(has: (file: string) => boolean, files: PackConfig['files'] = {}): (readonly [AnimationName, string])[] {
+  return SHEETS.map((name) => [name, files[name] ?? (name === 'shove' && has('attack.png') ? 'attack.png' : `${name}.png`)] as const);
 }
 
 /**
@@ -121,6 +121,17 @@ export interface PackConfig {
    * maior (em geral negativo; `padX` tem que ser pelo menos `-dx`). O chão continua sendo o ponto mais baixo do quadro.
    */
   cells?: Partial<Record<AnimationName, { cellW: number; cellH: number; dx: number }>>;
+  /**
+   * Animações em que o personagem não pisa no chão de propósito (um espírito que paira): os quadros delas ficam na
+   * altura em que a arte os desenhou, medida pela linha do chão do primeiro quadro do parado, em vez de cada um descer
+   * até encostar. Sem isto, um quadro que paira desceria, e os que pairam em alturas diferentes tremeriam.
+   */
+  float?: readonly AnimationName[];
+  /**
+   * Uma animação tirada de outra folha do pacote, pelo nome do arquivo: quando a folha com o nome dela mostra outra
+   * coisa (uma `fall.png` que é o pouso, e não a passagem para a queda, que é o que o jogo toca em `fall`).
+   */
+  files?: Partial<Record<AnimationName, string>>;
 }
 
 /** A célula das folhas de uma animação: a própria (`cells`), ou a de todas. */
@@ -163,23 +174,27 @@ export function cellsOf(sheet: Image, c: PackConfig, name?: AnimationName): Imag
  * Uma célula na tela de trabalho, `dx` pixels para a frente e com o ponto mais baixo na última linha (o chão). No ar
  * (pulo, queda) isso põe o pé onde o corpo do jogo está, em vez de boiar na altura em que a arte o desenhou.
  */
-export function place(cell: Image, c: PackConfig, dx = 0): Image {
+export function place(cell: Image, c: PackConfig, dx = 0, ground?: number): Image {
   const b = bounds(cell);
   const { w, h } = canvasOf(c);
   const out = blank(w, h);
-  if (b) blit(out, cell, c.padX + dx, h - (b.y + b.h));
+  // `ground`: a linha do chão na célula, para quem paira (`float`); sem ela, o ponto mais baixo do quadro é o chão
+  if (b) blit(out, cell, c.padX + dx, h - (ground ?? b.y + b.h));
   return out;
 }
 
 /** Os quadros de cada animação, na ordem de `ANIMATION_NAMES`: os da arte, só mudados de lugar. */
 export function derive(sheets: Readonly<Record<string, Image>>, c: PackConfig): Image[][] {
+  // a linha do chão do pacote: embaixo do primeiro quadro do parado (só usada por quem paira)
+  const idle = sheets.idle && bounds(cellsOf(sheets.idle, c, 'idle')[0]);
+  const ground = idle ? idle.y + idle.h : undefined;
   return ANIMATION_NAMES.map((name) => {
     const sheet = sheets[name];
     if (!sheet) throw new Error(`folha de ${c.name} faltando: ${name}`);
     const cells = cellsOf(sheet, c, name);
     const want = c.spec.animations[name].frames;
     if (cells.length < want) throw new Error(`${name}: a folha de ${c.name} tem ${cells.length} quadros, esperava ${want}`);
-    return cells.slice(0, want).map((cell) => place(cell, c, (c.shifts[name] ?? 0) + cellOf(c, name).dx));
+    return cells.slice(0, want).map((cell) => place(cell, c, (c.shifts[name] ?? 0) + cellOf(c, name).dx, c.float?.includes(name) ? ground : undefined));
   });
 }
 
