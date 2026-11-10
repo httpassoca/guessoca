@@ -50,14 +50,14 @@
   },
   {
     "model": "oldsnake",
-    "name": "oldsnake",
+    "name": "old snake",
     "color": "#656a7c",
     "sheet": "/sprites/char-7.webp",
     "atlas": "oldsnake"
   },
   {
     "model": "pinocchio",
-    "name": "pinocchio",
+    "name": "pinóquio",
     "color": "#5b4b8a",
     "sheet": "/sprites/char-8.webp",
     "atlas": "pinocchio"

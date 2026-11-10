@@ -6,12 +6,13 @@
    * fica em pixels duros, encolhido (a arte grande) fica suave.
    *
    * `now` é o relógio da página (ms), que a página pausa e desacelera. `guides` desenha a linha do chão e a âncora (o
-   * ponto entre os pés) em vermelho; `flip` espelha, como o jogo faz para a esquerda.
+   * ponto entre os pés) em vermelho; `flip` espelha, como o jogo faz para a esquerda; `counter` mostra o quadro da vez
+   * em cima, `03 / 10`, o que mais se olha quando se confere uma animação quadro a quadro.
    */
   import type { AnimationName, Atlas } from '../sprites/characters';
 
-  let { sheet, atlas, name, now, height = 96, guides = false, flip = false }: {
-    sheet: HTMLImageElement | undefined; atlas: Atlas; name: AnimationName; now: number; height?: number; guides?: boolean; flip?: boolean;
+  let { sheet, atlas, name, now, height = 96, guides = false, flip = false, counter = false }: {
+    sheet: HTMLImageElement | undefined; atlas: Atlas; name: AnimationName; now: number; height?: number; guides?: boolean; flip?: boolean; counter?: boolean;
   } = $props();
 
   /** quanto uma animação sem loop fica no último quadro antes de recomeçar, ms */
@@ -42,10 +43,12 @@
   });
 </script>
 
+{#if counter}<span class="count">{String(frame + 1).padStart(2, '0')} / {String(a.frames).padStart(2, '0')}</span>{/if}
 <canvas bind:this={canvas} width={atlas.frame.w} height={atlas.frame.h} class:smooth={k < 1}
   style:width="{Math.round(atlas.frame.w * k)}px" style:height="{height}px" aria-label="{name}, quadro {frame + 1} de {a.frames}"></canvas>
 
 <style>
   canvas { display: block; image-rendering: pixelated; }
   canvas.smooth { image-rendering: auto; }
+  .count { display: block; margin-bottom: 8px; font: var(--ss-ui-xs) var(--ss-font-mono); font-variant-numeric: tabular-nums; color: rgb(255 255 255 / 0.6); text-align: center; }
 </style>
