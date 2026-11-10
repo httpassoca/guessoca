@@ -1,0 +1,67 @@
+{
+  "frame": {
+    "w": 105,
+    "h": 115
+  },
+  "anchor": {
+    "x": 49,
+    "y": 115
+  },
+  "head": {
+    "x": 40,
+    "y": 12,
+    "size": 30
+  },
+  "stand": {
+    "x": 19,
+    "y": 14,
+    "w": 66,
+    "h": 101
+  },
+  "animations": {
+    "idle": {
+      "row": 0,
+      "frames": 10,
+      "fps": 10,
+      "loop": true
+    },
+    "walk": {
+      "row": 1,
+      "frames": 10,
+      "fps": 12,
+      "loop": true
+    },
+    "run": {
+      "row": 2,
+      "frames": 10,
+      "fps": 14,
+      "loop": true
+    },
+    "jump": {
+      "row": 3,
+      "frames": 6,
+      "fps": 12,
+      "loop": false
+    },
+    "fall": {
+      "row": 4,
+      "frames": 4,
+      "fps": 12,
+      "loop": false
+    },
+    "fall_loop": {
+      "row": 5,
+      "frames": 3,
+      "fps": 10,
+      "loop": true
+    },
+    "shove": {
+      "row": 6,
+      "frames": 7,
+      "fps": 16,
+      "loop": false
+    }
+  },
+  "credit": null,
+  "scale": 0.49504950495049505
+}

@@ -66,3 +66,9 @@ Sizes were picked by eye at each import. The owner asked for a rule: Eve and Pin
 
 The prompt also stopped fixing frame counts: it gives a minimum per animation and a duration, and the model decides how many frames each needs. `packSpec` builds a pack's spec from the numbers in its `sheet.json`, and `buildPack` rejects timings the game can't play (an attack longer than `SHOVE_COOLDOWN_MS`, a fall that doesn't last `FALL_MS`, which `@guess/world` now exports).
 
+## Amendment: an eleventh model, Katarina
+
+Another seven-sheet pack from the owner (`assets-src/katarina/`, 144×144 cells, 48 colours, `credit` null; the pack names her "Crimsonblade"): an assassin with long red hair and two daggers, drawn in the likeness of Katarina from League of Legends. The owner had it generated for this game; it is not another game's extracted art. It came from the older prompt (fixed frame counts, no `size`), so it uses `PACK_SPEC` and is sized as one adult with `worldScaleFor(1, 101)`: 50 units tall, slot 10; `CHARACTERS` goes from 10 to 11. Her hair streams behind her, which pulled the automatic face square onto the hair, so `PackConfig` gained `headShift` (pixels forward).
+
+With eleven characters the picker is rows of six (up to twelve in two rows). Since the dinosaur widened the portrait window, a cell shows the middle of that window around the feet, which fits every character but the dinosaur and the tip of the skeleton's sword. A thirteenth character will need a scrolling picker or a third row.
+

@@ -6,6 +6,7 @@ import { ANIMATION_NAMES } from '../src/atlas';
 import { blank, bounds, crop, palette, rgbOf, setPixel, type Image } from '../src/image';
 import { BOLSONARO, buildBolsonaro } from '../src/bolsonaro';
 import { EVE, buildEve } from '../src/eve';
+import { KATARINA, buildKatarina } from '../src/katarina';
 import { KNIGHT, buildKnight } from '../src/knight';
 import { KRATOS, buildKratos } from '../src/kratos';
 import { OLDSNAKE, buildOldSnake } from '../src/oldsnake';
@@ -97,6 +98,8 @@ describe('personagem de sete folhas', () => {
   test('um bicho de quatro patas pode ter o quadrado do rosto maior que as linhas só de cabeça', () => {
     const { atlas } = buildPack(pack(), { ...C, headSize: 24 });
     expect(atlas.head.size).toBe(24);
+    // e o rosto pode andar para a frente, quando o cabelo voa para trás
+    expect(buildPack(pack(), { ...C, headSize: 24, headShift: 5 }).atlas.head.x).toBe(atlas.head.x + 5);
     expect(atlas.head.x + 12).toBe(atlas.stand.x + (16 - 12 + 5));
   });
 
@@ -163,6 +166,7 @@ for (const who of [
   { c: OLDSNAKE, dir: 'oldsnake', build: buildOldSnake, ground: 116, height: 97, world: 49 },
   { c: PINOCCHIO, dir: 'pinocchio', build: buildPinocchio, ground: 113, height: 106, world: 50 },
   { c: EVE, dir: 'eve', build: buildEve, ground: 177, height: 140, world: 50 },
+  { c: KATARINA, dir: 'katarina', build: buildKatarina, ground: 125, height: 101, world: 50 },
 ]) {
   const dir = join(import.meta.dir, '../../../assets-src', who.dir);
   describe.skipIf(!existsSync(join(dir, 'idle.png')))(`${who.c.name}: a arte de verdade`, () => {

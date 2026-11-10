@@ -1,7 +1,7 @@
 /**
  * Os personagens desenhados a partir das folhas geradas por `bun run sprites` (ADR 0007): `characters.json` diz de que
- * modelo é cada um (0 o herói, 1 o esqueleto, 2 o Kratos, 3 o Vorcaro, 4 o Orelha, 5 o Bolsonaro, 6 o cavaleiro, 7 o Old Snake, 8 o Pinóquio, 9 a Eve), a cor e a folha; cada modelo tem o seu atlas (`hero.json`,
- * `skeleton.json`, `kratos.json`, `vorcaro.json`, `orelha.json`, `bolsonaro.json`, `knight.json`, `oldsnake.json`, `pinocchio.json`, `eve.json`) com o tamanho do quadro, a âncora, a cabeça e as animações. Puro, para os componentes e para o mundo
+ * modelo é cada um (0 o herói, 1 o esqueleto, 2 o Kratos, 3 o Vorcaro, 4 o Orelha, 5 o Bolsonaro, 6 o cavaleiro, 7 o Old Snake, 8 o Pinóquio, 9 a Eve, 10 a Katarina), a cor e a folha; cada modelo tem o seu atlas (`hero.json`,
+ * `skeleton.json`, `kratos.json`, `vorcaro.json`, `orelha.json`, `bolsonaro.json`, `knight.json`, `oldsnake.json`, `pinocchio.json`, `eve.json`, `katarina.json`) com o tamanho do quadro, a âncora, a cabeça e as animações. Puro, para os componentes e para o mundo
  * (Pixi) lerem do mesmo lugar.
  *
  * Entrada: os JSON ao lado, escritos por `tools/sprites/src/index.ts` (não editar à mão; `bun run sprites` refaz). As
@@ -12,7 +12,7 @@
  *
  * Como mudar: um modelo novo é um atlas novo (`<modelo>.json`, gerado), importado aqui, com o nome em `Model` e em
  * `ATLASES`; o `Model` de `tools/sprites/src/characters.ts` tem que ter o mesmo nome. `CHARACTER_ART` é indexado pelo
- * lugar (0..9, o `character` do protocolo, `CHARACTERS` em `@guess/rules`): mudar que modelo ocupa que lugar é em
+ * lugar (0..10, o `character` do protocolo, `CHARACTERS` em `@guess/rules`): mudar que modelo ocupa que lugar é em
  * `tools/sprites/src/characters.ts`, e a cor nova vai também em `--gs-char-N` (`apps/web/src/app.css`; o teste confere).
  */
 import type { Anim } from '@guess/world';
@@ -20,6 +20,7 @@ import list from './characters.json';
 import bolsonaro from './bolsonaro.json';
 import eve from './eve.json';
 import hero from './hero.json';
+import katarina from './katarina.json';
 import knight from './knight.json';
 import kratos from './kratos.json';
 import oldsnake from './oldsnake.json';
@@ -31,7 +32,7 @@ import vorcaro from './vorcaro.json';
 /** As linhas da folha: as mesmas animações que o mundo escolhe (`Anim` em `@guess/world`). */
 export type AnimationName = Anim;
 /** Os modelos de personagem, cada um com um atlas `<modelo>.json`. */
-export type Model = 'hero' | 'skeleton' | 'kratos' | 'vorcaro' | 'orelha' | 'bolsonaro' | 'knight' | 'oldsnake' | 'pinocchio' | 'eve';
+export type Model = 'hero' | 'skeleton' | 'kratos' | 'vorcaro' | 'orelha' | 'bolsonaro' | 'knight' | 'oldsnake' | 'pinocchio' | 'eve' | 'katarina';
 
 /** O atlas de um modelo, como `tools/sprites` escreve (`Atlas` em `tools/sprites/src/atlas.ts`). */
 export interface Atlas {
@@ -58,7 +59,7 @@ export interface Atlas {
 export const artScale = (atlas: Atlas): number => atlas.scale ?? 1;
 
 /** Um atlas por modelo; `characters.json` diz qual cada personagem usa. */
-const ATLASES: Record<Model, Atlas> = { hero, skeleton, kratos, vorcaro, orelha, bolsonaro, knight, oldsnake, pinocchio, eve };
+const ATLASES: Record<Model, Atlas> = { hero, skeleton, kratos, vorcaro, orelha, bolsonaro, knight, oldsnake, pinocchio, eve, katarina };
 
 /** Tudo o que a interface e o mundo precisam de um personagem. */
 export interface CharacterArt {
@@ -72,12 +73,12 @@ export interface CharacterArt {
   atlas: Atlas;
 }
 
-/** Os dez personagens, na ordem dos lugares do protocolo (0 o herói, 1 o esqueleto, 2 o Kratos, 3 o Vorcaro, 4 o Orelha, 5 o Bolsonaro, 6 o cavaleiro, 7 o Old Snake, 8 o Pinóquio, 9 a Eve). */
+/** Os onze personagens, na ordem dos lugares do protocolo (0 o herói, 1 o esqueleto, 2 o Kratos, 3 o Vorcaro, 4 o Orelha, 5 o Bolsonaro, 6 o cavaleiro, 7 o Old Snake, 8 o Pinóquio, 9 a Eve, 10 a Katarina). */
 export const CHARACTER_ART: readonly CharacterArt[] = list.map((c) => ({
   model: c.model as Model, name: c.name, color: c.color, sheet: c.sheet, atlas: ATLASES[c.atlas as Model],
 }));
 
-/** O personagem `n` (0..9); fora da faixa, o primeiro. */
+/** O personagem `n` (0..10); fora da faixa, o primeiro. */
 export const character = (n: number): CharacterArt => CHARACTER_ART[n] ?? CHARACTER_ART[0];
 
 /** O canto do quadro `frame` da animação `name` na folha, em pixels da folha. */
