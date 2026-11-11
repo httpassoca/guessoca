@@ -112,3 +112,14 @@ All are new drawings generated for the owner, in the likeness of characters from
 
 **Previews are framed.** The picker and the home stage showed every character in one shared window at one scale, so with a dog at knee height and a rider on a dinosaur some were cut off and others sat tiny at the bottom. `Hero.svelte` now frames each character by its own standing box, scaled to fill its cell (`fitScale`); the shared `PORTRAIT` window is gone. True relative sizes are in the game and in the `/sistema` line-up.
 
+
+## Amendment: Peffrey Jepstein, Spike Spiegel, a redrawn Katarina and a new run for Miku
+
+Four folders from the owner, all generated for this game (none is another game's files), imported with the common recipe and no pixel changed. The cast is now twenty-five.
+
+- **Peffrey Jepstein** (`assets-src/jepstein/`, slot 23): a pack in the old format (fixed frame counts, `shove.png`, no `size`), 192×160 cells, 125 pixels tall. It enters at the shared density, so just under an adult. The attack is a cross punch.
+- **Spike Spiegel** (`assets-src/spikespiegel/`, slot 24): size 1, 160×160 cells, a 224×160 attack cell with the feet at the same x; the attack is a side kick, 18 frames in 0.9 s.
+- **Katarina, redrawn** (slot 10 kept): the first art (144×144, 101 pixels, fixed frames) is replaced by one from the current prompt: size 1, 160×160 cells, a 256×160 attack cell where she stands 16 pixels further right (`dx: -16`), a 22-frame, 1 s spinning low slash. The old folder is kept locally as `assets-src/katarina-v1/`.
+- **Miku** (slot 21 kept): only `run.png` changed; the numbers are the same. The old folder is `assets-src/miku-v1/`.
+
+The picker's name tooltip now opens above the cell. dssoca only puts a tooltip on a side where it fits inside the nearest clipping ancestor, and the picker is a scrolling list whose first row touches its top edge, so the tooltip went below or to the side. The list now has a tooltip's height of padding at the top (and an equal negative margin, so nothing moves); the padding ignores the pointer.

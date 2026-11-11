@@ -159,5 +159,19 @@
     "color": "#e2b93b",
     "sheet": "/sprites/char-22.webp",
     "atlas": "galodoido"
+  },
+  {
+    "model": "jepstein",
+    "name": "peffrey jepstein",
+    "color": "#4f79b8",
+    "sheet": "/sprites/char-23.webp",
+    "atlas": "jepstein"
+  },
+  {
+    "model": "spikespiegel",
+    "name": "spike spiegel",
+    "color": "#3f8f6b",
+    "sheet": "/sprites/char-24.webp",
+    "atlas": "spikespiegel"
   }
 ]

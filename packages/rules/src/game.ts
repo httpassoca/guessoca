@@ -17,7 +17,7 @@ export const VOTE_MS = 15_000;
 /** Texto do post-it: tamanho máximo depois de aparado. */
 export const POSTIT_MAX = 40;
 /** Personagens: vinte e três, de 0 a 22 (a lista está em `tools/sprites/src/characters.ts`; um teste confere o tamanho); não são exclusivos (duas pessoas podem usar o mesmo). */
-export const CHARACTERS = 23;
+export const CHARACTERS = 25;
 /** O jogo começa com pelo menos esta turma jogando. */
 export const MIN_PLAYERS = 2;
 
