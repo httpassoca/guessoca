@@ -2,7 +2,7 @@ import { describe, expect, test } from 'bun:test';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { CHARACTERS } from '@guess/rules';
-import { artScale, character, CHARACTER_ART, frameAt, frameIndex, PORTRAIT, sheetSize } from '../src/lib/sprites/characters';
+import { artScale, character, CHARACTER_ART, frameAt, frameIndex, fitScale, sheetSize } from '../src/lib/sprites/characters';
 
 describe('personagens', () => {
   test('um por personagem do protocolo, cada um com a sua folha no lugar dele e o seu atlas', () => {
@@ -61,11 +61,18 @@ describe('personagens', () => {
       expect(atlas.stand.y + atlas.stand.h).toBe(atlas.anchor.y);
     });
 
-    test(`${model}: o retrato (a janela da interface) mostra o parado inteiro, com o pé no mesmo lugar`, () => {
-      const k = artScale(atlas);
-      expect(PORTRAIT.anchorX - (atlas.anchor.x - atlas.stand.x) * k).toBeGreaterThanOrEqual(0);
-      expect(PORTRAIT.w - PORTRAIT.anchorX).toBeGreaterThanOrEqual((atlas.stand.x + atlas.stand.w - atlas.anchor.x) * k);
-      expect(PORTRAIT.h).toBeGreaterThanOrEqual((atlas.anchor.y - atlas.stand.y) * k);
+    test(`${model}: enquadrado numa caixa, o parado cabe inteiro, com o pé embaixo, e os passos da animação caem em pixel inteiro`, () => {
+      for (const box of [{ w: 56, h: 84 }, { w: 272, h: 232 }]) {
+        const f = fitScale(atlas, box);
+        expect(f.w * f.k).toBeLessThanOrEqual(box.w + 0.001);
+        expect(f.h * f.k).toBeLessThanOrEqual(box.h + 0.001);
+        expect(f.y + f.h).toBe(atlas.anchor.y);
+        expect(f.x).toBeLessThanOrEqual(atlas.stand.x);
+        expect(f.x + f.w).toBeGreaterThanOrEqual(atlas.stand.x + atlas.stand.w);
+        expect(Math.abs(atlas.frame.w * f.k - Math.round(atlas.frame.w * f.k))).toBeLessThan(1e-6);
+        // enche a caixa: um dos lados quase inteiro
+        expect(Math.max((f.w * f.k) / box.w, (f.h * f.k) / box.h)).toBeGreaterThan(0.9);
+      }
     });
   }
 

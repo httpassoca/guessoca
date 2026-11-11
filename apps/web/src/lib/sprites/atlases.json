@@ -1138,65 +1138,65 @@
   },
   "zed": {
     "frame": {
-      "w": 120,
-      "h": 135
+      "w": 128,
+      "h": 143
     },
     "anchor": {
-      "x": 59,
-      "y": 135
+      "x": 64,
+      "y": 143
     },
     "head": {
       "x": 36,
-      "y": 5,
+      "y": 0,
       "size": 34
     },
     "stand": {
-      "x": 25,
-      "y": 7,
-      "w": 64,
-      "h": 128
+      "x": 28,
+      "y": 2,
+      "w": 62,
+      "h": 141
     },
     "animations": {
       "idle": {
         "row": 0,
         "frames": 8,
-        "fps": 6.666666666666667,
+        "fps": 8,
         "loop": true
       },
       "walk": {
         "row": 1,
         "frames": 8,
-        "fps": 8.421052631578947,
+        "fps": 10,
         "loop": true
       },
       "run": {
         "row": 2,
         "frames": 8,
-        "fps": 11.428571428571429,
+        "fps": 13.333333333333334,
         "loop": true
       },
       "jump": {
         "row": 3,
-        "frames": 6,
-        "fps": 15,
+        "frames": 8,
+        "fps": 20,
         "loop": false
       },
       "fall": {
         "row": 4,
-        "frames": 4,
-        "fps": 12.121212121212121,
+        "frames": 8,
+        "fps": 24.242424242424242,
         "loop": false
       },
       "fall_loop": {
         "row": 5,
-        "frames": 4,
-        "fps": 10,
+        "frames": 8,
+        "fps": 20,
         "loop": true
       },
       "shove": {
         "row": 6,
-        "frames": 8,
-        "fps": 20,
+        "frames": 24,
+        "fps": 36.92307692307692,
         "loop": false
       }
     },
@@ -1331,6 +1331,212 @@
         "row": 6,
         "frames": 8,
         "fps": 20,
+        "loop": false
+      }
+    },
+    "credit": null,
+    "scale": 0.390625
+  },
+  "jotaro": {
+    "frame": {
+      "w": 296,
+      "h": 184
+    },
+    "anchor": {
+      "x": 102,
+      "y": 184
+    },
+    "head": {
+      "x": 48,
+      "y": 2,
+      "size": 34
+    },
+    "stand": {
+      "x": 6,
+      "y": 4,
+      "w": 117,
+      "h": 180
+    },
+    "animations": {
+      "idle": {
+        "row": 0,
+        "frames": 10,
+        "fps": 8.333333333333334,
+        "loop": true
+      },
+      "walk": {
+        "row": 1,
+        "frames": 12,
+        "fps": 13.333333333333332,
+        "loop": true
+      },
+      "run": {
+        "row": 2,
+        "frames": 12,
+        "fps": 18.46153846153846,
+        "loop": true
+      },
+      "jump": {
+        "row": 3,
+        "frames": 10,
+        "fps": 23.80952380952381,
+        "loop": false
+      },
+      "fall": {
+        "row": 4,
+        "frames": 8,
+        "fps": 24.242424242424242,
+        "loop": false
+      },
+      "fall_loop": {
+        "row": 5,
+        "frames": 10,
+        "fps": 22.22222222222222,
+        "loop": true
+      },
+      "shove": {
+        "row": 6,
+        "frames": 24,
+        "fps": 26.666666666666664,
+        "loop": false
+      }
+    },
+    "credit": null,
+    "face": {
+      "x": 78,
+      "y": 28,
+      "size": 36
+    },
+    "scale": 0.390625
+  },
+  "miku": {
+    "frame": {
+      "w": 131,
+      "h": 117
+    },
+    "anchor": {
+      "x": 74,
+      "y": 117
+    },
+    "head": {
+      "x": 53,
+      "y": 0,
+      "size": 32
+    },
+    "stand": {
+      "x": 34,
+      "y": 0,
+      "w": 68,
+      "h": 117
+    },
+    "animations": {
+      "idle": {
+        "row": 0,
+        "frames": 8,
+        "fps": 6.666666666666667,
+        "loop": true
+      },
+      "walk": {
+        "row": 1,
+        "frames": 8,
+        "fps": 10,
+        "loop": true
+      },
+      "run": {
+        "row": 2,
+        "frames": 8,
+        "fps": 13.333333333333334,
+        "loop": true
+      },
+      "jump": {
+        "row": 3,
+        "frames": 8,
+        "fps": 20,
+        "loop": false
+      },
+      "fall": {
+        "row": 4,
+        "frames": 8,
+        "fps": 24.242424242424242,
+        "loop": false
+      },
+      "fall_loop": {
+        "row": 5,
+        "frames": 8,
+        "fps": 20,
+        "loop": true
+      },
+      "shove": {
+        "row": 6,
+        "frames": 18,
+        "fps": 40,
+        "loop": false
+      }
+    },
+    "credit": null,
+    "scale": 0.390625
+  },
+  "galodoido": {
+    "frame": {
+      "w": 139,
+      "h": 144
+    },
+    "anchor": {
+      "x": 79,
+      "y": 144
+    },
+    "head": {
+      "x": 58,
+      "y": 2,
+      "size": 34
+    },
+    "stand": {
+      "x": 42,
+      "y": 4,
+      "w": 68,
+      "h": 140
+    },
+    "animations": {
+      "idle": {
+        "row": 0,
+        "frames": 8,
+        "fps": 6.666666666666667,
+        "loop": true
+      },
+      "walk": {
+        "row": 1,
+        "frames": 8,
+        "fps": 10,
+        "loop": true
+      },
+      "run": {
+        "row": 2,
+        "frames": 8,
+        "fps": 13.333333333333334,
+        "loop": true
+      },
+      "jump": {
+        "row": 3,
+        "frames": 8,
+        "fps": 20,
+        "loop": false
+      },
+      "fall": {
+        "row": 4,
+        "frames": 8,
+        "fps": 24.242424242424242,
+        "loop": false
+      },
+      "fall_loop": {
+        "row": 5,
+        "frames": 8,
+        "fps": 16,
+        "loop": true
+      },
+      "shove": {
+        "row": 6,
+        "frames": 18,
+        "fps": 40,
         "loop": false
       }
     },

@@ -36,6 +36,8 @@ export interface Atlas {
   animations: Record<AnimationName, { row: number; frames: number; fps: number; loop: boolean }>;
   /** a quem dar o crédito da arte (o herói: "Ozzbit Games", ADR 0007), ou null */
   credit: string | null;
+  /** o quadrado do rosto em `Swatch`, quando não é o de `head` (um companheiro mais alto ao lado: `head` é o alto do conjunto) */
+  face?: { x: number; y: number; size: number };
   /** quantas unidades do mundo vale um pixel do quadro; sem isto, 1. Menor que 1: arte grande, desenhada encolhida (o Vorcaro) */
   scale?: number;
 }
@@ -91,15 +93,22 @@ export function frameIndex(atlas: Atlas, name: AnimationName, elapsed: number): 
   return a.loop ? n % a.frames : Math.min(a.frames - 1, n);
 }
 
+/** Quanto dura o ataque de um modelo, ms: a linha `shove` inteira, no fps dela. O mundo trava o empurrão por esse tempo (`shoveLock`). */
+export const attackMs = (atlas: Atlas): number => (atlas.animations.shove.frames / atlas.animations.shove.fps) * 1000;
+
 /**
- * A janela, em unidades do mundo (pixels do quadro vezes `artScale`), em que a interface mostra qualquer personagem parado, igual para todos os modelos: cabe
- * o parado inteiro de cada um com o pé em `anchorX`, na linha de baixo. Os quadros do esqueleto são largos (a espada do
- * golpe), mas aqui só o parado aparece. `w`, `h` e `anchorX` (o pé, a partir da esquerda) em unidades do mundo, arredondados para cima.
+ * Como enquadrar um personagem parado numa caixa de `box.w × box.h` pixels da tela: o retângulo do quadro a mostrar
+ * (`x`, `y`, `w`, `h`, em pixels do quadro: o parado, com 2 pixels de folga dos lados e em cima, até o chão) e a escala
+ * `k` (pixels da tela por pixel do quadro) com que ele cabe inteiro: o maior que cabe, ajustado para o quadro ter um
+ * número inteiro de pixels de largura (a animação anda de quadro em quadro por essa largura). Ampliando, quem desenha
+ * não suaviza (pixel art); encolhendo, suaviza. O quadro inteiro tem a folga do ataque e do pulo: enquadrar pelo parado é o
+ * que deixa todo personagem do mesmo tamanho na tela, do cachorro ao do dinossauro.
  */
-export const PORTRAIT = (() => {
-  const atlases = Object.values(ATLASES);
-  const left = Math.ceil(Math.max(...atlases.map((a) => (a.anchor.x - a.stand.x) * artScale(a))));
-  const right = Math.ceil(Math.max(...atlases.map((a) => (a.stand.x + a.stand.w - a.anchor.x) * artScale(a))));
-  const h = Math.ceil(Math.max(...atlases.map((a) => (a.anchor.y - a.stand.y) * artScale(a))));
-  return { w: left + right, h, anchorX: left };
-})();
+export function fitScale(atlas: Atlas, box: { w: number; h: number }): { x: number; y: number; w: number; h: number; k: number } {
+  const PAD = 2;
+  const x = Math.max(0, atlas.stand.x - PAD), y = Math.max(0, atlas.stand.y - PAD);
+  const w = Math.min(atlas.frame.w, atlas.stand.x + atlas.stand.w + PAD) - x, h = atlas.anchor.y - y;
+  const k0 = Math.min(box.w / w, box.h / h);
+  const k = Math.max(1, Math.floor(atlas.frame.w * k0)) / atlas.frame.w;
+  return { x, y, w, h, k };
+}

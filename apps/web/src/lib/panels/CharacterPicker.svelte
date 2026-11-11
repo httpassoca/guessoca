@@ -11,13 +11,15 @@
    */
   let { value, onpick }: { value: number | null; onpick: (n: number) => void } = $props();
   const all = Array.from({ length: CHARACTERS }, (_, n) => n);
+  /** a caixa de cada personagem na casa, em pixels da tela: `Hero` o enquadra pelo retângulo dele de pé */
+  const BOX = { w: 56, h: 84 };
 </script>
 
 <div class="gs-chars" role="radiogroup" aria-label={t('pre.character')}>
   {#each all as n (n)}
     {@const mine = value === n}
     <button class="gs-char" type="button" role="radio" class:mine aria-checked={mine} title={t('pre.characterN', { n: n + 1 })} aria-label={t('pre.characterN', { n: n + 1 })} onclick={() => onpick(n)}>
-      <Hero {n} animate={mine} />
+      <Hero {n} box={BOX} animate={mine} />
     </button>
   {/each}
 </div>

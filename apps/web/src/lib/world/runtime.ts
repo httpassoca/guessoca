@@ -10,6 +10,7 @@
  * tela), separado por `declutter`, com `z-index` 1000 − `z` (quem está mais à frente cobre).
  */
 import { EMOTE_MS, EMOTES, type RoomSnapshot } from '@guess/protocol';
+import { attackMs, character } from '../sprites/characters';
 import { applyShove, blinking, createBody, followCamera, MAP, stepBody, type Body, type Camera, type WorldEvent } from '@guess/world';
 import type { Lang } from '../i18n';
 import { isTextField, swallowsSpace, worldKey } from '../keys';
@@ -178,13 +179,15 @@ export class WorldRuntime {
 
     if (!this.broken) {
       const others = othersOf(bodies);
+      // o ataque dura o que dura na folha do meu personagem (o mundo põe o piso e o teto)
+      const shoveMs = me && me.character !== null ? attackMs(character(me.character).atlas) : undefined;
       const real = new Set(room.members.filter((m) => !m.fake).map((m) => m.id));
       const { steps, acc } = fixedSteps(this.acc, elapsed);
       this.acc = acc;
       try {
         for (let i = 0; i < steps; i++) {
           const stepNow = now - acc - (steps - 1 - i) * STEP_MS;
-          const r = stepBody(this.body, this.controls.take(), STEP_MS / 1000, { now: stepNow, platforms: MAP, others });
+          const r = stepBody(this.body, this.controls.take(), STEP_MS / 1000, { now: stepNow, platforms: MAP, others, shoveMs });
           this.body = r.body;
           for (const ev of r.events) if (ev.type === 'shove') for (const id of ev.targets) if (real.has(id)) remote.shove(id, this.body.facing);
           for (const ev of r.events) this.opts.onEvent?.(ev);

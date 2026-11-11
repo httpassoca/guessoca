@@ -66,7 +66,7 @@ Generated data, `apps/web/src/lib/sprites/`:
 | `characters.json` | Slot `n` → model, colour name, UI colour, sheet URL, atlas name. |
 | `rooftop.json` | Every rooftop frame (position, anchor, `tile`, `face`) plus the skyline strips. |
 | `emotes.json` | Each balloon's rectangle and tail tip (shared by both languages). |
-| `characters.ts` | Typed access for the client: `CHARACTER_ART`, `character(n)`, `frameAt`, `frameIndex`, `sheetSize`, `PORTRAIT`. |
+| `characters.ts` | Typed access for the client: `CHARACTER_ART`, `character(n)`, `frameAt`, `frameIndex`, `sheetSize`, `fitScale`, `attackMs`. |
 | `rooftop.ts` | Typed access to `rooftop.json`; the sheet URLs. |
 
 Client rendering, `apps/web/src/lib/world/` (Pixi files have no automated tests; the pure ones do):
@@ -134,12 +134,12 @@ Every model's sheet has one row per animation, in this exact order (`ANIMATION_N
 - All of a model's frames share one size, the union of every frame's opaque bounds (`layout()`). **The widest pose sets the frame size for everything.** A big wind-up (a sword swung behind) widens every frame of that model: the sheets grow and the empty space shows in the preview, though the anchor keeps the feet in place. Trim wind-ups, or choose shove frames that stay compact. The skeleton's 120-px-wide frame comes from its swing.
 - The anchor is between the feet on the ground line of the first idle frame. Every other animation must keep the feet at the same place in the cell (the recipes shift frames to make that so; `shove()` in `skeleton.ts` lines the back heel up with the idle's).
 - `head` is a square around the face in the first idle frame (`heroHead`, `skeletonHead`). It drives `Swatch.svelte` (the face square in the UI) and `headY` (the post-it height), so **each model keeps its own head box**. Don't reuse one model's numbers for another.
-- `stand` is the idle frame's opaque rectangle. `PORTRAIT` in `apps/web/src/lib/sprites/characters.ts` is the smallest window that fits every model's idle with the feet at one `anchorX`; `Hero.svelte` uses it so they all line up in the picker.
+- `stand` is the idle frame's opaque rectangle. `fitScale` in `apps/web/src/lib/sprites/characters.ts` frames a character by it: `Hero.svelte` (the picker cells and the home stage) shows each character's standing box scaled to fill its cell, feet on the bottom line. `face`, when present, is the square `Swatch.svelte` shows instead of `head` (a companion taller than the player character).
 - Pixel art has no half-alpha: recipes call `solidify` on every cell first, which makes every non-zero alpha fully opaque. **Anti-aliased or soft-shadowed source art gets a hard halo.** Clean it in the source, or erase those colours in the recipe.
 
 ### The slots
 
-`CHARACTERS = 20` in `@guess/rules` (characters aren't exclusive; a room still has up to eight people, so two can pick the same one). `tools/sprites/src/characters.ts` lists them in slot order: the hero variants in `HAIRS` (only blonde today), the skeleton variants in `CAPES` (only red today), then the seven-sheet characters in the order of `PACKS` (`packs.ts`). A test checks the list has `CHARACTERS` entries. The cast once had eleven, with four hair colours and three capes; the owner cut it to one per model. Changing the count renumbers what each browser remembers, which is harmless: an out-of-range number falls back to slot 0. `characters.json` maps each slot to:
+`CHARACTERS = 23` in `@guess/rules` (characters aren't exclusive; a room still has up to eight people, so two can pick the same one). `tools/sprites/src/characters.ts` lists them in slot order: the hero variants in `HAIRS` (only blonde today), the skeleton variants in `CAPES` (only red today), then the seven-sheet characters in the order of `PACKS` (`packs.ts`). A test checks the list has `CHARACTERS` entries. The cast once had eleven, with four hair colours and three capes; the owner cut it to one per model. Changing the count renumbers what each browser remembers, which is harmless: an out-of-range number falls back to slot 0. `characters.json` maps each slot to:
 
 ```json
 { "model": "skeleton", "name": "vermelho", "color": "#982b2b", "sheet": "/sprites/char-1.png", "atlas": "skeleton" }
@@ -198,7 +198,7 @@ The skeleton's run, jump, fall and fall_loop are drawn by code from idle/walk/sw
 5. **Client**: in `apps/web/src/lib/sprites/characters.ts`, import `<model>.json`, add it to `Model` and `ATLASES`. Update `--gs-char-N` in `app.css` and the model list in `apps/web/test/characters.test.ts`.
 6. **Credit**: if the pack needs credit, add it to the `credit.*` i18n keys (both languages), the menu and home footer, the README and the ADR. Credit strings are i18n'd; names of characters aren't.
 7. Add recipe tests with fake images (see `tools/sprites/test/skeleton.test.ts`), plus real-art tests guarded by `existsSync`, as in the pitfalls below.
-8. Check `PORTRAIT`: if the new idle is much taller or wider, every portrait grows.
+8. Look at the picker and the home stage: each character is framed by its standing box, so a new idle needs nothing, but check the face square in the team list.
 
 ### 3. Add a colour variant to an existing model
 

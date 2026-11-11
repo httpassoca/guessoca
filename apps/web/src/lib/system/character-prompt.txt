@@ -21,7 +21,7 @@ WHAT TO DELIVER
   jump.png           8       0.3-0.5 s             no     crouch, push off, rise; last frame is held while going up
   fall.png           8       exactly 0.33 s        no     turning from rising to falling; last frame is held
   fall_loop.png      8       0.3-0.6 s per cycle   yes    falling, small flutter of limbs/cloth/hair
-  attack.png        18       at most 0.45 s        no     one attack forward, then recover to the idle pose
+  attack.png        18       0.7-1.2 s             no     one attack forward, then recover to the idle pose
 
    The frame counts are minimums, not targets: no animation has fewer than 8
    frames, and the attack has at least 18. For each animation, decide how many
@@ -34,15 +34,36 @@ WHAT TO DELIVER
      fewer frames, add anticipation, overshoot, settle and follow-through;
    - more frames make the motion smoother, not longer: the duration stays inside
      the range in the table, and fps = frames / duration (any value up to 60,
-     decimals allowed). An 18-frame attack in 0.45 s plays at 40 fps;
+     decimals allowed). A 20-frame attack in 0.8 s plays at 25 fps;
    - write down, per animation, the count you chose and one line of why.
 
    The attack: if the character has a weapon, it attacks WITH that weapon (a sword
    swings or thrusts, a gun fires, a staff strikes). With no weapon, it punches,
    kicks, shoves, bites or headbutts, whatever suits the character. Build it as
-   anticipation (4-6 frames: wind-up, weight shift), strike (4-6 frames: the
-   weapon or limb travelling, contact, the widest pose), recovery (the rest:
-   overshoot, settle, back to the idle pose).
+   anticipation (wind-up, weight shift), strike (the weapon or limb travelling,
+   contact, the widest pose), recovery (overshoot, settle, back to the idle pose).
+
+   How long the attack lasts, and how it is paced, is yours to decide from the
+   attack itself. It lasts at least 0.7 s and at most 1.2 s. Work it out:
+   - Range of motion. How far does the weapon, limb or body travel? A jab or a
+     pistol shot covers little and sits near 0.7 s; a two-handed overhead swing,
+     a spinning kick, a lunge across the cell or a flurry of several hits covers
+     a lot and needs 0.9-1.2 s.
+   - Force and impact. A heavy blow needs a longer wind-up before it and a longer
+     recovery after it: the body has to gather the weight and then absorb it. A
+     light, fast attack has almost no wind-up and snaps back. Hold the impact
+     pose for one or two frames when the hit is heavy.
+   - Pace inside the attack. It is not even. The wind-up is slow (more frames per
+     distance), the strike is the fastest part (few frames, big steps between
+     them), the recovery eases out. As a starting point: about 35 percent of the
+     time winding up, 20 percent striking, 45 percent recovering; shift it toward
+     the wind-up for a heavy attack and toward the strike for a flurry.
+   - Then the frames: enough that no part jumps, at least 18. fps = frames /
+     duration.
+   Say in one or two lines what you decided and why (for example "two-handed
+   axe, heavy: 1.0 s, 22 frames, 8 wind-up / 4 strike / 10 recovery"). The
+   character cannot attack again until the animation ends, so a slower attack is
+   a real cost in the game: do not pad it.
 
    The attack may leave the cell. attack.png, and only attack.png, may use its own
    larger cell (wider, taller, or both, up to three times the normal cell width)
@@ -64,8 +85,8 @@ WHAT TO DELIVER
    importing.
 
 The durations are hard limits: the game cuts to the next state after them. The
-whole attack must fit in 0.45 s and the whole fall in 0.33 s, however many frames
-you use, so set their fps from the frame count. The game plays each sheet at the
+whole attack must fit in 1.2 s (and last at least 0.7 s) and the whole fall in
+0.33 s, however many frames you use, so set their fps from the frame count. The game plays each sheet at the
 frames and fps you write in sheet.json.
 
 SIZE AND PROPORTIONS

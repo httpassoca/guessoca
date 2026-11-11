@@ -8,7 +8,9 @@
   import { artScale, character, sheetSize } from '../sprites/characters';
   let { n, size = 22 }: { n: number | null; size?: number } = $props();
   const art = $derived(n === null ? null : character(n));
-  const scale = $derived(art ? size / art.atlas.head.size : 1);
+  /** o rosto: o quadrado `face` do atlas, se o modelo tem um; senão o da cabeça */
+  const face = $derived(art ? art.atlas.face ?? art.atlas.head : { x: 0, y: 0, size: 1 });
+  const scale = $derived(size / face.size);
   const sheet = $derived(art ? sheetSize(art.atlas) : { w: 0, h: 0 });
 </script>
 
@@ -24,6 +26,6 @@
     style:height="{size}px"
     style:background-image="url({art.sheet})"
     style:background-size="{sheet.w * scale}px {sheet.h * scale}px"
-    style:background-position="-{art.atlas.head.x * scale}px -{art.atlas.head.y * scale}px"
+    style:background-position="-{face.x * scale}px -{face.y * scale}px"
   ></span>
 {/if}

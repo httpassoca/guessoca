@@ -19,7 +19,7 @@
  *   os números no `PackConfig` dele.
  */
 import { ANIMATION_NAMES, layout, type AnimationName, type Atlas, type ModelSpec } from './atlas';
-import { FALL_MS, SHOVE_COOLDOWN_MS } from '@guess/world';
+import { FALL_MS, SHOVE_MAX_MS } from '@guess/world';
 import { blank, blit, bounds, crop, type Image } from './image';
 
 /** As folhas de um pacote: uma por animação, `<nome>.png`. */
@@ -73,9 +73,9 @@ export function packSpec(timing: Record<AnimationName, readonly [frames: number,
 }
 
 /**
- * O que há de errado nos tempos de uma `ModelSpec`, em palavras (vazio se está tudo certo). O jogo corta o empurrão em
- * `SHOVE_COOLDOWN_MS` e troca a queda pelo loop em `FALL_MS`, com quantos quadros forem: o empurrão não pode durar mais
- * que isso, e a queda tem que durar isso (com um oitavo de folga). E os limites do pedido: 1 a `MAX_FRAMES` quadros, fps
+ * O que há de errado nos tempos de uma `ModelSpec`, em palavras (vazio se está tudo certo). O jogo deixa o ataque durar
+ * o que dura na folha, até `SHOVE_MAX_MS` (quem ataca não ataca de novo até acabar), e troca a queda pelo loop em
+ * `FALL_MS`, com quantos quadros forem: o empurrão não pode durar mais que o teto, e a queda tem que durar isso (com um oitavo de folga). E os limites do pedido: 1 a `MAX_FRAMES` quadros, fps
  * até `MAX_FPS`.
  */
 export function specProblems(spec: ModelSpec): string[] {
@@ -86,7 +86,7 @@ export function specProblems(spec: ModelSpec): string[] {
     if (!(a.fps > 0) || a.fps > MAX_FPS) out.push(`${name}: ${a.fps} fps (tem que ser até ${MAX_FPS})`);
   }
   const ms = (name: AnimationName) => (spec.animations[name].frames / spec.animations[name].fps) * 1000;
-  if (ms('shove') > SHOVE_COOLDOWN_MS + 0.5) out.push(`shove: dura ${Math.round(ms('shove'))} ms, e o jogo corta em ${SHOVE_COOLDOWN_MS} ms`);
+  if (ms('shove') > SHOVE_MAX_MS + 0.5) out.push(`shove: dura ${Math.round(ms('shove'))} ms, e o jogo corta em ${SHOVE_MAX_MS} ms`);
   if (Math.abs(ms('fall') - FALL_MS) > FALL_MS / 8) out.push(`fall: dura ${Math.round(ms('fall'))} ms, e o jogo troca pelo loop em ${Math.round(FALL_MS)} ms`);
   return out;
 }
@@ -112,6 +112,11 @@ export interface PackConfig {
   headSize?: number;
   /** quantos pixels o quadrado do rosto anda para a frente: cabelo ou capa voando para trás puxam o meio das linhas da cabeça para trás */
   headShift?: number;
+  /**
+   * o quadrado do rosto, medido a partir do canto de cima à esquerda do boneco no primeiro quadro do parado, quando o
+   * rosto de quem joga não está no alto do conjunto (um companheiro mais alto ao lado): vai no atlas como `face`
+   */
+  face?: { x: number; y: number; size: number };
   /** quantas linhas de baixo do parado são sola (para achar o meio dos pés) */
   feetRows: number;
   /**
@@ -226,5 +231,6 @@ export function buildPack(sheets: Readonly<Record<string, Image>>, c: PackConfig
   if (sheet.width > MAX_SHEET || sheet.height > MAX_SHEET) {
     throw new Error(`a folha de ${c.name} ficou com ${sheet.width}×${sheet.height} pixels, mais que ${MAX_SHEET}: o ataque alcança longe demais ou tem quadros demais para uma textura só`);
   }
-  return { sheets: [sheet], atlas: { ...atlas, scale: c.worldScale } };
+  const face = c.face ? { face: { x: atlas.stand.x + c.face.x, y: atlas.stand.y + c.face.y, size: c.face.size } } : {};
+  return { sheets: [sheet], atlas: { ...atlas, ...face, scale: c.worldScale } };
 }
