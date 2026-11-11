@@ -140,7 +140,10 @@ html, body { margin: 0; min-height: 100%; background: var(--ss-bg); }
 .gs-swatch { display: inline-grid; place-items: center; width: 22px; height: 22px; flex: none; border-radius: var(--ss-radius-1); background-color: var(--ss-bg-inset); background-repeat: no-repeat; image-rendering: pixelated; color: var(--ss-fg-faint); font: 500 var(--ss-ui-xs) var(--ss-font-mono); box-shadow: inset 0 0 0 1px var(--c, var(--ss-line)); }
 .gs-swatch.smooth { image-rendering: auto; }
 .gs-swatch.none { background: var(--ss-bg-inset); color: var(--ss-fg-faint); }
-.gs-chars { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); grid-auto-rows: 100px; gap: 4px; max-height: 256px; overflow-y: auto; scrollbar-gutter: stable; }
+.gs-chars { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); grid-auto-rows: 100px; gap: 4px; max-height: calc(256px + var(--gs-tip-room)); overflow-y: auto; scrollbar-gutter: stable; }
+/* o nome (tooltip) fica em cima da casa: a lista rola e cortaria o que saísse dela, então ela tem uma folga em cima do tamanho de um tooltip (o dssoca só põe o tooltip em cima se couber dentro de quem corta), e sobe o mesmo tanto para nada mudar de lugar; a folga não recebe o mouse */
+.gs-chars { --gs-tip-room: 32px; padding-top: var(--gs-tip-room); margin-top: calc(-1 * var(--gs-tip-room)); pointer-events: none; }
+.gs-chars > * { pointer-events: auto; }
 .gs-char { all: unset; box-sizing: border-box; min-width: 0; overflow: hidden; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 4px 2px 8px; border: 1px solid var(--ss-line); cursor: pointer; font-size: var(--ss-ui-xs); color: var(--ss-fg-muted);
   transition: background-color var(--gs-fast) var(--gs-ease), border-color var(--gs-fast) var(--gs-ease); }
 /* fileiras de sete, com rolagem: aparecem duas fileiras e meia (a terceira pela metade avisa que há mais). Cada personagem vem enquadrado na casa (`Hero`), inteiro */

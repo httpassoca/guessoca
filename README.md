@@ -148,7 +148,7 @@ Como a arte funciona e como importar arte nova (personagens, animações, objeto
 [`docs/art.md`](docs/art.md). `bun run sprites:preview` gera folhas de contato ampliadas do que está versionado em
 `.preview/` (fora do git) para conferir no olho.
 
-Há vinte e três personagens, um de cada modelo. O herói é o "male hero" (versão grátis) da [Ozzbit Games](https://ozzbit-games.itch.io),
+Há vinte e cinco personagens, um de cada modelo. O herói é o "male hero" (versão grátis) da [Ozzbit Games](https://ozzbit-games.itch.io),
 com licença só para uso pessoal e não comercial, modificações permitidas e crédito obrigatório (ADR 0007). O cavaleiro
 esqueleto e todos os de sete folhas (`tools/sprites/src/packs.ts`) são arte do dono do jogo, sem restrição nem crédito (emendas da ADR 0007). Os pacotes ficam fora do git, em
 `assets-src/` (ignorado), e só as folhas que o pipeline gera são versionadas em `apps/web/public/sprites/` (os atlas em
@@ -204,7 +204,7 @@ O que sai:
 ### Pedir um personagem ou objeto novo
 
 - **Outra cor de cabelo** ou **outra capa**: mais uma rampa (um lugar a mais) em `HAIRS` (sombra, base, brilho) em
-  `tools/sprites/src/hero.ts` ou em `CAPES` (sombra, base) em `tools/sprites/src/skeleton.ts`. São vinte e três personagens
+  `tools/sprites/src/hero.ts` ou em `CAPES` (sombra, base) em `tools/sprites/src/skeleton.ts`. São vinte e cinco personagens
   (não exclusivos; a sala tem até oito pessoas), na ordem de `characters.ts`. A cor do personagem na interface é
   a base da rampa; atualize `--gs-char-N` em `apps/web/src/app.css` (o teste confere).
 - **Variantes do esqueleto**: a capa é `771818` (sombra) e `982b2b` (base), os únicos vermelhos da arte além do olho

@@ -669,70 +669,70 @@
   },
   "katarina": {
     "frame": {
-      "w": 105,
-      "h": 115
+      "w": 127,
+      "h": 128
     },
     "anchor": {
-      "x": 49,
-      "y": 115
+      "x": 65,
+      "y": 128
     },
     "head": {
-      "x": 40,
-      "y": 12,
-      "size": 30
+      "x": 49,
+      "y": 0,
+      "size": 34
     },
     "stand": {
-      "x": 19,
-      "y": 14,
-      "w": 66,
-      "h": 101
+      "x": 37,
+      "y": 0,
+      "w": 55,
+      "h": 128
     },
     "animations": {
       "idle": {
         "row": 0,
-        "frames": 10,
-        "fps": 10,
+        "frames": 8,
+        "fps": 6.666666666666667,
         "loop": true
       },
       "walk": {
         "row": 1,
-        "frames": 10,
-        "fps": 12,
+        "frames": 12,
+        "fps": 14.117647058823529,
         "loop": true
       },
       "run": {
         "row": 2,
-        "frames": 10,
-        "fps": 14,
+        "frames": 12,
+        "fps": 20,
         "loop": true
       },
       "jump": {
         "row": 3,
-        "frames": 6,
-        "fps": 12,
+        "frames": 8,
+        "fps": 20,
         "loop": false
       },
       "fall": {
         "row": 4,
-        "frames": 4,
-        "fps": 12,
+        "frames": 8,
+        "fps": 24.242424242424242,
         "loop": false
       },
       "fall_loop": {
         "row": 5,
-        "frames": 3,
-        "fps": 10,
+        "frames": 8,
+        "fps": 17.77777777777778,
         "loop": true
       },
       "shove": {
         "row": 6,
-        "frames": 7,
-        "fps": 16,
+        "frames": 22,
+        "fps": 22,
         "loop": false
       }
     },
     "credit": null,
-    "scale": 0.49504950495049505
+    "scale": 0.390625
   },
   "punisher": {
     "frame": {
@@ -1537,6 +1537,140 @@
         "row": 6,
         "frames": 18,
         "fps": 40,
+        "loop": false
+      }
+    },
+    "credit": null,
+    "scale": 0.390625
+  },
+  "jepstein": {
+    "frame": {
+      "w": 108,
+      "h": 126
+    },
+    "anchor": {
+      "x": 45,
+      "y": 126
+    },
+    "head": {
+      "x": 27,
+      "y": 0,
+      "size": 34
+    },
+    "stand": {
+      "x": 14,
+      "y": 1,
+      "w": 61,
+      "h": 125
+    },
+    "animations": {
+      "idle": {
+        "row": 0,
+        "frames": 10,
+        "fps": 10,
+        "loop": true
+      },
+      "walk": {
+        "row": 1,
+        "frames": 10,
+        "fps": 12,
+        "loop": true
+      },
+      "run": {
+        "row": 2,
+        "frames": 10,
+        "fps": 14,
+        "loop": true
+      },
+      "jump": {
+        "row": 3,
+        "frames": 6,
+        "fps": 12,
+        "loop": false
+      },
+      "fall": {
+        "row": 4,
+        "frames": 4,
+        "fps": 12,
+        "loop": false
+      },
+      "fall_loop": {
+        "row": 5,
+        "frames": 3,
+        "fps": 10,
+        "loop": true
+      },
+      "shove": {
+        "row": 6,
+        "frames": 7,
+        "fps": 16,
+        "loop": false
+      }
+    },
+    "credit": null,
+    "scale": 0.390625
+  },
+  "spikespiegel": {
+    "frame": {
+      "w": 109,
+      "h": 128
+    },
+    "anchor": {
+      "x": 45,
+      "y": 128
+    },
+    "head": {
+      "x": 28,
+      "y": 0,
+      "size": 32
+    },
+    "stand": {
+      "x": 27,
+      "y": 0,
+      "w": 33,
+      "h": 128
+    },
+    "animations": {
+      "idle": {
+        "row": 0,
+        "frames": 8,
+        "fps": 6.666666666666667,
+        "loop": true
+      },
+      "walk": {
+        "row": 1,
+        "frames": 8,
+        "fps": 10,
+        "loop": true
+      },
+      "run": {
+        "row": 2,
+        "frames": 8,
+        "fps": 13.333333333333334,
+        "loop": true
+      },
+      "jump": {
+        "row": 3,
+        "frames": 8,
+        "fps": 20,
+        "loop": false
+      },
+      "fall": {
+        "row": 4,
+        "frames": 8,
+        "fps": 24.242424242424242,
+        "loop": false
+      },
+      "fall_loop": {
+        "row": 5,
+        "frames": 8,
+        "fps": 20,
+        "loop": true
+      },
+      "shove": {
+        "row": 6,
+        "frames": 18,
+        "fps": 20,
         "loop": false
       }
     },

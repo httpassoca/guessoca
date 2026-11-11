@@ -23,7 +23,7 @@ import { KRATOS, KRATOS_COLOR } from './kratos';
 import { MISTA, MISTA_COLOR } from './mista';
 import { OLDSNAKE, OLDSNAKE_COLOR } from './oldsnake';
 import { ORELHA, ORELHA_COLOR } from './orelha';
-import { PACK_WORLD_SCALE, packSpec, type PackConfig } from './pack';
+import { PACK_SPEC, PACK_WORLD_SCALE, packSpec, type PackConfig } from './pack';
 import { PINOCCHIO, PINOCCHIO_COLOR } from './pinocchio';
 import { PUNISHER, PUNISHER_COLOR } from './punisher';
 import { VORCARO, VORCARO_COLOR } from './vorcaro';
@@ -157,7 +157,8 @@ export const PACKS: readonly Pack[] = [
   },
   /**
    * A Miku: a cantora de marias-chiquinhas turquesa compridas, aqui musculosa. Tamanho 0,91 (116 pixels), células de
-   * 224×160, o chão na linha 144. O ataque (`shove.png`, 18 quadros) é um chute alto.
+   * 224×160, o chão na linha 144. O ataque (`shove.png`, 18 quadros) é um chute alto. A folha de correr foi trocada uma
+   * vez pelo dono (a primeira ficou em `assets-src/miku-v1/`).
    */
   {
     model: 'miku', name: 'miku', color: '28cbd0', dir: 'miku',
@@ -176,6 +177,27 @@ export const PACKS: readonly Pack[] = [
     config: {
       ...NEW, name: 'o Galo Doido', cellW: 160, cellH: 176, padX: 40, headRows: 30, cells: { shove: { cellW: 240, cellH: 176, dx: -40 } },
       spec: packSpec({ idle: [8, 8 / 1.2], walk: [8, 10], run: [8, 8 / 0.6], jump: [8, 20], fall: [8, 8 / 0.33], fall_loop: [8, 16], shove: [18, 40] }),
+    },
+  },
+  /**
+   * O Peffrey Jepstein: o homem grisalho de camisa polo azul-marinho e jeans, em guarda de boxe. Pacote do pedido antigo
+   * (quadros fixos, `shove.png`, sem `size`): células de 192×160, ele com 125 pixels, o chão na linha 145; entra na
+   * densidade de todos, quase um adulto. O ataque é um soco cruzado.
+   */
+  {
+    model: 'jepstein', name: 'peffrey jepstein', color: '4f79b8', dir: 'jepstein',
+    config: { ...NEW, name: 'o Peffrey Jepstein', cellW: 192, cellH: 160, headRows: 30, spec: PACK_SPEC },
+  },
+  /**
+   * O Spike Spiegel (de Cowboy Bebop): o rapaz magro de cabelo verde-escuro despenteado e terno azul, com a mão no
+   * bolso. Tamanho 1 (128 pixels), células de 160×160 e, só no ataque, de 224×160, com os pés no mesmo x (72), o chão na
+   * linha 148. O ataque são 18 quadros em 0,9 s: um chute lateral.
+   */
+  {
+    model: 'spikespiegel', name: 'spike spiegel', color: '3f8f6b', dir: 'spikespiegel',
+    config: {
+      ...NEW, name: 'o Spike Spiegel', cellW: 160, cellH: 160, headRows: 28, cells: { shove: { cellW: 224, cellH: 160, dx: 0 } },
+      spec: packSpec({ idle: [8, 8 / 1.2], walk: [8, 10], run: [8, 8 / 0.6], jump: [8, 20], fall: [8, 8 / 0.33], fall_loop: [8, 20], shove: [18, 20] }),
     },
   },
 ];
