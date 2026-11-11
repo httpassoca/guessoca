@@ -290,9 +290,10 @@ HOW TO WORK
   write under each its size (for example "0.40 x human, 51 px"). Then ask me
   which one to use; I may pick one, or ask for a mix or another size. Do not draw
   anything else until I answer.
-- When I have chosen, write the parts list for that design, then tell me what you
-  found about how the character moves and attacks, and ask your questions about
-  the animations (see HOW TO ANIMATE, steps 2 and 4). Wait for my answer.
+- When I have chosen, write the parts list for that design. If it is a well-known
+  character, tell me what you found about how it moves, poses and attacks. Then
+  ask your questions about the animations (see HOW TO ANIMATE, steps 2 and 4)
+  and wait for my answer.
 - Then produce the seven sheets following HOW TO ANIMATE, build the preview page
   from those exact files, and look at it yourself before showing me: fix any
   animation that slides, sinks, flickers, morphs or changes the character.
