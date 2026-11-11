@@ -229,6 +229,10 @@ describe('lobby', () => {
     const s = new Sim('a', 'b');
     s.start();
     s.refuse('a', { type: 'start' }, 'wrongPhase');
+    // o personagem se troca com o jogo correndo
+    s.do('a', { type: 'character', character: 3 });
+    expect(s.game.characters.a).toBe(3);
+    expect(s.game.phase).toBe('playing');
     s.refuse('a', { type: 'shuffleAuthors' }, 'wrongPhase');
     s.refuse('a', { type: 'turnMs', ms: 90_000 }, 'wrongPhase');
     s.refuse('a', { type: 'onlyModerate', on: true }, 'wrongPhase');

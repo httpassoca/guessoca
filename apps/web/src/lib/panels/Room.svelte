@@ -1,12 +1,13 @@
 <script lang="ts">
   import type { RoomSnapshot } from '@guess/protocol';
   import { Tooltip } from 'dssoca';
-  import { MIN_PLAYERS } from '@guess/rules';
+  import { CHARACTERS, MIN_PLAYERS } from '@guess/rules';
   import { onMount, untrack } from 'svelte';
   import type { MsgKey } from '../i18n';
   import { t } from '../i18n.svelte';
-  import { notepadMinimized, rememberedCharacter, rememberNotepadMinimized, rememberSideCollapsed, sideCollapsed } from '../identity';
+  import { notepadMinimized, rememberCharacter, rememberedCharacter, rememberNotepadMinimized, rememberSideCollapsed, sideCollapsed } from '../identity';
   import { isTextField, keyAction } from '../keys';
+  import { NO_SECRET, secretKey, stepCharacter } from '../secret';
   import { besideSide, EDGE, GAP, notepadBox, sideCollapsedAfter, sideInset, type Phase } from '../layout';
   import type { GameRequest, RemoteRoom, RemoteState } from '../room/remote';
   import { characterToClaim, countdown, devTools, roomView } from '../room/view';
@@ -82,8 +83,24 @@
     refusedTimer = setTimeout(() => (refused = false), 2500);
   });
 
+  /** ver `../secret.ts` */
+  let secret = NO_SECRET;
+  let pending: number | null = null;
+  let pendingTimer: ReturnType<typeof setTimeout> | undefined;
+
   function onKey(e: KeyboardEvent) {
     const el = document.activeElement as HTMLElement | null;
+    const hidden = secretKey(secret, e, isTextField(el) || menuOpen);
+    secret = hidden.secret;
+    if (hidden.step !== null && v.me && v.me.character !== null) {
+      // dois apertos seguidos: o segundo parte do que o primeiro pediu, não do que a sala ainda mostra
+      const next = stepCharacter(pending ?? v.me.character, hidden.step, CHARACTERS);
+      pending = next;
+      clearTimeout(pendingTimer);
+      pendingTimer = setTimeout(() => (pending = null), 1000);
+      send({ type: 'character', character: next });
+      rememberCharacter(next);
+    }
     const action = keyAction(e, { inTextField: isTextField(el), canSkip: v.canSkip && !menuOpen, canNotepad: game && !menuOpen, canPanel: !menuOpen });
     if (!action) return;
     e.preventDefault();
