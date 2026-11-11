@@ -269,3 +269,8 @@ export function devTools(loc: { hostname: string; search: string }, serverDev: b
 export function turnFraction(left: number, turnMs: number): number {
   return turnMs > 0 ? Math.max(0, Math.min(1, left / turnMs)) : 0;
 }
+
+/** A cor do fio da vez: verde-limão até faltar 35% do tempo, laranja daí em diante e vermelho nos últimos 10%. */
+export function turnTone(fraction: number): 'ok' | 'orange' | 'red' {
+  return fraction <= 0.1 ? 'red' : fraction <= 0.35 ? 'orange' : 'ok';
+}
