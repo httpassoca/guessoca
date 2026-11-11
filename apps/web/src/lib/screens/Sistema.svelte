@@ -3,11 +3,11 @@
    * O sistema (`/sistema`): a página do dono do jogo para ver, baixar e trocar tudo o que o jogo usa. Pede a senha (o
    * servidor confere, `apps/server/src/admin.ts`) e a guarda só nesta aba.
    *
-   * Abas: **Visão geral** (números, o que está trocado, baixar tudo, o pedido de personagem para um modelo de imagem),
-   * **Personagens** (uma lista à esquerda para escolher um, e à direita as sete animações dele tocando, o atlas, baixar e
-   * trocar a folha), **Cenário** (os objetos do
-   * telhado, a cidade ao fundo, os balões), **Sons** (os efeitos, que são código, e a música) e **Arquivos** (a tabela
-   * de todos os arquivos servidos).
+   * Abas: **Visão geral** (o elenco em fila no tamanho do jogo, o que está trocado, baixar tudo, o pedido de personagem),
+   * **Personagens** (uma lista à esquerda; à direita um palco com a animação escolhida, a régua de quadros e as sete
+   * animações em miniatura), **Cenário** (o telhado montado como no jogo, os objetos, os balões), **Sons** (a música com
+   * um tocador, e a forma de onda de cada efeito) e **Arquivos** (a tabela de todos os arquivos servidos, por grupo, com o
+   * peso de cada um).
    *
    * O que dá para trocar daqui: os arquivos de `/sprites/` e `/music/`, pelo mesmo formato e, nas imagens, o mesmo tamanho
    * em pixels (os atlas não mudam). A troca vale na hora, sobrevive a um deploy e se desfaz com um botão. O que é código
@@ -25,6 +25,8 @@
   import Ledge from '../panels/Ledge.svelte';
   import Swatch from '../panels/Swatch.svelte';
   import Anim from '../system/Anim.svelte';
+  import { frameAtTime, lengthOf } from '../system/anim';
+  import Wave from '../system/Wave.svelte';
   import { agoText, ApiError, saveBytes, sizeText, systemApi, type AssetInfo, type AssetList } from '../system/api';
   import promptText from '../system/character-prompt.txt?raw';
   import { wav } from '../system/wav';
@@ -131,12 +133,21 @@
   const json = (o: unknown) => JSON.stringify(o, null, 2) + '\n';
   const downloadAtlas = (model: string, atlas: unknown) => saveBytes(`${model}.json`, json(atlas), 'application/json');
 
-  const sfxWav = (name: SfxName) => { const { samples, sampleRate } = renderSfx(name); return wav(samples, sampleRate); };
+  const sfxWav = (name: SfxName) => wav(sfx[name].samples, sfx[name].sampleRate);
   function playSfx(name: SfxName) {
     const src = URL.createObjectURL(new Blob([sfxWav(name)], { type: 'audio/wav' }));
     const audio = new Audio(src);
+    const started = performance.now();
+    const tick = () => {
+      const progress = (performance.now() - started) / sfx[name].ms;
+      if (progress >= 1 || sounding?.name !== name) { if (sounding?.name === name) sounding = null; return; }
+      sounding = { name, progress };
+      requestAnimationFrame(tick);
+    };
     audio.onended = () => URL.revokeObjectURL(src);
+    sounding = { name, progress: 0 };
     void audio.play();
+    requestAnimationFrame(tick);
   }
 
   /** tudo num zip: os arquivos que estão valendo, os atlas, os efeitos em WAV e os parâmetros deles */
@@ -165,9 +176,19 @@
   }
 
   // ── como ver as animações ──
-  /** o personagem escolhido na barra lateral da aba Personagens */
+  /** o personagem escolhido na barra lateral da aba Personagens, e a animação dele que está no palco */
   let picked = $state(0);
-  let zoom = $state(160);
+  let sel = $state<AnimationName>('idle');
+  /** o palco: a altura que o personagem de pé ocupa nele, e a das miniaturas, em pixels da tela */
+  const STAGE_TALL = 224;
+  const TILE_TALL = 72;
+  /** a escala para o personagem de pé ter `tall` pixels: inteira no pixel art ampliado, para não borrar */
+  const scaleFor = (atlas: (typeof CHARACTER_ART)[number]['atlas'], tall: number) => {
+    const k = tall / atlas.stand.h;
+    return k >= 1 ? Math.floor(k) : k;
+  };
+  /** leva o relógio para o começo do quadro `f` da animação do palco, e para */
+  const seek = (atlas: (typeof CHARACTER_ART)[number]['atlas'], f: number) => { paused = true; now = (f * 1000) / atlas.animations[sel].fps + 0.01; };
   let guides = $state(false);
   let flip = $state(false);
   let backdrop = $state<'noite' | 'xadrez' | 'claro'>('noite');
@@ -203,8 +224,28 @@
     return () => cancelAnimationFrame(raf);
   });
 
-  /** um passo: um quadro a 12 fps, com as animações paradas */
-  const step = (d: number) => { paused = true; now = Math.max(0, now + (d * 1000) / 12); };
+  /** um passo: um quadro da animação do palco, com as animações paradas */
+  const step = (d: number) => { const fps = (CHARACTER_ART[picked] ?? CHARACTER_ART[0]).atlas.animations[sel].fps; paused = true; now = Math.max(0, now + (d * 1000) / fps); };
+
+  // ── os sons ──
+  /** os efeitos, gerados uma vez: as amostras (para a onda e para tocar) e a duração */
+  const sfx = Object.fromEntries(SFX_NAMES.map((name) => { const r = renderSfx(name); return [name, { ...r, ms: (r.samples.length / r.sampleRate) * 1000 }]; })) as Record<SfxName, { samples: Float32Array; sampleRate: number; ms: number }>;
+  /** o efeito que está tocando, e quanto dele já tocou (0..1), para a onda */
+  let sounding = $state<{ name: SfxName; progress: number } | null>(null);
+  /** a música: o elemento de áudio, se toca, e os tempos, em segundos */
+  let music = $state<HTMLAudioElement>();
+  let musicOn = $state(false);
+  let musicAt = $state(0);
+  let musicLen = $state(0);
+  const clock = (sec: number) => `${Math.floor(sec / 60)}:${String(Math.floor(sec % 60)).padStart(2, '0')}`;
+  const toggleMusic = () => { if (!music) return; if (music.paused) void music.play(); else music.pause(); };
+
+  /** os arquivos em três grupos, para a tabela: os personagens, o cenário e a música */
+  const groups = $derived([
+    { title: 'Personagens', files: assets.filter((a) => /^sprites\/char-/.test(a.path)) },
+    { title: 'Cenário', files: assets.filter((a) => a.path.startsWith('sprites/') && !/^sprites\/char-/.test(a.path)) },
+    { title: 'Música', files: assets.filter((a) => a.path.startsWith('music/')) },
+  ].filter((g) => g.files.length));
   const roofFrames = Object.entries(ROOFTOP.frames);
 </script>
 
@@ -283,13 +324,7 @@
               {#each CHARACTER_ART as o, i (i)}
                 {@const z = artScale(o.atlas) * LINEUP_PX}
                 <button class="gs-sys-cast" type="button" title="Ver as animações de {displayName(o)}" onclick={() => { picked = i; tab = 'personagens'; }}>
-                  <span class="gs-sys-cast-stage">
-                    <span class="gs-sys-cast-crop" style:width="{Math.ceil(o.atlas.stand.w * z)}px" style:height="{Math.ceil(o.atlas.stand.h * z)}px">
-                      <span style:left="{-o.atlas.stand.x * z}px" style:top="{-o.atlas.stand.y * z}px">
-                        <Anim sheet={sheets[url(pathOf(o.sheet))]} atlas={o.atlas} name="idle" {now} height={o.atlas.frame.h * z} />
-                      </span>
-                    </span>
-                  </span>
+                  <span class="gs-sys-cast-stage"><Anim sheet={sheets[url(pathOf(o.sheet))]} atlas={o.atlas} name="idle" {now} k={z} /></span>
                   <span class="gs-sys-cast-name">{displayName(o)}</span>
                   <span class="gs-sys-cast-size">{sizeOf(o.atlas)}×</span>
                 </button>
@@ -343,59 +378,79 @@
         {@const n = CHARACTER_ART.indexOf(c)}
         {@const a = byPath.get(pathOf(c.sheet))}
         {@const k = artScale(c.atlas)}
+        {@const sheet = sheets[url(pathOf(c.sheet))]}
+        {@const an = c.atlas.animations[sel]}
+        {@const frame = frameAtTime(c.atlas, sel, now)}
         <div class="gs-sys-split">
-        <nav class="gs-sys-side" aria-label="Personagens">
-          {#each CHARACTER_ART as o, i (i)}
-            <button class="gs-sys-pick" class:selected={i === n} type="button" aria-current={i === n} onclick={() => (picked = i)}>
-              <Swatch n={i} size={28} />
-              <span class="gs-sys-pick-name">{displayName(o)}</span>
-              {#if byPath.get(pathOf(o.sheet))?.overridden}<span class="ss-badge caution">trocado</span>{/if}
-              <span class="gs-sys-pick-n">{String(i + 1).padStart(2, '0')}</span>
-            </button>
-          {/each}
-        </nav>
-        <div class="gs-sys-detail">
-        <section class="gs-sys-controls" aria-label="Como ver as animações">
-          <label>Tamanho <input type="range" min="48" max="320" step="8" bind:value={zoom} /><span class="gs-sys-num">{zoom} px</span></label>
-          <span class="gs-sys-ctl">Velocidade
-            <span class="ss-segmented" role="group" aria-label="Velocidade">
-              {#each [1, 0.5, 0.25, 0.1] as v (v)}<button class="segment" class:selected={speed === v} type="button" aria-pressed={speed === v} onclick={() => (speed = v)}><span class="label">{String(v).replace('.', ',')}×</span></button>{/each}
-            </span>
-          </span>
-          <span class="gs-sys-ctl">Fundo
-            <span class="ss-segmented" role="group" aria-label="Fundo">
-              {#each ['noite', 'xadrez', 'claro'] as const as v (v)}<button class="segment" class:selected={backdrop === v} type="button" aria-pressed={backdrop === v} onclick={() => (backdrop = v)}><span class="label">{v}</span></button>{/each}
-            </span>
-          </span>
-          <label class="gs-sys-check"><input type="checkbox" bind:checked={guides} /> Chão e âncora</label>
-          <label class="gs-sys-check"><input type="checkbox" bind:checked={flip} /> Espelhado</label>
-          <span class="gs-sys-grow"></span>
-          <span class="gs-sys-actions">
-            <button class="ss-btn" type="button" aria-label="Um quadro para trás" onclick={() => step(-1)}>◀</button>
-            <button class="ss-btn" type="button" onclick={() => (paused = !paused)}>{paused ? 'Tocar' : 'Pausar'}</button>
-            <button class="ss-btn" type="button" aria-label="Um quadro para a frente" onclick={() => step(1)}>▶</button>
-          </span>
-        </section>
+          <nav class="gs-sys-side" aria-label="Personagens">
+            {#each CHARACTER_ART as o, i (i)}
+              <button class="gs-sys-pick" class:selected={i === n} type="button" aria-current={i === n} onclick={() => (picked = i)}>
+                <Swatch n={i} size={28} />
+                <span class="gs-sys-pick-name">{displayName(o)}</span>
+                {#if byPath.get(pathOf(o.sheet))?.overridden}<span class="ss-badge caution">trocado</span>{/if}
+                <span class="gs-sys-pick-n">{String(i + 1).padStart(2, '0')}</span>
+              </button>
+            {/each}
+          </nav>
 
-          <section class="ss-card gs-sys-char" style:--c={c.color}>
+          <section class="ss-card gs-sys-detail">
             <div class="head gs-sys-row">
-              <Swatch {n} size={28} />
               <h2 class="gs-sys-h">{displayName(c)} <span class="gs-sys-muted">personagem {n + 1} · {sizeOf(c.atlas)}× um adulto</span></h2>
               <span class="gs-sys-grow"></span>
               {@render facts(a)}
             </div>
-            <div class="body gs-sys-stack">
-              <div class="gs-sys-anims {backdrop}">
-                {#each ANIMS as name (name)}
-                  {@const an = c.atlas.animations[name]}
-                  <figure>
-                    <span class="gs-sys-plinth">
-                      <Anim sheet={sheets[url(pathOf(c.sheet))]} atlas={c.atlas} {name} {now} height={zoom} {guides} {flip} counter />
-                      {#key zoom}<Ledge w={Math.ceil((c.atlas.frame.w * zoom) / c.atlas.frame.h / 2)} scale={2} />{/key}
-                    </span>
-                    <figcaption><strong>{name === 'shove' ? 'shove, o ataque' : name}</strong>{an.frames} quadros · {String(Math.round(an.fps * 10) / 10).replace('.', ',')} fps<br />{an.loop ? 'em loop' : 'uma vez'}</figcaption>
-                  </figure>
+
+            <!-- o palco: a animação escolhida, grande, em cima da beirada do telhado -->
+            <div class="gs-sys-stage {backdrop}">
+              <div class="gs-sys-stage-top">
+                <span class="gs-sys-stage-name">{sel === 'shove' ? 'shove, o ataque' : sel}</span>
+                <span class="gs-sys-figures">{an.frames} quadros · {String(Math.round(an.fps * 10) / 10).replace('.', ',')} fps · {(lengthOf(c.atlas, sel) / 1000).toFixed(2).replace('.', ',')} s · {an.loop ? 'em loop' : 'uma vez'}</span>
+              </div>
+              <div class="gs-sys-stage-floor">
+                <Anim {sheet} atlas={c.atlas} name={sel} {now} k={scaleFor(c.atlas, STAGE_TALL)} {guides} {flip} />
+              </div>
+              <div class="gs-sys-stage-ledge"><Ledge w={320} scale={4} /></div>
+            </div>
+
+            <!-- a régua de quadros: um traço por quadro; clicar leva a ele e para -->
+            <div class="gs-sys-scrub">
+              <button class="ss-btn ghost" type="button" aria-label="Um quadro para trás" onclick={() => step(-1)}>◀</button>
+              <button class="ss-btn" type="button" onclick={() => (paused = !paused)}>{paused ? 'Tocar' : 'Pausar'}</button>
+              <button class="ss-btn ghost" type="button" aria-label="Um quadro para a frente" onclick={() => step(1)}>▶</button>
+              <span class="gs-sys-ticks" role="group" aria-label="Quadros de {sel}">
+                {#each { length: an.frames } as _, f (f)}
+                  <button class="gs-sys-tick" class:on={f === frame} class:past={f < frame} type="button" aria-label="Quadro {f + 1}" aria-pressed={f === frame} onclick={() => seek(c.atlas, f)}></button>
                 {/each}
+              </span>
+              <span class="gs-sys-count">{String(frame + 1).padStart(2, '0')} / {String(an.frames).padStart(2, '0')}</span>
+            </div>
+
+            <!-- as sete animações, pequenas e tocando: clicar põe uma no palco -->
+            <div class="gs-sys-tiles {backdrop}" role="tablist" aria-label="Animações">
+              {#each ANIMS as name (name)}
+                {@const t = c.atlas.animations[name]}
+                <button class="gs-sys-tile" class:selected={name === sel} type="button" role="tab" aria-selected={name === sel} onclick={() => { sel = name; if (paused) now = 0.01; }}>
+                  <span class="gs-sys-tile-art"><Anim {sheet} atlas={c.atlas} {name} {now} k={scaleFor(c.atlas, TILE_TALL)} {flip} /></span>
+                  <span class="gs-sys-tile-name">{name === 'shove' ? 'shove' : name}</span>
+                  <span class="gs-sys-tile-meta">{t.frames} · {String(Math.round(t.fps * 10) / 10).replace('.', ',')} fps</span>
+                </button>
+              {/each}
+            </div>
+
+            <div class="body gs-sys-stack">
+              <div class="gs-sys-row gs-sys-view">
+                <span class="gs-sys-ctl">Velocidade
+                  <span class="ss-segmented" role="group" aria-label="Velocidade">
+                    {#each [1, 0.5, 0.25, 0.1] as v (v)}<button class="segment" class:selected={speed === v} type="button" aria-pressed={speed === v} onclick={() => (speed = v)}><span class="label">{String(v).replace('.', ',')}×</span></button>{/each}
+                  </span>
+                </span>
+                <span class="gs-sys-ctl">Fundo
+                  <span class="ss-segmented" role="group" aria-label="Fundo">
+                    {#each ['noite', 'xadrez', 'claro'] as const as v (v)}<button class="segment" class:selected={backdrop === v} type="button" aria-pressed={backdrop === v} onclick={() => (backdrop = v)}><span class="label">{v}</span></button>{/each}
+                  </span>
+                </span>
+                <label class="gs-sys-check"><input type="checkbox" bind:checked={guides} /> Chão e âncora</label>
+                <label class="gs-sys-check"><input type="checkbox" bind:checked={flip} /> Espelhado</label>
               </div>
               <div class="gs-sys-row">
                 <span class="ss-badge neutral">quadro {c.atlas.frame.w}×{c.atlas.frame.h} px</span>
@@ -411,18 +466,45 @@
             </div>
           </section>
         </div>
-        </div>
       {:else if tab === 'cenario'}
         {@const roof = byPath.get(pathOf(rooftopSheet))}
+        {@const far = ROOFTOP.skylines.find((x) => x.layer === 'far')}
+        {@const near = ROOFTOP.skylines.find((x) => x.layer === 'near')}
+        {@const moon = ROOFTOP.frames.moon}
+        <section class="ss-card">
+          <div class="head"><h2 class="gs-sys-h">O telhado, como o jogo o monta</h2></div>
+          <!-- as camadas na ordem do jogo: a cidade de longe, a de perto, a lua e a beirada do telhado -->
+          <div class="gs-sys-diorama" aria-hidden="true">
+            {#if far}<span class="gs-sys-layer" style:background-image="url({url(pathOf(skylineUrl(far)))})" style:background-size="{far.w * 2}px {far.h * 2}px" style:opacity="0.75"></span>{/if}
+            {#if near}<span class="gs-sys-layer" style:background-image="url({url(pathOf(skylineUrl(near)))})" style:background-size="{near.w * 2}px {near.h * 2}px" style:bottom="24px"></span>{/if}
+            {#if moon}<span class="gs-sys-crop gs-sys-moon" style:width="{moon.w * 3}px" style:height="{moon.h * 3}px" style:background-image="url({url(pathOf(rooftopSheet))})"
+              style:background-size="{(roof?.width ?? 0) * 3}px {(roof?.height ?? 0) * 3}px" style:background-position="-{moon.x * 3}px -{moon.y * 3}px"></span>{/if}
+            <span class="gs-sys-diorama-ledge"><Ledge w={320} scale={4} /></span>
+          </div>
+          <div class="body gs-sys-stack">
+            {#each ROOFTOP.skylines as s (s.name)}
+              {@const f = byPath.get(pathOf(skylineUrl(s)))}
+              <div class="gs-sys-row">
+                <span class="gs-sys-rowname">A cidade ao fundo, {s.layer === 'far' ? 'de longe' : 'de perto'}</span>
+                {@render facts(f)}
+                <span class="gs-sys-grow"></span>
+                {#if f}{@render actions(f)}{/if}
+              </div>
+            {/each}
+          </div>
+        </section>
+
         <section class="ss-card">
           <div class="head gs-sys-row"><h2 class="gs-sys-h">Os objetos do telhado</h2><span class="gs-sys-grow"></span>{@render facts(roof)}</div>
           <div class="body gs-sys-stack">
             <div class="gs-sys-objects">
               {#each roofFrames as [name, f] (name)}
-                {@const s = Math.max(1, Math.min(4, Math.floor(96 / Math.max(f.w, f.h))))}
+                {@const z = Math.max(1, Math.min(4, Math.floor(88 / Math.max(f.w, f.h))))}
                 <figure>
-                  <span class="gs-sys-crop" style:width="{f.w * s}px" style:height="{f.h * s}px" style:background-image="url({url(pathOf(rooftopSheet))})"
-                    style:background-size="{(roof?.width ?? 0) * s}px {(roof?.height ?? 0) * s}px" style:background-position="-{f.x * s}px -{f.y * s}px"></span>
+                  <span class="gs-sys-object">
+                    <span class="gs-sys-crop" style:width="{f.w * z}px" style:height="{f.h * z}px" style:background-image="url({url(pathOf(rooftopSheet))})"
+                      style:background-size="{(roof?.width ?? 0) * z}px {(roof?.height ?? 0) * z}px" style:background-position="-{f.x * z}px -{f.y * z}px"></span>
+                  </span>
                   <figcaption><strong>{name}</strong>{f.w}×{f.h}{f.tile ? ' · ladrilho' : ''}</figcaption>
                 </figure>
               {/each}
@@ -431,86 +513,92 @@
           </div>
         </section>
 
-        {#each ROOFTOP.skylines as s (s.name)}
-          {@const a = byPath.get(pathOf(skylineUrl(s)))}
-          <section class="ss-card">
-            <div class="head gs-sys-row"><h2 class="gs-sys-h">A cidade ao fundo <span class="gs-sys-muted">camada {s.layer}</span></h2><span class="gs-sys-grow"></span>{@render facts(a)}</div>
-            <div class="body gs-sys-stack">
-              <div class="gs-sys-wide"><img src={url(pathOf(skylineUrl(s)))} alt="A cidade ao fundo, camada {s.layer}" width={s.w * 2} height={s.h * 2} /></div>
-              <div class="gs-sys-row"><span class="gs-sys-grow"></span>{#if a}{@render actions(a)}{/if}</div>
-            </div>
-          </section>
-        {/each}
-
-        {#each LANGS as lang (lang)}
-          {@const path = `sprites/emotes-${lang}.png`}
-          {@const a = byPath.get(path)}
-          <section class="ss-card">
-            <div class="head gs-sys-row"><h2 class="gs-sys-h">Os balões dos emotes <span class="gs-sys-muted">{lang}</span></h2><span class="gs-sys-grow"></span>{@render facts(a)}</div>
-            <div class="body gs-sys-stack">
-              <div class="gs-sys-objects">
-                {#each EMOTES as name, i (name)}
-                  {@const f = emoteAtlas.frames[name]}
-                  <figure>
-                    <span class="gs-sys-crop" style:width="{f.w * 4}px" style:height="{f.h * 4}px" style:background-image="url({url(path)})"
-                      style:background-size="{(a?.width ?? 0) * 4}px {(a?.height ?? 0) * 4}px" style:background-position="-{f.x * 4}px -{f.y * 4}px"></span>
-                    <figcaption><strong>{name}</strong>tecla {i + 1}</figcaption>
-                  </figure>
-                {/each}
-              </div>
-              <div class="gs-sys-row"><span class="gs-sys-grow"></span>{#if a}{@render actions(a)}{/if}</div>
-            </div>
-          </section>
-        {/each}
-      {:else if tab === 'sons'}
-        {@const music = byPath.get(pathOf(MUSIC_URL))}
         <section class="ss-card">
-          <div class="head gs-sys-row"><h2 class="gs-sys-h">A música da partida</h2><span class="gs-sys-grow"></span>{@render facts(music)}</div>
+          <div class="head"><h2 class="gs-sys-h">Os balões dos emotes</h2></div>
           <div class="body gs-sys-stack">
-            <p>Toca em loop do começo da partida até o fim, no volume do mapa. A troca tem que ser um arquivo Ogg.</p>
-            {#key ver}<audio controls preload="none" src={url(pathOf(MUSIC_URL))}></audio>{/key}
-            <div class="gs-sys-row"><span class="gs-sys-grow"></span>{#if music}{@render actions(music)}{/if}</div>
+            {#each LANGS as lang (lang)}
+              {@const path = `sprites/emotes-${lang}.png`}
+              {@const f = byPath.get(path)}
+              <div class="gs-sys-row">
+                <span class="gs-sys-rowname">{lang}</span>
+                <span class="gs-sys-emotes">
+                  {#each EMOTES as name, i (name)}
+                    {@const e = emoteAtlas.frames[name]}
+                    <span class="gs-sys-emote" title="{name}, tecla {i + 1}">
+                      <span class="gs-sys-crop" style:width="{e.w * 3}px" style:height="{e.h * 3}px" style:background-image="url({url(path)})"
+                        style:background-size="{(f?.width ?? 0) * 3}px {(f?.height ?? 0) * 3}px" style:background-position="-{e.x * 3}px -{e.y * 3}px"></span>
+                      <span class="gs-sys-key">{i + 1}</span>
+                    </span>
+                  {/each}
+                </span>
+                {@render facts(f)}
+                <span class="gs-sys-grow"></span>
+                {#if f}{@render actions(f)}{/if}
+              </div>
+            {/each}
+          </div>
+        </section>
+      {:else if tab === 'sons'}
+        {@const track = byPath.get(pathOf(MUSIC_URL))}
+        <section class="ss-card">
+          <div class="head gs-sys-row"><h2 class="gs-sys-h">A música da partida</h2><span class="gs-sys-grow"></span>{@render facts(track)}</div>
+          <div class="body gs-sys-stack">
+            {#key ver}
+              <audio bind:this={music} preload="metadata" src={url(pathOf(MUSIC_URL))} onplay={() => (musicOn = true)} onpause={() => (musicOn = false)} onended={() => (musicOn = false)}
+                ontimeupdate={(e) => (musicAt = e.currentTarget.currentTime)} onloadedmetadata={(e) => { musicLen = e.currentTarget.duration; musicAt = 0; }}></audio>
+            {/key}
+            <div class="gs-sys-player">
+              <button class="ss-btn primary" type="button" onclick={toggleMusic}>{musicOn ? 'Pausar' : 'Tocar'}</button>
+              <input type="range" min="0" max={musicLen || 1} step="1" value={musicAt} aria-label="Posição na música" oninput={(e) => { if (music) music.currentTime = Number(e.currentTarget.value); }} />
+              <span class="gs-sys-count">{clock(musicAt)} / {clock(musicLen)}</span>
+            </div>
+            <div class="gs-sys-row">
+              <span class="gs-sys-muted">Toca em loop do começo da partida até o fim, no volume do mapa. A troca tem que ser um arquivo Ogg</span>
+              <span class="gs-sys-grow"></span>
+              {#if track}{@render actions(track)}{/if}
+            </div>
           </div>
         </section>
 
         <section class="ss-card">
-          <div class="head"><h2 class="gs-sys-h">Os efeitos sonoros</h2></div>
-          <div class="body gs-sys-stack">
-            <p>Não são arquivos: cada um é um punhado de parâmetros do sfxr no código, e o jogo gera o som na hora. Dá para ouvir e baixar em WAV; mudar é por deploy.</p>
-            <table class="ss-table">
-              <thead><tr><th>Efeito</th><th>O que é</th><th>Parâmetros</th><th></th></tr></thead>
-              <tbody>
-                {#each SFX_NAMES as name (name)}
-                  <tr>
-                    <td><code>{name}</code></td>
-                    <td>{SFX_ABOUT[name]}</td>
-                    <td><span class="gs-sys-params">{Object.entries(SFX[name]).map(([k, v]) => `${k.replace(/^p_/, '')} ${v}`).join(' · ')}</span></td>
-                    <td class="gs-sys-right"><span class="gs-sys-actions"><button class="ss-btn ghost" type="button" onclick={() => playSfx(name)}>Ouvir</button><button class="ss-btn ghost" type="button" onclick={() => saveBytes(`${name}.wav`, sfxWav(name), 'audio/wav')}>Baixar WAV</button></span></td>
-                  </tr>
-                {/each}
-              </tbody>
-            </table>
+          <div class="head gs-sys-row"><h2 class="gs-sys-h">Os efeitos sonoros</h2><span class="gs-sys-grow"></span><span class="gs-sys-figures">gerados pelo código · mudar é por deploy</span></div>
+          <div class="body">
+            {#each SFX_NAMES as name (name)}
+              <div class="gs-sys-sfx">
+                <button class="gs-sys-wave" type="button" aria-label="Ouvir {name}" onclick={() => playSfx(name)}>
+                  <Wave samples={sfx[name].samples} progress={sounding?.name === name ? sounding.progress : 0} />
+                </button>
+                <span class="gs-sys-sfx-name"><code>{name}</code><span class="gs-sys-muted">{SFX_ABOUT[name]}</span></span>
+                <span class="gs-sys-count">{(sfx[name].ms / 1000).toFixed(2).replace('.', ',')} s</span>
+                <details class="gs-sys-sfx-params"><summary>Parâmetros</summary><span class="gs-sys-params">{Object.entries(SFX[name]).map(([key, v]) => `${key.replace(/^p_/, '')} ${v}`).join(' · ')}</span></details>
+                <span class="gs-sys-actions"><button class="ss-btn ghost" type="button" onclick={() => playSfx(name)}>Ouvir</button><button class="ss-btn ghost" type="button" onclick={() => saveBytes(`${name}.wav`, sfxWav(name), 'audio/wav')}>Baixar WAV</button></span>
+              </div>
+            {/each}
           </div>
         </section>
       {:else}
         <section class="ss-card">
-          <div class="head gs-sys-row"><h2 class="gs-sys-h">Todos os arquivos servidos</h2><span class="gs-sys-grow"></span><span class="ss-badge neutral">{assets.length} arquivos</span><span class="ss-badge neutral">{sizeText(totalBytes)}</span></div>
+          <div class="head gs-sys-row"><h2 class="gs-sys-h">Todos os arquivos servidos</h2><span class="gs-sys-grow"></span><span class="gs-sys-figures">{assets.length} arquivos · {sizeText(totalBytes)}{overridden.length ? ` · ${overridden.length} ${overridden.length === 1 ? 'trocado' : 'trocados'}` : ''}</span></div>
           <div class="body">
-            <table class="ss-table">
-              <thead><tr><th></th><th>Arquivo</th><th>O que é</th><th>Tamanho</th><th>Peso</th><th>Estado</th><th></th></tr></thead>
-              <tbody>
-                {#each assets as a (a.path)}
-                  <tr>
-                    <td>{#if a.format !== 'ogg'}<img class="gs-sys-thumb" src={url(a.path)} alt="" loading="lazy" />{/if}</td>
-                    <td><a class="ss-link" href={url(a.path)} target="_blank" rel="noopener"><code>/{a.path}</code></a></td>
-                    <td>{about(a.path)}</td>
-                    <td class="gs-sys-num">{a.width ? `${a.width}×${a.height}` : ''}</td>
-                    <td class="gs-sys-num">{sizeText(a.bytes)}{#if a.overridden}<span class="gs-sys-muted"> (era {sizeText(a.originalBytes)})</span>{/if}</td>
-                    <td>{#if a.overridden}<span class="ss-badge caution">trocado</span>{/if}</td>
-                    <td class="gs-sys-right">{@render actions(a)}</td>
-                  </tr>
-                {/each}
-              </tbody>
+            <table class="ss-table gs-sys-files">
+              <thead><tr><th></th><th>Arquivo</th><th>O que é</th><th class="gs-sys-right">Tamanho</th><th class="gs-sys-right">Peso</th><th></th><th></th></tr></thead>
+              {#each groups as g (g.title)}
+                {@const heaviest = Math.max(1, ...g.files.map((x) => x.bytes))}
+                <tbody>
+                  <tr class="gs-sys-group"><td colspan="7"><strong>{g.title}</strong><span class="gs-sys-figures">{g.files.length} · {sizeText(g.files.reduce((sum, f) => sum + f.bytes, 0))}</span></td></tr>
+                  {#each g.files as f (f.path)}
+                    <tr>
+                      <td>{#if f.format !== 'ogg'}<img class="gs-sys-thumb" src={url(f.path)} alt="" loading="lazy" />{/if}</td>
+                      <td><a class="gs-sys-path" href={url(f.path)} target="_blank" rel="noopener">/{f.path}</a>{#if f.overridden}<span class="ss-badge caution">trocado</span>{/if}</td>
+                      <td>{about(f.path)}</td>
+                      <td class="gs-sys-num gs-sys-right">{f.width ? `${f.width}×${f.height}` : ''}</td>
+                      <td class="gs-sys-num gs-sys-right">{sizeText(f.bytes)}</td>
+                      <td><span class="gs-sys-bar"><span style:width="{Math.max(2, (f.bytes / heaviest) * 100)}%"></span></span></td>
+                      <td class="gs-sys-right">{@render actions(f)}</td>
+                    </tr>
+                  {/each}
+                </tbody>
+              {/each}
             </table>
           </div>
         </section>
@@ -543,14 +631,10 @@
   @media (max-width: 900px) { .gs-sys-two { grid-template-columns: 1fr; } }
   /* o elenco em fila, cada um no tamanho que tem no jogo, sobre uma linha de chão; a linha tracejada é a altura de um adulto */
   .gs-sys-lineup { position: relative; display: flex; align-items: flex-start; gap: 2px; overflow-x: auto; padding: 16px 16px 12px; background: #1a1028; border: 1px solid var(--ss-line); }
-  .gs-sys-lineup::before { content: ''; position: absolute; left: 0; right: 0; top: calc(16px + var(--stage)); height: 4px; background: #3d3358; min-width: 100%; }
   .gs-sys-lineup::after { content: ''; position: absolute; left: 0; right: 0; top: calc(16px + var(--stage) - var(--adult)); border-top: 1px dashed rgb(255 255 255 / 0.22); }
   .gs-sys-adult { position: absolute; right: 8px; top: calc(16px + var(--stage) - var(--adult) - 16px); font: var(--ss-ui-xs) var(--ss-font-mono); color: rgb(255 255 255 / 0.5); }
   .gs-sys-cast { all: unset; box-sizing: border-box; flex: 1 0 44px; display: flex; flex-direction: column; align-items: center; gap: 2px; cursor: pointer; padding-bottom: 4px; }
   .gs-sys-cast:focus-visible { outline: 2px solid var(--gs-focus); outline-offset: 2px; }
-  .gs-sys-cast-stage { height: var(--stage); display: flex; align-items: flex-end; margin-bottom: 12px; }
-  .gs-sys-cast-crop { position: relative; display: block; overflow: hidden; }
-  .gs-sys-cast-crop > span { position: absolute; }
   .gs-sys-cast-name { font-size: var(--ss-ui-xs); line-height: 1.3; color: #e8e4f0; text-align: center; min-height: 2.6em; }
   .gs-sys-cast-size { font: var(--ss-ui-xs) var(--ss-font-mono); color: rgb(255 255 255 / 0.5); font-variant-numeric: tabular-nums; }
   .gs-sys-cast:hover .gs-sys-cast-name { color: var(--ss-accent); }
@@ -573,32 +657,76 @@
   .gs-sys-pick.selected { background: color-mix(in srgb, var(--ss-fg) 9%, transparent); border-color: var(--ss-line-strong); }
   .gs-sys-pick-name { min-width: 0; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .gs-sys-pick-n { font: var(--ss-ui-xs) var(--ss-font-mono); color: var(--ss-fg-muted); font-variant-numeric: tabular-nums; }
-  .gs-sys-detail { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
   @media (max-width: 760px) { .gs-sys-split { grid-template-columns: 1fr; } .gs-sys-side { position: static; flex-direction: row; flex-wrap: wrap; max-height: none; } }
-  .gs-sys-controls { position: sticky; top: 55px; z-index: 4; display: flex; align-items: center; gap: 12px 20px; flex-wrap: wrap; padding: 8px 12px; border: 1px solid var(--ss-line); background: var(--ss-bg); }
-  .gs-sys-controls label, .gs-sys-ctl { display: inline-flex; align-items: center; gap: 8px; color: var(--ss-fg-muted); white-space: nowrap; }
-  .gs-sys-controls input[type='range'] { width: 112px; }
-  .gs-sys-check { cursor: pointer; }
   .gs-sys-chip { display: inline-block; width: 8px; height: 8px; margin-right: 6px; }
-  /* cada animação em cima de um pedaço da beirada do telhado do jogo: o pé cai no tampo */
-  .gs-sys-plinth { display: flex; flex-direction: column; align-items: center; }
-  .gs-sys-plinth :global(canvas:first-child) { position: relative; z-index: 1; }
-  .gs-sys-plinth :global(.gs-ledge) { margin-top: -14px; }
-  .gs-sys-anims.xadrez .gs-sys-plinth :global(.gs-ledge), .gs-sys-anims.claro .gs-sys-plinth :global(.gs-ledge) { visibility: hidden; }
-  .gs-sys-anims { display: flex; align-items: flex-end; gap: 24px; flex-wrap: wrap; padding: 16px; border: 1px solid var(--ss-line); }
-  .gs-sys-anims.noite { background: #1a1028; }
-  .gs-sys-anims.claro { background: #d8d8e0; color: #16161c; }
-  .gs-sys-anims.xadrez { background: repeating-conic-gradient(#2a2a34 0% 25%, #3a3a46 0% 50%) 0 0 / 16px 16px; }
-  .gs-sys-anims figure, .gs-sys-objects figure { margin: 0; display: flex; flex-direction: column; align-items: center; gap: 6px; }
-  .gs-sys-anims figcaption, .gs-sys-objects figcaption { font: var(--ss-ui-xs) var(--ss-font-mono); color: var(--ss-fg-muted); text-align: center; }
-  .gs-sys-anims.claro figcaption { color: #4a4a58; }
-  .gs-sys-anims figcaption strong, .gs-sys-objects figcaption strong { display: block; color: var(--ss-fg); }
-  .gs-sys-anims.claro figcaption strong { color: #16161c; }
-  .gs-sys-objects { display: flex; align-items: flex-end; gap: 20px; flex-wrap: wrap; padding: 16px; border: 1px solid var(--ss-line); background: #1a1028; }
-  .gs-sys-crop { display: block; background-repeat: no-repeat; image-rendering: pixelated; }
-  .gs-sys-wide { overflow-x: auto; padding: 16px; border: 1px solid var(--ss-line); background: #1a1028; }
-  .gs-sys-wide img { display: block; image-rendering: pixelated; }
-  .gs-sys-thumb { display: block; width: 32px; height: 32px; object-fit: contain; background: #1a1028; }
-  .gs-sys-params { font: var(--ss-ui-xs)/1.6 var(--ss-font-mono); color: var(--ss-fg-muted); }
-  audio { width: min(520px, 100%); }
+
+  /* ── Personagens: o palco, a régua de quadros e as miniaturas ── */
+  .gs-sys-detail { min-width: 0; }
+  .gs-sys-stage { position: relative; display: flex; flex-direction: column; height: 344px; overflow: hidden; border-bottom: 1px solid var(--ss-line); background: #1a1028; color: #e8e4f0; }
+  .gs-sys-stage.claro { background: #d8d8e0; color: #16161c; }
+  .gs-sys-stage.xadrez { background: repeating-conic-gradient(#2a2a34 0% 25%, #3a3a46 0% 50%) 0 0 / 16px 16px; }
+  .gs-sys-stage-top { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding: 12px 16px 0; }
+  .gs-sys-stage-name { font: 500 var(--ss-ui-md, 15px) var(--ss-font-mono); }
+  .gs-sys-stage .gs-sys-figures { color: inherit; opacity: 0.6; }
+  .gs-sys-stage-floor { position: relative; z-index: 1; flex: 1; display: flex; align-items: flex-end; justify-content: center; padding-bottom: 32px; min-height: 0; }
+  .gs-sys-stage-ledge { position: absolute; left: 50%; bottom: 0; translate: -50% 0; line-height: 0; }
+  .gs-sys-stage.claro .gs-sys-stage-ledge, .gs-sys-stage.xadrez .gs-sys-stage-ledge { visibility: hidden; }
+  .gs-sys-scrub { display: flex; align-items: center; gap: 8px; padding: 8px 16px; border-bottom: 1px solid var(--ss-line); }
+  .gs-sys-ticks { flex: 1; display: flex; gap: 2px; height: 24px; }
+  .gs-sys-tick { all: unset; box-sizing: border-box; flex: 1; min-width: 4px; background: color-mix(in srgb, var(--ss-fg) 14%, transparent); cursor: pointer; }
+  .gs-sys-tick.past { background: color-mix(in srgb, var(--ss-fg) 34%, transparent); }
+  .gs-sys-tick.on { background: var(--ss-accent); }
+  .gs-sys-tick:hover:not(.on) { background: color-mix(in srgb, var(--ss-fg) 50%, transparent); }
+  .gs-sys-tick:focus-visible { outline: 2px solid var(--gs-focus); outline-offset: 2px; }
+  .gs-sys-count { font: var(--ss-ui-sm) var(--ss-font-mono); font-variant-numeric: tabular-nums; color: var(--ss-fg-muted); white-space: nowrap; min-width: 7ch; text-align: right; }
+  .gs-sys-tiles { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); border-bottom: 1px solid var(--ss-line); }
+  .gs-sys-tile { all: unset; box-sizing: border-box; display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 12px 4px 8px; cursor: pointer; border-right: 1px solid var(--ss-line); border-bottom: 2px solid transparent; min-width: 0; }
+  .gs-sys-tile:last-child { border-right: 0; }
+  .gs-sys-tile:hover { background: var(--ss-hover); }
+  .gs-sys-tile:focus-visible { outline: 2px solid var(--gs-focus); outline-offset: -2px; }
+  .gs-sys-tile.selected { border-bottom-color: var(--ss-accent); background: color-mix(in srgb, var(--ss-fg) 6%, transparent); }
+  .gs-sys-tile-art { height: 88px; width: 100%; display: flex; align-items: flex-end; justify-content: center; overflow: hidden; margin-bottom: 4px; }
+  .gs-sys-tile-name { font: 500 var(--ss-ui-sm) var(--ss-font-mono); }
+  .gs-sys-tile-meta { font: var(--ss-ui-xs) var(--ss-font-mono); color: var(--ss-fg-muted); font-variant-numeric: tabular-nums; }
+  .gs-sys-view { gap: 8px 20px; }
+  .gs-sys-ctl, .gs-sys-check { display: inline-flex; align-items: center; gap: 8px; color: var(--ss-fg-muted); white-space: nowrap; }
+  .gs-sys-check { cursor: pointer; }
+  /* ── o elenco em fila (Visão geral) ── */
+  .gs-sys-lineup::before { content: ''; position: absolute; left: 0; right: 0; top: calc(16px + var(--stage)); height: 4px; background: #3d3358; min-width: 100%; }
+  .gs-sys-cast-stage { height: var(--stage); display: flex; align-items: flex-end; margin-bottom: 12px; }
+  /* ── Cenário ── */
+  .gs-sys-diorama { position: relative; height: 280px; overflow: hidden; background: linear-gradient(#120b20, #1a1028 60%); border-bottom: 1px solid var(--ss-line); }
+  .gs-sys-layer { position: absolute; inset: 0; background-repeat: repeat-x; background-position: left bottom; image-rendering: pixelated; }
+  .gs-sys-moon { position: absolute; right: 12%; top: 28px; }
+  .gs-sys-diorama-ledge { position: absolute; left: 0; bottom: 0; line-height: 0; }
+  .gs-sys-crop { display: block; background-repeat: no-repeat; image-rendering: pixelated; flex: none; }
+  .gs-sys-rowname { min-width: 220px; }
+  .gs-sys-objects { display: grid; grid-template-columns: repeat(auto-fill, minmax(128px, 1fr)); gap: 8px; }
+  .gs-sys-objects figure { margin: 0; display: flex; flex-direction: column; gap: 6px; }
+  .gs-sys-object { height: 112px; display: flex; align-items: center; justify-content: center; overflow: hidden; background: #1a1028; border: 1px solid var(--ss-line); }
+  .gs-sys-objects figcaption { font: var(--ss-ui-xs) var(--ss-font-mono); color: var(--ss-fg-muted); }
+  .gs-sys-objects figcaption strong { display: block; font-weight: 500; color: var(--ss-fg); }
+  .gs-sys-emotes { display: inline-flex; align-items: flex-end; gap: 12px; padding: 8px 12px; background: #1a1028; border: 1px solid var(--ss-line); }
+  .gs-sys-emote { display: inline-flex; flex-direction: column; align-items: center; gap: 4px; }
+  .gs-sys-key { font: var(--ss-ui-xs) var(--ss-font-mono); color: rgb(255 255 255 / 0.55); border: 1px solid rgb(255 255 255 / 0.2); padding: 0 5px; line-height: 16px; }
+  /* ── Sons ── */
+  .gs-sys-player { display: flex; align-items: center; gap: 12px; }
+  .gs-sys-player input[type='range'] { flex: 1; min-width: 0; }
+  .gs-sys-sfx { display: grid; grid-template-columns: 220px minmax(200px, 1fr) auto minmax(0, 1.4fr) auto; align-items: center; gap: 16px; padding: 12px 0; border-top: 1px solid var(--ss-line); }
+  .gs-sys-sfx:first-child { border-top: 0; padding-top: 0; }
+  .gs-sys-wave { all: unset; cursor: pointer; line-height: 0; padding: 6px 0; }
+  .gs-sys-wave:focus-visible { outline: 2px solid var(--gs-focus); outline-offset: 2px; }
+  .gs-sys-sfx-name { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+  .gs-sys-sfx-params { min-width: 0; font-size: var(--ss-ui-xs); color: var(--ss-fg-muted); }
+  .gs-sys-sfx-params summary { cursor: pointer; }
+  .gs-sys-params { display: block; margin-top: 4px; font: var(--ss-ui-xs)/1.6 var(--ss-font-mono); color: var(--ss-fg-muted); }
+  /* ── Arquivos ── */
+  .gs-sys-files :global(td) { height: 40px; }
+  .gs-sys-group :global(td) { height: 36px; padding-top: 16px; border-top: 0 !important; }
+  .gs-sys-group strong { font-weight: 500; margin-right: 12px; }
+  .gs-sys-thumb { display: block; width: 28px; height: 28px; object-fit: contain; background: #1a1028; }
+  .gs-sys-path { font-family: var(--ss-font-mono); color: var(--ss-fg); text-decoration: none; margin-right: 8px; }
+  .gs-sys-path:hover { text-decoration: underline; }
+  .gs-sys-bar { display: block; width: 120px; height: 4px; background: color-mix(in srgb, var(--ss-fg) 10%, transparent); }
+  .gs-sys-bar > span { display: block; height: 100%; background: color-mix(in srgb, var(--ss-fg) 55%, transparent); }
 </style>

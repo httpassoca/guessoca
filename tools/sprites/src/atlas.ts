@@ -44,6 +44,11 @@ export interface Atlas {
   /** a quem dar o crédito da arte, ou null se não precisa */
   credit: string | null;
   /**
+   * o quadrado do rosto na interface (`Swatch.svelte`), quando não é o de `head`: num personagem com um companheiro mais
+   * alto ao lado, `head` marca o alto do conjunto (a altura do post-it) e o rosto de quem joga fica mais abaixo
+   */
+  face?: { x: number; y: number; size: number };
+  /**
    * quantas unidades do mundo vale um pixel do quadro; sem isto, 1 (pixel art no tamanho do jogo). Menor que 1 é arte
    * grande que o jogo desenha encolhida, sem a receita mexer nos pixels (o Vorcaro)
    */

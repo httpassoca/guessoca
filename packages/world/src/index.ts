@@ -51,11 +51,17 @@ export const SHOVE_VX = 260;
 export const SHOVE_VY = 160;
 export const SHOVE_STUN_MS = 400;
 /**
- * tempo entre dois empurrões da mesma pessoa, ms. É também quanto dura a animação `shove` no mundo (`anim` fica `shove`
- * até `shoveUntil`): a linha `shove` da folha tem que caber nisto (herói 7 quadros a 16 fps = 438 ms, esqueleto 5 a
- * 12 = 417 ms); mais longa, é cortada; mais curta, segura o último quadro.
+ * o menor tempo entre dois empurrões da mesma pessoa, ms. É também quanto dura a animação `shove` de um personagem cujo
+ * ataque é mais curto que isto (herói 7 quadros a 16 fps = 438 ms, esqueleto 5 a 12 = 417 ms): segura o último quadro.
+ * Um ataque mais longo trava por mais tempo, até `SHOVE_MAX_MS` (`shoveLock`).
  */
 export const SHOVE_COOLDOWN_MS = 450;
+/**
+ * o mais que um empurrão pode durar, ms. O ataque de um personagem pode ser mais longo que `SHOVE_COOLDOWN_MS` (uma
+ * rajada de socos de 0,9 s): quem ataca fica na animação `shove`, sem poder atacar de novo, pelo tempo do ataque dele
+ * (`StepCtx.shoveMs`), entre `SHOVE_COOLDOWN_MS` e isto. Um ataque lento é mais bonito e custa mais caro.
+ */
+export const SHOVE_MAX_MS = 1200;
 
 // --- mapa -------------------------------------------------------------------------------------------------------------
 
@@ -137,7 +143,14 @@ export type WorldEvent =
   /** o empurrão saiu: `targets` são os ids que estavam ao alcance, na hora */
   | { type: 'shove'; targets: string[] };
 
-export interface StepCtx { now: number; platforms: readonly Platform[]; others: readonly Other[] }
+export interface StepCtx {
+  now: number; platforms: readonly Platform[]; others: readonly Other[];
+  /** quanto dura o ataque do personagem deste corpo, ms (a linha `shove` da folha dele); sem isto, `SHOVE_COOLDOWN_MS` */
+  shoveMs?: number;
+}
+
+/** Quanto um empurrão trava quem empurrou: o tempo do ataque dele, nunca menos que o intervalo do jogo nem mais que o teto. */
+export const shoveLock = (shoveMs?: number): number => Math.min(SHOVE_MAX_MS, Math.max(SHOVE_COOLDOWN_MS, shoveMs ?? SHOVE_COOLDOWN_MS));
 
 /** Um corpo novo, parado no ponto de volta (`spawnPoint`), com `x` deslocado por `offset` para não nascerem empilhados. */
 export function createBody(platforms: readonly Platform[], now: number, offset = 0): Body {
@@ -336,7 +349,7 @@ export function stepBody(body: Body, input: Input, dt: number, ctx: StepCtx): { 
     }
     if (input.shove && now >= b.shoveUntil) {
       events.push({ type: 'shove', targets: shoveTargets(b, others) });
-      b.shoveUntil = now + SHOVE_COOLDOWN_MS;
+      b.shoveUntil = now + shoveLock(ctx.shoveMs);
     }
   } else if (b.grounded) {
     const speed = Math.hypot(b.vx, b.vz);

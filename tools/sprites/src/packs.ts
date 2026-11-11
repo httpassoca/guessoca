@@ -107,14 +107,15 @@ export const PACKS: readonly Pack[] = [
     },
   },
   /**
-   * O Zed: o ninja de armadura escura e máscara, com lâminas nos braços. Tamanho 1 (128 pixels), células de 192×160, o
-   * chão na linha 144.
+   * O Zed: o ninja de armadura escura e máscara, com lâminas nos braços. Esta é a segunda arte dele, do pedido que pede
+   * pelo menos 8 quadros em tudo e deixa o ataque sair da célula: tamanho 1,10 (141 pixels), células de 192×176 e, só no
+   * ataque, de 256×176, com os pés no mesmo x (80), o chão na linha 164. O ataque tem 24 quadros em 0,65 s.
    */
   {
     model: 'zed', name: 'zed', color: 'b0343a', dir: 'zed',
     config: {
-      ...NEW, name: 'o Zed', cellW: 192, cellH: 160, headRows: 30,
-      spec: packSpec({ idle: [8, 8 / 1.2], walk: [8, 8 / 0.95], run: [8, 8 / 0.7], jump: [6, 15], fall: [4, 4 / 0.33], fall_loop: [4, 10], shove: [8, 20] }),
+      ...NEW, name: 'o Zed', cellW: 192, cellH: 176, headRows: 30, cells: { shove: { cellW: 256, cellH: 176, dx: 0 } },
+      spec: packSpec({ idle: [8, 8], walk: [8, 10], run: [8, 8 / 0.6], jump: [8, 20], fall: [8, 8 / 0.33], fall_loop: [8, 20], shove: [24, 24 / 0.65] }),
     },
   },
   /**
@@ -137,6 +138,44 @@ export const PACKS: readonly Pack[] = [
     config: {
       ...NEW, name: 'o Guimas', cellW: 160, cellH: 160, headRows: 30,
       spec: packSpec({ idle: [8, 8 / 1.2], walk: [8, 10], run: [8, 12.5], jump: [5, 12.5], fall: [3, 3 / 0.33], fall_loop: [3, 3 / 0.36], shove: [8, 20] }),
+    },
+  },
+  /**
+   * O Jotaro, com o Star Platinum: o rapaz de boné e sobretudo escuro, e o espírito roxo pairando atrás dele o tempo
+   * todo. Tamanho 1,19 (152 pixels, a altura do Jotaro), células de 208×224 e, só no ataque, de 384×224, com os pés do
+   * Jotaro no mesmo x (148), o chão na linha 216. O ponto mais baixo de todo quadro é o pé dele (o espírito paira acima),
+   * então a receita comum o põe no chão sem mexer no pairar. O ataque são 24 quadros em 0,9 s: o espírito avança e dá a
+   * rajada de socos; o dono pediu esse tempo mais lento, e o jogo trava o ataque por esse tempo (`shoveLock`). O alto do
+   * conjunto é a cabeça do espírito (é por ela que o post-it sobe); o rosto na interface é o do Jotaro (`face`).
+   */
+  {
+    model: 'jotaro', name: 'jotaro', color: '5a3fc0', dir: 'jotaro',
+    config: {
+      ...NEW, name: 'o Jotaro', cellW: 208, cellH: 224, headRows: 30, face: { x: 72, y: 24, size: 36 }, cells: { shove: { cellW: 384, cellH: 224, dx: 0 } },
+      spec: packSpec({ idle: [10, 10 / 1.2], walk: [12, 12 / 0.9], run: [12, 12 / 0.65], jump: [10, 10 / 0.42], fall: [8, 8 / 0.33], fall_loop: [10, 10 / 0.45], shove: [24, 24 / 0.9] }),
+    },
+  },
+  /**
+   * A Miku: a cantora de marias-chiquinhas turquesa compridas, aqui musculosa. Tamanho 0,91 (116 pixels), células de
+   * 224×160, o chão na linha 144. O ataque (`shove.png`, 18 quadros) é um chute alto.
+   */
+  {
+    model: 'miku', name: 'miku', color: '28cbd0', dir: 'miku',
+    config: {
+      ...NEW, name: 'a Miku', cellW: 224, cellH: 160, headRows: 28,
+      spec: packSpec({ idle: [8, 8 / 1.2], walk: [8, 10], run: [8, 8 / 0.6], jump: [8, 20], fall: [8, 8 / 0.33], fall_loop: [8, 20], shove: [18, 40] }),
+    },
+  },
+  /**
+   * O Galo Doido: o mascote de galo, de crista vermelha. Tamanho 1,09 (140 pixels), células de 160×176 e, só no ataque,
+   * de 240×176, em que ele fica 40 pixels mais à direita (pés no x 111 em vez de 71): os quadros do ataque andam 40 para
+   * trás, e a tela de trabalho tem essa folga. O chão na linha 152. O ataque tem 18 quadros em 0,45 s.
+   */
+  {
+    model: 'galodoido', name: 'galo doido', color: 'e2b93b', dir: 'galodoido',
+    config: {
+      ...NEW, name: 'o Galo Doido', cellW: 160, cellH: 176, padX: 40, headRows: 30, cells: { shove: { cellW: 240, cellH: 176, dx: -40 } },
+      spec: packSpec({ idle: [8, 8 / 1.2], walk: [8, 10], run: [8, 8 / 0.6], jump: [8, 20], fall: [8, 8 / 0.33], fall_loop: [8, 16], shove: [18, 40] }),
     },
   },
 ];

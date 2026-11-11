@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'bun:test';
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { SHOVE_COOLDOWN_MS } from '@guess/world';
+import { SHOVE_COOLDOWN_MS, SHOVE_MAX_MS } from '@guess/world';
 import { ANIMATION_NAMES } from '../src/atlas';
 import { blank, bounds, crop, palette, rgbOf, setPixel, type Image } from '../src/image';
 import { MAX_FRAMES, NORMAL_ART_HEIGHT, NORMAL_HEIGHT, PACK_SPEC, PACK_WORLD_SCALE, buildPack, cellsOf, derive, packFiles, packSpec, place, specProblems, worldScaleFor, type PackConfig } from '../src/pack';
@@ -90,6 +90,10 @@ describe('personagem de sete folhas', () => {
   test('um bicho de quatro patas pode ter o quadrado do rosto maior que as linhas só de cabeça', () => {
     const { atlas } = buildPack(pack(), { ...C, headSize: 24 });
     expect(atlas.head.size).toBe(24);
+    // o rosto pode ter um quadrado só dele, medido a partir do canto do boneco
+    const withFace = buildPack(pack(), { ...C, face: { x: 3, y: 5, size: 10 } }).atlas;
+    expect(withFace.face).toEqual({ x: withFace.stand.x + 3, y: withFace.stand.y + 5, size: 10 });
+    expect(atlas.face).toBeUndefined();
     // e o rosto pode andar para a frente, quando o cabelo voa para trás
     expect(buildPack(pack(), { ...C, headSize: 24, headShift: 5 }).atlas.head.x).toBe(atlas.head.x + 5);
     expect(atlas.head.x + 12).toBe(atlas.stand.x + (16 - 12 + 5));
@@ -113,6 +117,9 @@ describe('personagem de sete folhas', () => {
     expect(prompt).toContain(`at most ${MAX_FRAMES} for the attack`);
     expect(prompt).toContain('any value up to 60');
     expect(prompt).toContain('attack.png        18');
+    // o ataque dura de 0,7 s ao teto do jogo
+    expect(prompt).toContain(`0.7-${SHOVE_MAX_MS / 1000} s`);
+    expect(prompt).toContain(`must fit in ${SHOVE_MAX_MS / 1000} s`);
   });
 
   test('um pacote pode escolher os próprios quadros: o empurrão cabe no tempo do jogo e a queda dura o tempo dela', () => {
@@ -123,14 +130,15 @@ describe('personagem de sete folhas', () => {
     expect(spec.animations.shove.loop).toBe(false);
     expect(specProblems(PACK_SPEC)).toEqual([]);
 
-    const slow = packSpec({ ...timing(spec), shove: [12, 16] }); // 750 ms: o jogo cortaria no meio
-    expect(specProblems(slow)).toEqual(['shove: dura 750 ms, e o jogo corta em 450 ms']);
+    expect(specProblems(packSpec({ ...timing(spec), shove: [24, 24 / 0.9] }))).toEqual([]); // 0,9 s: um ataque lento vale
+    const slow = packSpec({ ...timing(spec), shove: [12, 8] }); // 1,5 s: o jogo cortaria no meio
+    expect(specProblems(slow)).toEqual(['shove: dura 1500 ms, e o jogo corta em 1200 ms']);
     const long = packSpec({ ...timing(spec), fall: [8, 12] });
     expect(specProblems(long)[0]).toContain('fall: dura 667 ms');
     const many = packSpec({ ...timing(spec), idle: [MAX_FRAMES + 1, 10], run: [10, 61] });
     expect(specProblems(many)).toHaveLength(2);
     // e a receita recusa montar com tempos que não servem
-    expect(() => buildPack(pack(), { ...C, spec: slow })).toThrow(/Boneco.*shove.*750 ms/);
+    expect(() => buildPack(pack(), { ...C, spec: slow })).toThrow(/Boneco.*shove.*1500 ms/);
     // com os quadros escolhidos, a folha tem uma linha de cada tamanho
     const c = { ...C, spec };
     const { atlas } = buildPack(pack(0, c), c);

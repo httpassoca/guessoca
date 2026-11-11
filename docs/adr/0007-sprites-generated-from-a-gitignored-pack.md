@@ -96,3 +96,19 @@ Seven packs came with this change, all from the current prompt, sized by their `
 - **`files`**. Josuke's `fall.png` is a landing (down to the floor and back to idle), drawn that way at the owner's request, but the game plays `fall` at the top of the jump, where a landing makes no sense. His `fall` therefore uses the `fall_loop.png` sheet, and the landing is unused until the game has a landing animation.
 
 The owner also set the masked knight to 0.2 of an adult (10 units tall, from 35): the smallest character, below a person's knee and smaller than the dog.
+
+## Amendment: Jotaro, Miku, Galo Doido and a redrawn Zed; attacks that last their own length; framed previews
+
+Four packs from the prompt that asks for at least 8 frames everywhere, 18 in the attack, and lets the attack use a larger cell. All imported with no pixel changed, at `PACK_WORLD_SCALE` (`CHARACTERS` 23):
+
+- **Zed**, redrawn (slot kept): size 1.10, an attack cell of 256×176 against 192×176, 24 attack frames in 0.65 s.
+- **Jotaro with Star Platinum** beside him: size 1.19, an attack cell of 384×224, 24 frames in 0.9 s. The Stand hovers; Jotaro's feet are the lowest point of every frame, so grounding leaves the hover alone. The atlas gained `face`: `head` marks the top of the pair (where the post-it goes), `face` is Jotaro's own face for the UI.
+- **Miku** (drawn muscular): size 0.91, a high kick in `shove.png`.
+- **Galo Doido**, the rooster mascot: size 1.09, an attack cell of 240×176 in which he stands 40 px further right, so the attack frames move 40 px back (`cells.shove.dx`).
+
+All are new drawings generated for the owner, in the likeness of characters from League of Legends, JoJo's Bizarre Adventure and Vocaloid and of a football club's mascot; none is extracted game art.
+
+**Attacks last their own length.** Two of these attacks run longer than `SHOVE_COOLDOWN_MS` at the owner's request. Rather than cut them or speed them up, the world now locks the attacker for the length of their character's attack (`shoveLock`: at least `SHOVE_COOLDOWN_MS`, at most `SHOVE_MAX_MS` = 1.2 s), passed in as `StepCtx.shoveMs` from the atlas. A slow attack is therefore a real cost: you can't attack again until it ends. The prompt now asks for attacks of 0.7 to 1.2 s, with the duration and pacing worked out from the attack's range of motion and force.
+
+**Previews are framed.** The picker and the home stage showed every character in one shared window at one scale, so with a dog at knee height and a rider on a dinosaur some were cut off and others sat tiny at the bottom. `Hero.svelte` now frames each character by its own standing box, scaled to fill its cell (`fitScale`); the shared `PORTRAIT` window is gone. True relative sizes are in the game and in the `/sistema` line-up.
+

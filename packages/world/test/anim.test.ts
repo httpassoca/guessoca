@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { SHOVE_COOLDOWN_MS } from '../src';
+import { createBody, MAP, NO_INPUT, SHOVE_COOLDOWN_MS, SHOVE_MAX_MS, shoveLock, stepBody } from '../src';
 import { bodyAt, DT, once, run, T0 } from './sim';
 
 /** a hora do passo `i` de um `run` que começou em T0 */
@@ -55,5 +55,27 @@ describe('animação', () => {
     const r = run({ ...bodyAt(60, 10), vx: 200, vy: 160, grounded: false, stunnedUntil: T0 + 400 }, {}, 0.3);
     expect(r.trace[0].anim).toBe('jump');
     expect(r.trace.some((b) => b.anim === 'fall')).toBe(true);
+  });
+});
+
+describe('o tempo do ataque', () => {
+  test('o empurrão trava pelo tempo do ataque do personagem, entre o intervalo do jogo e o teto', () => {
+    expect(shoveLock()).toBe(SHOVE_COOLDOWN_MS);
+    expect(shoveLock(300)).toBe(SHOVE_COOLDOWN_MS); // um ataque curto segura o último quadro até o intervalo
+    expect(shoveLock(900)).toBe(900); // uma rajada lenta dura o que dura
+    expect(shoveLock(5000)).toBe(SHOVE_MAX_MS);
+  });
+
+  test('quem tem um ataque de 0,9 s fica na animação de ataque, e sem atacar de novo, por 0,9 s', () => {
+    const now = 10_000;
+    const ctx = { now, platforms: MAP, others: [], shoveMs: 900 };
+    const hit = stepBody(createBody(MAP, now), { ...NO_INPUT, shove: true }, 1 / 60, ctx);
+    expect(hit.events.some((e) => e.type === 'shove')).toBe(true);
+    expect(hit.body.shoveUntil).toBe(now + 900);
+    const mid = stepBody(hit.body, { ...NO_INPUT, shove: true }, 1 / 60, { ...ctx, now: now + 600 });
+    expect(mid.events.some((e) => e.type === 'shove')).toBe(false);
+    expect(mid.body.anim).toBe('shove');
+    const after = stepBody(mid.body, NO_INPUT, 1 / 60, { ...ctx, now: now + 950 });
+    expect(after.body.anim).not.toBe('shove');
   });
 });

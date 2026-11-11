@@ -138,5 +138,26 @@
     "color": "#4a4a55",
     "sheet": "/sprites/char-19.webp",
     "atlas": "guimas"
+  },
+  {
+    "model": "jotaro",
+    "name": "jotaro",
+    "color": "#5a3fc0",
+    "sheet": "/sprites/char-20.webp",
+    "atlas": "jotaro"
+  },
+  {
+    "model": "miku",
+    "name": "miku",
+    "color": "#28cbd0",
+    "sheet": "/sprites/char-21.webp",
+    "atlas": "miku"
+  },
+  {
+    "model": "galodoido",
+    "name": "galo doido",
+    "color": "#e2b93b",
+    "sheet": "/sprites/char-22.webp",
+    "atlas": "galodoido"
   }
 ]
