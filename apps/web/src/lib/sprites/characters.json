@@ -180,5 +180,12 @@
     "color": "#c9a227",
     "sheet": "/sprites/char-25.webp",
     "atlas": "daftpunk"
+  },
+  {
+    "model": "vaultboy",
+    "name": "vault boy",
+    "color": "#ee8f2b",
+    "sheet": "/sprites/char-26.webp",
+    "atlas": "vaultboy"
   }
 ]

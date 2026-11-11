@@ -1743,5 +1743,72 @@
     },
     "credit": null,
     "scale": 0.390625
+  },
+  "vaultboy": {
+    "frame": {
+      "w": 365,
+      "h": 150
+    },
+    "anchor": {
+      "x": 52,
+      "y": 150
+    },
+    "head": {
+      "x": 33,
+      "y": 20,
+      "size": 46
+    },
+    "stand": {
+      "x": 19,
+      "y": 23,
+      "w": 72,
+      "h": 127
+    },
+    "animations": {
+      "idle": {
+        "row": 0,
+        "frames": 12,
+        "fps": 10,
+        "loop": true
+      },
+      "walk": {
+        "row": 1,
+        "frames": 8,
+        "fps": 8.88888888888889,
+        "loop": true
+      },
+      "run": {
+        "row": 2,
+        "frames": 12,
+        "fps": 16.666666666666668,
+        "loop": true
+      },
+      "jump": {
+        "row": 3,
+        "frames": 8,
+        "fps": 20,
+        "loop": false
+      },
+      "fall": {
+        "row": 4,
+        "frames": 8,
+        "fps": 24.242424242424242,
+        "loop": false
+      },
+      "fall_loop": {
+        "row": 5,
+        "frames": 8,
+        "fps": 16,
+        "loop": true
+      },
+      "shove": {
+        "row": 6,
+        "frames": 24,
+        "fps": 20,
+        "loop": false
+      }
+    },
+    "credit": null,
+    "scale": 0.390625
   }
 }

@@ -57,8 +57,12 @@ const LOOPS: Record<AnimationName, boolean> = { idle: true, walk: true, run: tru
 /** O maior número de quadros de uma animação, e o maior fps, que o pedido da arte aceita. */
 export const MAX_FRAMES = 24;
 export const MAX_FPS = 60;
-/** O maior lado de uma folha gerada, em pixels: o que qualquer placa de vídeo de computador aceita como textura. */
-export const MAX_SHEET = 8192;
+/**
+ * O maior lado de uma folha gerada, em pixels: o que qualquer placa de vídeo de computador aceita como textura (16384; o
+ * jogo é só para navegador de computador). Era 8192, até o Vault Boy: o tiro e a explosão dele alargam o quadro, e 24
+ * quadros de 365 pixels dão 8760.
+ */
+export const MAX_SHEET = 16384;
 
 /**
  * A `ModelSpec` de um pacote que escolheu os próprios quadros: o pedido da arte dá um mínimo por animação e uma duração,

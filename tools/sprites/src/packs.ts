@@ -213,4 +213,17 @@ export const PACKS: readonly Pack[] = [
       spec: packSpec({ idle: [12, 10], walk: [16, 16], run: [16, 20], jump: [8, 20], fall: [8, 8 / 0.33], fall_loop: [8, 20], shove: [24, 24 / 1.1] }),
     },
   },
+  /**
+   * O Vault Boy: o mascote de macacão azul e cabelo loiro de topete, com a mãozinha de joinha. Tamanho 1 (128 pixels),
+   * células de 512×224 em todas as folhas (o ataque precisa da largura: o tiro e a explosão vão longe à frente), os pés
+   * no x 62 e o chão na linha 208. O ataque é o "Fat Man": 24 quadros. A arte foi feita para 1,6 s (15 fps), mas o jogo
+   * corta o ataque em `SHOVE_MAX_MS` (1,2 s), então ele toca a 20 fps: os mesmos quadros, mais rápidos.
+   */
+  {
+    model: 'vaultboy', name: 'vault boy', color: 'ee8f2b', dir: 'vaultboy',
+    config: {
+      ...NEW, name: 'o Vault Boy', cellW: 512, cellH: 224, headRows: 40,
+      spec: packSpec({ idle: [12, 10], walk: [8, 8 / 0.9], run: [12, 12 / 0.72], jump: [8, 20], fall: [8, 8 / 0.33], fall_loop: [8, 16], shove: [24, 20] }),
+    },
+  },
 ];

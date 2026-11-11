@@ -127,3 +127,12 @@ The picker's name tooltip now opens above the cell. dssoca only puts a tooltip o
 ## Amendment: the Daft Punk duo
 
 A pack from the owner (`assets-src/daftpunk/`, slot 25, generated for this game): two helmeted figures, one silver and one gold, who move together as **one character** in three-quarter view, dancing in every animation. Size 1, 160×160 cells, a 224×160 attack cell where the duo stands 12 pixels further right (`dx: -12`), ground at row 144. The attack is a 24-frame, 1.1 s dance kick that starts and ends on the idle frame. Common recipe, no pixel changed. The cast is now twenty-six.
+
+## Amendment: the Vault Boy, and a bigger sheet limit
+
+A pack from the owner (`assets-src/vaultboy/`, slot 26, generated for this game): the blond mascot in a blue jumpsuit, thumbs up. Size 1, 512×224 cells in every sheet (the attack, a "Fat Man" launcher shot with its explosion, reaches far to the right), feet at x 62, ground at row 208. Common recipe, no pixel changed. The cast is now twenty-seven.
+
+Two limits had to give way:
+
+- **Attack length.** The art was made for 1.6 s (24 frames at 15 fps), but the game cuts an attack at `SHOVE_MAX_MS` (1.2 s), which the art prompt also states. It plays at 20 fps instead: the same frames, faster. Raising the cap would also mean changing the prompt's range for every future character, so that is left to the owner.
+- **Sheet size.** The explosion widens the shared frame to 365 px, so 24 frames make an 8760 px sheet, over the old `MAX_SHEET` of 8192. The limit is now 16384, which every desktop GPU we know of accepts. Software WebGL (SwiftShader, used by headless checks) caps textures at 8192 and draws such a sheet as a black box; check this character with a GPU-backed GL (`--use-angle=gl`).
