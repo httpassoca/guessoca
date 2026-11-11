@@ -302,7 +302,8 @@ html, body { margin: 0; min-height: 100%; background: var(--ss-bg); }
 .gs-turn { position: relative; display: flex; align-items: center; gap: 16px; min-height: 52px; padding: 8px 8px 8px 16px; }
 /* o tempo da vez: um fio na borda de baixo que encolhe da largura toda até zero */
 .gs-turn-left { position: absolute; left: -1px; bottom: -1px; height: 2px; max-width: calc(100% + 2px); background: var(--ss-accent); transition: width 200ms linear; pointer-events: none; }
-.gs-turn-left.gs-warn { background: currentColor; }
+.gs-turn-left.orange { background: oklch(72% 0.17 58); }
+.gs-turn-left.red { background: oklch(62% 0.23 27); }
 .gs-turn-left.paused { opacity: 0.5; }
 .gs-turn .who { font: 500 var(--ss-ui-md)/20px var(--ss-font-body); white-space: nowrap; }
 /* o relógio da vez no cinza do "Desistir" (botão fantasma); nos últimos segundos, a cor de aviso */

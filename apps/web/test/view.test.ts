@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 import { CHARACTERS, TURN_MAX, TURN_MIN, TURN_STEP } from '@guess/rules';
-import { characterToClaim, clockText, countdown, devTools, moveBy, roomView, turnFraction, turnOptions } from '../src/lib/room/view';
+import { characterToClaim, clockText, countdown, devTools, moveBy, roomView, turnFraction, turnOptions, turnTone } from '../src/lib/room/view';
 import { member, postit, snapshot } from './snapshots';
 
 /** O círculo Zé → Ana → Bia → Zé (dono → autor: Ana é escrita por Zé, e assim por diante). */
@@ -384,5 +384,14 @@ describe('o fio da vez', () => {
     expect(turnFraction(-500, 60_000)).toBe(0);
     expect(turnFraction(90_000, 60_000)).toBe(1);
     expect(turnFraction(10, 0)).toBe(0);
+  });
+
+  test('o fio da vez: verde-limão, laranja nos últimos 35% e vermelho nos últimos 10%', () => {
+    expect(turnTone(1)).toBe('ok');
+    expect(turnTone(0.36)).toBe('ok');
+    expect(turnTone(0.35)).toBe('orange');
+    expect(turnTone(0.11)).toBe('orange');
+    expect(turnTone(0.1)).toBe('red');
+    expect(turnTone(0)).toBe('red');
   });
 });

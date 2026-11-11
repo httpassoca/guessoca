@@ -5,12 +5,12 @@
   import Kbd from '../hud/Kbd.svelte';
   import { t } from '../i18n.svelte';
   import type { GameRequest } from '../room/remote';
-  import { clockText, turnFraction, type RoomView } from '../room/view';
+  import { clockText, turnFraction, turnTone, type RoomView } from '../room/view';
 
   /**
    * A vez e a votação, em cima e no meio do telhado: de quem é a vez, o relógio, Acertei / Passar / Desistir e a
    * votação "X acertou?". `turnLeft` e `voteLeft` já vêm contados para agora. O fio na borda de baixo da barra é o
-   * tempo da vez: começa na largura toda e encolhe até zero (`turnLeft / room.turnMs`).
+   * tempo da vez: começa na largura toda e encolhe até zero (`turnLeft / room.turnMs`), verde-limão, laranja nos últimos 35% e vermelha nos últimos 10% (`turnTone`).
    */
   let { v, room, send, turnLeft, voteLeft }: { v: RoomView; room: RoomSnapshot; send: (r: GameRequest) => void; turnLeft: number; voteLeft: number } = $props();
 </script>
@@ -33,7 +33,7 @@
     {:else if v.done}
       <span class="gs-hint">{t('play.youAreDone')}</span>
     {/if}
-    {#if v.turn}<span class="gs-turn-left" class:gs-warn={v.turn.running && turnLeft < 10_000} class:paused={room.paused} style:width="{turnFraction(turnLeft, room.turnMs) * 100}%" aria-hidden="true"></span>{/if}
+    {#if v.turn}{@const frac = turnFraction(turnLeft, room.turnMs)}<span class="gs-turn-left {turnTone(frac)}" class:paused={room.paused} style:width="{frac * 100}%" aria-hidden="true"></span>{/if}
   </section>
 
   {#if v.vote}
