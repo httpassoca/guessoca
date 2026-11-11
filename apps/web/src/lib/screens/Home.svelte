@@ -78,11 +78,7 @@
         </label>
         {#if problems.includes('nickname')}<p class="gs-error">{t('pre.needNickname')}</p>{/if}
 
-        <div class="gs-field">
-          <span class="gs-lbl">{t('pre.character')}</span>
-          <CharacterPicker value={character} onpick={(n) => { character = n; problems = problems.filter((p) => p !== 'character'); }} />
-          {#if problems.includes('character')}<p class="gs-error">{t('pre.needCharacter')}</p>{/if}
-        </div>
+        {#if problems.includes('character')}<p class="gs-error">{t('pre.needCharacter')}</p>{/if}
 
         <div class="gs-rows">
           <div class="gs-line">
@@ -119,5 +115,10 @@
     <div class="foot"><LangSwitch /><span class="gs-credit">{t('credit.character')}</span></div>
   </div>
   <Stage n={character} {nickname} />
+  </div>
+  <!-- a escolha do personagem numa barra embaixo, de ponta a ponta: casas maiores que dentro do cartão -->
+  <div class="gs-charbar">
+    <span class="gs-lbl">{t('pre.character')}</span>
+    <CharacterPicker layout="bar" value={character} onpick={(n) => { character = n; problems = problems.filter((p) => p !== 'character'); }} />
   </div>
 </div>

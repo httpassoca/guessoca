@@ -97,6 +97,19 @@ export function frameIndex(atlas: Atlas, name: AnimationName, elapsed: number): 
 export const attackMs = (atlas: Atlas): number => (atlas.animations.shove.frames / atlas.animations.shove.fps) * 1000;
 
 /**
+ * O mesmo recorte de `fitScale`, mas no tamanho de verdade: `unit` pixels da tela por unidade do mundo, igual para
+ * todos os personagens (um adulto tem 50 unidades; o cachorro, 15). A escala é ajustada de leve para o quadro ter um
+ * número inteiro de pixels de largura.
+ */
+export function trueScale(atlas: Atlas, unit: number): { x: number; y: number; w: number; h: number; k: number } {
+  const { x, y, w, h } = fitScale(atlas, { w: 1, h: 1 });
+  return { x, y, w, h, k: Math.max(1, Math.round(atlas.frame.w * artScale(atlas) * unit)) / atlas.frame.w };
+}
+
+/** O nome de um personagem com maiúsculas: `old snake` vira `Old Snake`. O herói e o esqueleto têm nome traduzido (`char.hero`, `char.skeleton`). */
+export const properName = (name: string): string => name.replace(/(^|\s)\p{L}/gu, (m) => m.toUpperCase());
+
+/**
  * Como enquadrar um personagem parado numa caixa de `box.w × box.h` pixels da tela: o retângulo do quadro a mostrar
  * (`x`, `y`, `w`, `h`, em pixels do quadro: o parado, com 2 pixels de folga dos lados e em cima, até o chão) e a escala
  * `k` (pixels da tela por pixel do quadro) com que ele cabe inteiro: o maior que cabe, ajustado para o quadro ter um
