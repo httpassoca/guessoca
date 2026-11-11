@@ -1676,5 +1676,72 @@
     },
     "credit": null,
     "scale": 0.390625
+  },
+  "daftpunk": {
+    "frame": {
+      "w": 131,
+      "h": 133
+    },
+    "anchor": {
+      "x": 59,
+      "y": 133
+    },
+    "head": {
+      "x": 40,
+      "y": 3,
+      "size": 34
+    },
+    "stand": {
+      "x": 18,
+      "y": 5,
+      "w": 78,
+      "h": 128
+    },
+    "animations": {
+      "idle": {
+        "row": 0,
+        "frames": 12,
+        "fps": 10,
+        "loop": true
+      },
+      "walk": {
+        "row": 1,
+        "frames": 16,
+        "fps": 16,
+        "loop": true
+      },
+      "run": {
+        "row": 2,
+        "frames": 16,
+        "fps": 20,
+        "loop": true
+      },
+      "jump": {
+        "row": 3,
+        "frames": 8,
+        "fps": 20,
+        "loop": false
+      },
+      "fall": {
+        "row": 4,
+        "frames": 8,
+        "fps": 24.242424242424242,
+        "loop": false
+      },
+      "fall_loop": {
+        "row": 5,
+        "frames": 8,
+        "fps": 20,
+        "loop": true
+      },
+      "shove": {
+        "row": 6,
+        "frames": 24,
+        "fps": 21.818181818181817,
+        "loop": false
+      }
+    },
+    "credit": null,
+    "scale": 0.390625
   }
 }

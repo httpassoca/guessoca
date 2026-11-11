@@ -173,5 +173,12 @@
     "color": "#3f8f6b",
     "sheet": "/sprites/char-24.webp",
     "atlas": "spikespiegel"
+  },
+  {
+    "model": "daftpunk",
+    "name": "daft punk",
+    "color": "#c9a227",
+    "sheet": "/sprites/char-25.webp",
+    "atlas": "daftpunk"
   }
 ]

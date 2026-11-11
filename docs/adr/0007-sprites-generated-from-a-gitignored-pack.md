@@ -123,3 +123,7 @@ Four folders from the owner, all generated for this game (none is another game's
 - **Miku** (slot 21 kept): only `run.png` changed; the numbers are the same. The old folder is `assets-src/miku-v1/`.
 
 The picker's name tooltip now opens above the cell. dssoca only puts a tooltip on a side where it fits inside the nearest clipping ancestor, and the picker is a scrolling list whose first row touches its top edge, so the tooltip went below or to the side. The list now has a tooltip's height of padding at the top (and an equal negative margin, so nothing moves); the padding ignores the pointer.
+
+## Amendment: the Daft Punk duo
+
+A pack from the owner (`assets-src/daftpunk/`, slot 25, generated for this game): two helmeted figures, one silver and one gold, who move together as **one character** in three-quarter view, dancing in every animation. Size 1, 160×160 cells, a 224×160 attack cell where the duo stands 12 pixels further right (`dx: -12`), ground at row 144. The attack is a 24-frame, 1.1 s dance kick that starts and ends on the idle frame. Common recipe, no pixel changed. The cast is now twenty-six.

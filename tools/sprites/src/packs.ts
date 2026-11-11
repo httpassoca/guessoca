@@ -200,4 +200,17 @@ export const PACKS: readonly Pack[] = [
       spec: packSpec({ idle: [8, 8 / 1.2], walk: [8, 10], run: [8, 8 / 0.6], jump: [8, 20], fall: [8, 8 / 0.33], fall_loop: [8, 20], shove: [18, 20] }),
     },
   },
+  /**
+   * O Daft Punk: a dupla de capacetes (um prateado, um dourado) que anda junta como **um personagem só**, em três
+   * quartos, dançando em tudo (o parado é um gingado). Tamanho 1 (128 pixels), células de 160×160 e, só no ataque, de
+   * 224×160, em que a dupla fica 12 pixels mais à direita (pés no x 92 em vez de 80): os quadros do ataque andam 12 para
+   * trás. O chão na linha 144. O ataque são 24 quadros em 1,1 s (um chute dançado, que começa e termina no parado).
+   */
+  {
+    model: 'daftpunk', name: 'daft punk', color: 'c9a227', dir: 'daftpunk',
+    config: {
+      ...NEW, name: 'o Daft Punk', cellW: 160, cellH: 160, padX: 12, headRows: 30, cells: { shove: { cellW: 224, cellH: 160, dx: -12 } },
+      spec: packSpec({ idle: [12, 10], walk: [16, 16], run: [16, 20], jump: [8, 20], fall: [8, 8 / 0.33], fall_loop: [8, 20], shove: [24, 24 / 1.1] }),
+    },
+  },
 ];
