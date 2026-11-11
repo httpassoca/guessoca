@@ -111,11 +111,7 @@
               <span class="control"><input class="ss-input" bind:this={field} bind:value={nickname} maxlength={NICKNAME_MAX} placeholder={t('sala.nicknamePlaceholder')} spellcheck="false" autocomplete="nickname" aria-invalid={problems.includes('nickname')} /></span>
             </label>
             {#if problems.includes('nickname')}<p class="gs-error">{t('pre.needNickname')}</p>{/if}
-            <div class="gs-field">
-              <span class="gs-lbl">{t('pre.character')}</span>
-              <CharacterPicker value={character} onpick={(n) => (character = n)} />
-              {#if problems.includes('character')}<p class="gs-error">{t('pre.needCharacter')}</p>{/if}
-            </div>
+            {#if problems.includes('character')}<p class="gs-error">{t('pre.needCharacter')}</p>{/if}
             <button class="ss-btn primary full-width" type="submit" disabled={!live || !room}>{t('sala.join')}</button>
           </form>
         {/if}
@@ -140,5 +136,11 @@
     </div>
     <Stage n={character} {nickname} />
     </div>
+    {#if !auto}
+      <div class="gs-charbar">
+        <span class="gs-lbl">{t('pre.character')}</span>
+        <CharacterPicker layout="bar" value={character} onpick={(n) => (character = n)} />
+      </div>
+    {/if}
   </div>
 {/if}

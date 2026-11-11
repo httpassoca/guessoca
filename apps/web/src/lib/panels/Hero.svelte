@@ -8,23 +8,26 @@
    * cortados e outros pequenos lá embaixo. Aqui cada um enche a sua caixa; o tamanho de verdade se vê no jogo e na fila
    * do `/sistema`.
    *
+   * Com `unit` no lugar de `box` (pixels da tela por unidade do mundo), o personagem sai no tamanho de verdade dele, o
+   * mesmo para todos: é o palco do pré-lobby, onde se compara o tamanho de um com o de outro.
+   *
    * Sem Pixi: a folha `char-N` como `background-image`, e a animação é um `steps()` de CSS que anda
    * `background-position-x` um quadro por passo, no fps do atlas. A escala é escolhida para o quadro ter um número
    * inteiro de pixels de largura (os passos caem certo); ampliando, é inteira e sem suavizar (pixel art); encolhendo, é
    * suavizada. Usado por `CharacterPicker` (uma caixa pequena por casa) e `Stage` (uma grande). Lê
    * `../sprites/characters.ts`.
    */
-  import { character, fitScale, frameAt, sheetSize } from '../sprites/characters';
-  let { n, box, animate = false }: { n: number; box: { w: number; h: number }; animate?: boolean } = $props();
+  import { character, fitScale, frameAt, sheetSize, trueScale } from '../sprites/characters';
+  let { n, box, unit, animate = false }: { n: number; box?: { w: number; h: number }; unit?: number; animate?: boolean } = $props();
   const art = $derived(character(n));
   const atlas = $derived(art.atlas);
   const idle = $derived(atlas.animations.idle);
   const start = $derived(frameAt(atlas, 'idle', 0));
   const size = $derived(sheetSize(atlas));
-  const fit = $derived(fitScale(atlas, box));
+  const fit = $derived(box ? fitScale(atlas, box) : trueScale(atlas, unit ?? 1));
 </script>
 
-<span class="gs-hero" aria-hidden="true" style:width="{box.w}px" style:height="{box.h}px">
+<span class="gs-hero" aria-hidden="true" style:width={box ? `${box.w}px` : null} style:height={box ? `${box.h}px` : null}>
   <span class="crop" style:width="{Math.round(fit.w * fit.k)}px" style:height="{Math.round(fit.h * fit.k)}px">
     <span
       class="frame"

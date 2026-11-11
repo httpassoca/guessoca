@@ -127,10 +127,9 @@ html, body { margin: 0; min-height: 100%; background: var(--ss-bg); }
 .gs-gone .title { color: var(--ss-fg); font-size: var(--ss-size-h3); }
 
 /* o momento do pré-lobby: o personagem escolhido, grande, numa faixa de telhado */
-.gs-stage { width: 288px; flex: none; display: flex; flex-direction: column; align-items: center; }
-.gs-stage-hero { position: relative; z-index: 1; display: flex; flex-direction: column; align-items: center; gap: 12px; margin-bottom: -28px; }
-/* o personagem enche a caixa de baixo para cima: num personagem baixo e largo a caixa sobra em cima, e o apelido desce até ele */
-.gs-stage-hero .gs-hero { height: auto !important; }
+.gs-stage { width: 336px; flex: none; display: flex; flex-direction: column; align-items: center; }
+/* a altura não muda (cabe o personagem mais alto, 70 unidades a 4 pixels, e o apelido): o chão fica parado e o personagem cresce de baixo para cima */
+.gs-stage-hero { position: relative; z-index: 1; height: 320px; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 12px; margin-bottom: -28px; }
 .gs-stage-tag { position: relative; z-index: 1; max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 0 8px; background: rgb(0 0 0 / 0.6);
   border: 1px solid var(--ss-line); color: var(--ss-fg); font: 500 var(--ss-ui-sm)/20px var(--ss-font-mono); }
 .gs-stage-tag.empty { color: var(--ss-fg-faint); }
@@ -146,6 +145,16 @@ html, body { margin: 0; min-height: 100%; background: var(--ss-bg); }
   transition: background-color var(--gs-fast) var(--gs-ease), border-color var(--gs-fast) var(--gs-ease); }
 /* fileiras de sete, com rolagem: aparecem duas fileiras e meia (a terceira pela metade avisa que há mais). Cada personagem vem enquadrado na casa (`Hero`), inteiro */
 .gs-char { justify-content: flex-end; }
+/* o tooltip do dssoca embrulha cada casa: o embrulho é que entra na grade, e a casa o enche */
+.gs-chars > .ss-tooltip { display: flex; min-width: 0; }
+.gs-chars > .ss-tooltip > .gs-char { flex: 1; }
+/* a barra de baixo do pré-lobby: uma fileira só, de ponta a ponta, com casas maiores; rola de lado se não couber */
+.gs-charbar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 2; display: flex; flex-direction: column; gap: 8px; padding: 12px 16px 12px; background: color-mix(in srgb, var(--ss-bg) 92%, transparent); border-top: 1px solid var(--ss-line); backdrop-filter: var(--gs-float-blur); }
+.gs-charbar .gs-lbl { text-align: center; }
+.gs-chars.bar { display: flex; grid-template-columns: none; max-height: none; overflow-x: auto; overflow-y: hidden; justify-content: safe center; scrollbar-gutter: auto; padding-bottom: 4px; }
+.gs-chars.bar > .ss-tooltip { flex: 0 0 76px; height: 120px; }
+/* a tela do pré-lobby deixa o lugar da barra embaixo */
+.gs-screen:has(.gs-charbar) { padding-bottom: 196px; }
 .gs-char .gs-hero { margin-top: 0; }
 .gs-char:hover:not(:disabled) { background: var(--ss-hover); }
 .gs-char:focus-visible { outline: 2px solid var(--gs-focus); outline-offset: 2px; }
