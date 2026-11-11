@@ -130,15 +130,28 @@ This is frame-by-frame pixel-art animation, not an image that gets warped.
    leg, each foot, weapon or carried item, cloth, tail, ears, anything that hangs
    or trails. Note each part's colours, its size relative to the head, and where it
    attaches. This parts list is your model sheet; keep it and reuse it.
-2. Research how THIS character moves. If the character is a known one (from a
-   game, a comic, a show, a film) or a real person, search online for how they
-   actually move before you animate: their stance, how they walk and run, how
-   they jump, and above all how they attack. Look for the signature move: the
-   weapon they use and how they hold it, a named technique, a companion or power
-   that appears with them, a catchphrase pose. The attack should be recognisably
-   theirs, not a generic punch. Note what you found, with the sources, in two or
-   three lines per animation. If the character is original, decide these from
-   the design instead.
+2. Research THIS character, only if it is a well-known one from media (a game,
+   a comic, an anime, a show, a film) or a famous real person. If it is original,
+   an ordinary person or an animal with no source material, skip this step and
+   decide these things from the design instead: there is nothing to look up.
+   For a well-known character, search online before you animate, for two things:
+   - How they move and attack. Their stance, how they walk and run, how they
+     jump, and above all how they attack. Look for the signature move: the weapon
+     they use and how they hold it, a named technique, a companion or power that
+     appears with them. The attack should be recognisably theirs, not a generic
+     punch.
+   - How they pose. Search for image references of the character: official art,
+     key visuals, model sheets, screenshots, cover and promotional poses, and the
+     well-known poses fans associate with them. Look at how they stand at rest
+     (weight on which leg, where the hands are, the tilt of the head and
+     shoulders, how the coat or hair falls), their signature pose if they have
+     one, and how they hold themselves when running, jumping and striking. Use
+     these to set the idle stance, the key poses of each animation and the
+     strike pose of the attack, so the silhouette alone reads as this character.
+   Translate what you find into the side view facing right; do not trace or copy
+   any image, learn the pose from it. Note what you found, with the sources, in
+   two or three lines per animation, and say which pose references you used for
+   the idle and for the attack.
 3. Research the motion itself. Before each animation, search online for
    pixel-art references of that kind of motion (walk cycles, run cycles, jump
    arcs, falling poses, attack anticipation and recovery, and the same for
