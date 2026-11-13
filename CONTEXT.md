@@ -88,6 +88,10 @@ _Evitar_: avatar, boneco, skin, sprite (é o desenho), herói
 J empurra quem está na frente, que é jogado para trás e pode cair do telhado. Cair na rua faz o personagem piscar e voltar em 1,5 s na plataforma mais alta do meio. Cair não muda nada no jogo.
 _Evitar_: ataque, soco, golpe, hit
 
+**Comemoração** (`cheer`):
+Quando um acerto é confirmado (pela votação ou pelo moderador), a turma inteira vê confete em volta do personagem de quem acertou por uns 2 s, e ele é lançado para o alto uma vez. Desistir e errar não têm comemoração.
+_Evitar_: festa, animação de vitória, efeito
+
 **Emote** (`emote`):
 Um balão de pixel sobre a cabeça por uns 2 s: `?`, `!`, `haha` e "eu?".
 _Evitar_: reação, emoji, fala

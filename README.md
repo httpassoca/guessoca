@@ -34,7 +34,7 @@ packages/rules     sala e jogo, puros (@guess/rules)
   test/              lobby, escrita no lobby, apagar, começar e jogo com `Sim` e sorteio semeado
 packages/world     o telhado, puro (@guess/world, ADR 0005): o mapa (três prédios com vãos, caixas para subir), `stepBody`
                    (andar, correr, profundidade, pular, gravidade, lados que bloqueiam, degrau, corpos sólidos, ficar na
-                   cabeça de alguém e ser carregado, cair na rua e voltar piscando), `shoveTargets`/`applyShove`, e a
+                   cabeça de alguém e ser carregado, cair na rua e voltar piscando), `shoveTargets`/`applyShove`, `applyCheer` (o salto de quem acertou), e a
                    projeção 2.5D (`project`, `depthKey`, `followCamera`) que o Pixi e os post-its em HTML dividem (ADR 0006)
   test/              movimento, corpos, empurrão, animação, projeção e câmera, a 60 passos por segundo
 packages/protocol  mensagens cliente ↔ servidor (@guess/protocol): todas as ações do jogo e de volta `snapshot`, `error`
@@ -86,12 +86,14 @@ apps/web           Vite + Svelte 5 + PixiJS v8 + dssoca
                            jogadores falsos parados em lugares fixos), view (escala inteira, onde vão o post-it e o balão),
                            heads, dressing (puro: que objeto veste cada caixa do mapa, onde ficam tampo e fachada de cada
                            telhado, antenas, letreiros e poças, o neon que falha), parallax (puro: a faixa que rola a uma
-                           fração da câmera), rain (puro: as gotas reaproveitadas), art (as texturas da folha do telhado),
+                           fração da câmera), rain (puro: as gotas reaproveitadas), cheer (puro: quem acabou de
+                           acertar, pela diferença entre snapshots), confetti (puro: os pedaços do confete e onde cada um está
+                           pela idade), celebration (Pixi: o confete em volta de quem acertou), art (as texturas da folha do telhado),
                            backdrop (céu, lua, a cidade em duas camadas de paralaxe, a queda até a rua com neblina), platforms
                            (os telhados vestidos, num lugar só: tampo, muretas, fachada, objetos das caixas, enfeites), weather
                            (chuva e neblina da frente), film (os filtros só no mundo: brilho no cenário, aberração e VHS em
                            tudo), scene (Pixi: as camadas, corpos por profundidade, sombras, balões, câmera), runtime (o laço,
-                           o empurrão de ida e de volta, os post-its em HTML sobre as cabeças) e World.svelte
+                           o empurrão de ida e de volta, o salto de quem acertou, os post-its em HTML sobre as cabeças) e World.svelte
   src/lib/sound/           os efeitos sonoros: sfx (cinco sons como parâmetros do sfxr, gerados com o jsfxr; nenhum arquivo de
                            áudio), room (os sons da sala tirados da diferença entre snapshots: votação, acertou, fim de vez),
                            settings (volume e mudo por navegador) e player (um AudioContext, ligado na primeira interação)

@@ -79,6 +79,9 @@ Client rendering, `apps/web/src/lib/world/` (Pixi files have no automated tests;
 | `backdrop.ts` | Sky bands, stars, moon, two parallax skyline strips, the drop to the street and the street fog. |
 | `weather.ts` | Rain streaks and the low front fog. |
 | `rain.ts` | Pure rain simulation (fixed pool of drops, screen pixels). |
+| `celebration.ts` | The confetti around whoever just guessed right. |
+| `confetti.ts` | Pure confetti maths (seeded pieces, closed-form position by age, world units). |
+| `cheer.ts` | Pure: who newly got it right, from two consecutive snapshots. |
 | `parallax.ts` | Pure parallax offset and the per-layer factors. |
 | `film.ts` | The film look: bloom on scenery, RGB split and CRT grain/scanlines/vignette on the world. |
 | `art.ts` | Loads `rooftop.png` and the skylines into textures; tiles get their own repeat-mode canvas. |
@@ -104,7 +107,7 @@ There are four spaces. Comments say which one a value is in.
 - **Scale**: `pickScale` in `view.ts` uses the largest integer that fits about 600×300 world units on screen, clamped to 2–6 (3 on a 1080p window). The integer scale keeps pixels square. `groundY` is 80 % of the screen height.
 - **Why everything is pixelated**: `TextureSource.defaultOptions.scaleMode = 'nearest'`, `antialias: false`, `roundPixels: true`, `resolution: 1`, and `image-rendering: pixelated` in the HTML. Tiles are copied to their own canvas with `addressMode: 'repeat'` so a `TilingSprite` never samples a neighbour on the sheet. Never introduce smooth scaling or fractional scales on sprites.
 - **Depth sorting**: bodies are sorted by `depthKey(p) = z`, larger first (further back is drawn first), with ties broken by id so the order doesn't flicker. Each sprite's `zIndex` is its place in that list. Height doesn't count: someone riding a head has nearly the same `z` as the person below, so who covers whom is decided by `z` (then id), not by who is on top.
-- **Layer order** inside the world container: `scenery` (backdrop, then `platforms.back`: back decor, roof tops, ledges, facades, edges, facade signs, floor decor, box props) → shadows → bodies → `platforms.front` (front parapets, covering feet at the edge) → emote balloons → weather. The post-its and panels are HTML above the canvas and never pass through the filters.
+- **Layer order** inside the world container: `scenery` (backdrop, then `platforms.back`: back decor, roof tops, ledges, facades, edges, facade signs, floor decor, box props) → shadows → bodies → `platforms.front` (front parapets, covering feet at the edge) → emote balloons → confetti → weather. The post-its and panels are HTML above the canvas and never pass through the filters.
 - **Shadow**: an ellipse at the ground under the feet (`groundAt(MAP, x, z)`), not at the body's height, so a jump reads as height. It's `BODY_RX·1.3` by `BODY_RZ·DEPTH_K·1.8` world units at 40 % black, and shrinks to 45 % size by 120 units above the ground.
 - **`BODY_H = 40`** is the physics height (what you stand on when riding a head). It isn't the sprite height (hero 37, skeleton 51, Kratos 61, Vorcaro 50, Orelha 15, Bolsonaro 70, knight 10, Old Snake 49, Pinocchio 50, Eve 50, Katarina 50, Punisher 59, Mista 52). Post-it height comes from the atlas instead: `headY(n) = anchor.y − head.y + 3` (hero 40, skeleton 47). The emote tail sits at `headY − 11`, `EMOTE_GAP = 14` units in front of the face.
 
@@ -263,6 +266,10 @@ All of these are client-side constants, tuned by eye at 1080p (scale 3). No `bun
 - `backdrop.ts`: the `SKY` bands, the moon position, `FAR_BASE`/`NEAR_BASE` (where each skyline strip sits), the drop gradient, and the street fog tint, alpha and drift.
 - `PARALLAX` in `parallax.ts`: the moon 0.02, far city 0.12, near city 0.3, street 0.75; the roofs are 1.
 - `neonFlicker` and `beaconOn` in `dressing.ts`: the sign and mast light timings.
+
+### 8. The confetti (issue #58)
+
+When a guess is confirmed, every client draws confetti around that character for about 2 s (`celebration.ts`, maths in `confetti.ts`), and the guesser's own browser launches its body upward (`applyCheer` in `@guess/world`). No sheet: each piece is `Texture.WHITE` stretched to a 1- or 2-world-pixel square in a flat colour from the rooftop `PALETTE` (the neons, the lit window, the antenna and TV lights). It keeps the pixel grid: positions are whole world units times the integer scale, no rotation, and no alpha: a piece blinks out at the end of its life instead of fading. Half the pieces burst at once and the rest are born over one second from wherever the character is, then stay in the world, so the launch leaves a trail. Tune `CONFETTI_PIECES`, `CONFETTI_COLORS` and the speed, drag and fall ranges in `confetti.ts`; the launch height is `CHEER_VY`.
 
 ## Verification
 
