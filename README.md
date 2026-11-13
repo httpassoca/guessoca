@@ -97,7 +97,9 @@ apps/web           Vite + Svelte 5 + PixiJS v8 + dssoca
                            backdrop (céu, lua, a cidade em duas camadas de paralaxe, a queda até a rua com neblina), platforms
                            (os telhados vestidos, num lugar só: tampo, muretas, fachada, objetos das caixas, enfeites), weather
                            (chuva e neblina da frente), film (os filtros só no mundo: brilho no cenário, aberração e VHS em
-                           tudo), scene (Pixi: as camadas, corpos por profundidade, sombras, balões, câmera), runtime (o laço,
+                           tudo), scene (Pixi: as camadas, corpos por profundidade, sombras, balões, câmera, as folhas dos personagens
+                           carregadas só para quem está na sala), sheet-cache (puro: que folha está carregada, quando
+                           soltar, quanto encolher uma folha maior que a textura da placa), runtime (o laço,
                            o empurrão de ida e de volta, o salto de quem acertou, os post-its em HTML sobre as cabeças), bubbles
                            (puro: os balões de fala, quanto duram e a troca pelo seguinte) e World.svelte (que também desenha
                            os balões de fala, na fonte Tiny5 de `public/fonts/`)
@@ -183,8 +185,13 @@ com erro.
 
 O que sai:
 
-- `char-0.png`, `char-1.png` e `char-2.webp` … `char-12.webp` (a arte grande, em WebP sem perda): uma folha por personagem, com uma linha por animação, na mesma ordem em todos os modelos:
-  parado, andando, correndo, pulo, queda, queda em loop e empurrão.
+- `char-N-idle` e `char-N-moves` (`.png` no herói e no esqueleto; `.webp` sem perda na arte grande): duas folhas por
+  personagem, nenhuma com lado maior que 8192 pixels (o limite do WebGL por software, e de muita placa). A `-idle` é só
+  o parado, numa linha: é a única que o seletor, o palco do pré-lobby e o rosto da interface baixam. A `-moves` tem as
+  outras animações (andando, correndo, pulo, queda, queda em loop e empurrão), cada uma começando numa linha nova e
+  quebrando em `cols` quadros por linha, escolhidos para a folha sair quase quadrada (`paginate` em
+  `tools/sprites/src/atlas.ts`; se não couber numa, `-moves-2`…). Só quadros inteiros mudam de lugar. O telhado carrega as
+  folhas de quem está na sala, quando aparece, e solta depois de um minuto sem ninguém daquele personagem.
   - `char-0`: o herói, de cabelo loiro (o pacote vem castanho; o jogo já teve também preto e ruivo). O empurrão é o golpe do pacote
     sem a espada: as cores da lâmina e do cabo saem por cor, o rastro branco por ser uma mancha branca grande, e o
     contorno fino da lâmina por estar à frente do corpo.
@@ -200,9 +207,10 @@ O que sai:
     linha do chão. A folha sai no tamanho da arte, em WebP sem perda, e o atlas leva `scale`: é o jogo que a desenha
     menor. Um adulto tem 50 de altura no mundo; cada personagem tem o seu tamanho (o cachorro fica no joelho, o do
     dinossauro é o maior). A nota de cada um está em `packs.ts` ou no arquivo dele, e a história na ADR 0007.
-- `characters.json`: todos, na ordem dos lugares, cada um com o modelo, o nome, a cor na interface, a folha e o atlas.
-- `atlases.json`: um atlas por modelo: tamanho do quadro, âncora (entre os pés), a cabeça, o parado, as linhas das
-  animações com quadros, fps e loop, a escala, e o crédito (ou null).
+- `characters.json`: todos, na ordem dos lugares, cada um com o modelo, o nome, a cor na interface, as folhas e o atlas.
+- `atlases.json`: um atlas por modelo: tamanho do quadro, âncora (entre os pés), a cabeça, o parado, as folhas
+  (`pages`: tamanho e quadros por linha), cada animação com a folha e a linha em que começa, quadros, fps e loop, a
+  escala, e o crédito (ou null).
 - `emotes-pt-BR.png` e `emotes-en-US.png`: os balões das teclas 1–4; só o "eu?"/"me?" muda de uma para a outra.
 - `rooftop.png` (atlas em `rooftop.json`): o telhado neon-noir, todo desenhado em grades de texto em
   `tools/sprites/src/rooftop.ts`, com uma paleta só (azul e roxo fundos, concreto molhado, neon magenta e ciano, janela

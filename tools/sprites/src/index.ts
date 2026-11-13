@@ -1,6 +1,7 @@
 /**
  * `bun run sprites`: roda as receitas sobre os pacotes em `assets-src/` (fora do git, ADR 0007) e escreve as folhas que o
- * jogo usa em `apps/web/public/sprites/` (`char-N.png`, ou `char-N.webp` para a arte grande do Kratos e do Vorcaro, uma por personagem) e os atlas em
+ * jogo usa em `apps/web/public/sprites/` (`char-N-idle.png` e `char-N-moves.png`, ou `.webp` para a arte grande dos de sete folhas: as páginas de
+ * cada personagem, `paginate` em `atlas.ts`, nenhuma com lado maior que `MAX_SHEET`) e os atlas em
  * `apps/web/src/lib/sprites/` (`hero.json`, `skeleton.json`, `kratos.json`, `vorcaro.json`, `orelha.json`, `bolsonaro.json`, `knight.json`, `oldsnake.json`, `pinocchio.json`, `eve.json`, `katarina.json`, `punisher.json`, `mista.json` e `characters.json`, que liga cada personagem ao seu).
  * Só a saída vai para o git; o CI e o Docker nunca precisam dos pacotes.
  * O telhado (objetos em grade de texto e a cidade ao fundo) não usa o pacote e sai primeiro, mesmo sem ele.
@@ -14,9 +15,9 @@
 import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { emoteSheet, type EmoteLang } from './emotes';
-import { characters } from './characters';
+import { characters, sheetFiles } from './characters';
 import { buildHero, ANIMATIONS } from './hero';
-import type { Atlas } from './atlas';
+import { paginate, type Atlas } from './atlas';
 import type { Image } from './image';
 import { buildPack, packFiles } from './pack';
 import { PACKS } from './packs';
@@ -90,14 +91,22 @@ for (const m of models) {
     continue;
   }
   const built = m.build(Object.fromEntries(m.files.map(([name, file]) => [name, readPng(join(m.pack, file))])));
+  // a folha de uma linha por animação vira páginas de até `MAX_SHEET` (só quadros inteiros mudam de lugar)
+  let paged: ReturnType<typeof paginate>[];
+  try { paged = built.sheets.map((sheet) => paginate(sheet, built.atlas)); } catch (e) { throw new Error(`${m.model}: ${(e as Error).message}`); }
   const slots = list.flatMap((c, n) => (c.model === m.model ? [n] : []));
-  for (const [i, n] of slots.entries()) await writeSheet(join(out, list[n].sheet.replace(/^\/sprites\//, '')), built.sheets[i]);
-  atlases[m.model] = built.atlas;
-  console.log(`${m.model}: personagens ${slots.join(', ')}, folhas de ${built.sheets[0].width}×${built.sheets[0].height}, quadro ${built.atlas.frame.w}×${built.atlas.frame.h}`);
+  for (const [i, n] of slots.entries()) {
+    const files = sheetFiles(n, m.model, paged[i].pages.length);
+    for (const [p, page] of paged[i].pages.entries()) await writeSheet(join(out, files[p].replace(/^\/sprites\//, '')), page);
+  }
+  atlases[m.model] = paged[0].atlas;
+  console.log(`${m.model}: personagens ${slots.join(', ')}, páginas de ${paged[0].pages.map((p) => `${p.width}×${p.height}`).join(' + ')}, quadro ${built.atlas.frame.w}×${built.atlas.frame.h}`);
 }
+// com as páginas de cada modelo sabidas, os endereços das folhas de cada personagem
+const entries = characters((model) => atlases[model]?.pages?.length ?? 2);
 // só os atlas de quem está na lista, na ordem dela
 writeFileSync(atlasesPath, JSON.stringify(Object.fromEntries([...new Set(list.map((c) => c.atlas))].flatMap((m) => (atlases[m] ? [[m, atlases[m]]] : []))), null, 2) + '\n');
-writeFileSync(join(atlasOut, 'characters.json'), JSON.stringify(list, null, 2) + '\n');
+writeFileSync(join(atlasOut, 'characters.json'), JSON.stringify(entries, null, 2) + '\n');
 // quanto dura o ataque de cada personagem, em ms, na ordem dos lugares: o servidor simula os bots engraçados
 // (`apps/server/src/bots.ts`) e não leva os atlas do cliente na imagem de produção
 writeFileSync(
@@ -116,10 +125,11 @@ for (const lang of langs) {
 writeFileSync(join(atlasOut, 'emotes.json'), JSON.stringify(emoteAtlas, null, 2) + '\n');
 // nomes de antes do esqueleto (os atlas moravam no `public`, as folhas eram `hero-N.png`): se ainda estão lá, saem
 for (const stale of ['hero.json', 'emotes.json', ...Array.from({ length: 8 }, (_, n) => `hero-${n}.png`)]) rmSync(join(out, stale), { force: true });
-// e toda folha `char-*` que não é de um lugar de hoje (o elenco encolheu, ou um lugar mudou de formato): pela lista de
-// agora, não por uma lista de nomes escrita à mão, que já apagou a folha de um lugar que voltou a existir
-const live = new Set(list.map((c) => c.sheet.replace(/^\/sprites\//, '')));
-for (const file of readdirSync(out)) if (/^char-\d+\.(png|webp)$/.test(file) && !live.has(file)) rmSync(join(out, file), { force: true });
+// e toda folha `char-*` que não é de um lugar de hoje (o elenco encolheu, um lugar mudou de formato, ou é a folha única
+// `char-N.<formato>` de antes das páginas): pela lista de agora, não por uma lista de nomes escrita à mão, que já apagou
+// a folha de um lugar que voltou a existir
+const live = new Set(entries.flatMap((c) => c.sheets.map((s) => s.replace(/^\/sprites\//, ''))));
+for (const file of readdirSync(out)) if (/^char-\d+(-[a-z0-9-]+)?\.(png|webp)$/.test(file) && !live.has(file)) rmSync(join(out, file), { force: true });
 if (missing.length) {
   console.error(`faltou o pacote de: ${missing.join(', ')}`);
   process.exitCode = 1;

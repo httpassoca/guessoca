@@ -7,7 +7,7 @@
  * A regra: **a receita não muda nenhum pixel da arte**. Não encolhe, não recolore, não redesenha, não aumenta um quadro,
  * não tira quadro. Ela só **muda quadros inteiros de lugar** (o ponto mais baixo de cada um vai para a linha do chão; uma
  * animação pode andar para a frente, `shifts`) e recorta todos pelo mesmo retângulo (`layout`). A folha sai no tamanho
- * da arte, e é o jogo que a desenha menor: o atlas leva `scale` (`worldScale`), unidades do mundo por pixel do quadro
+ * da arte (depois cortada em páginas por `paginate`, sem mudar pixel), e é o jogo que a desenha menor: o atlas leva `scale` (`worldScale`), unidades do mundo por pixel do quadro
  * (`artScale` no cliente). Se um quadro veio errado (menor, repetido, torto), avise o dono e peça arte nova.
  *
  * Coordenadas: pixels da célula do pacote; a tela de trabalho tem `padX` de folga de cada lado e o chão na última linha.
@@ -58,11 +58,10 @@ const LOOPS: Record<AnimationName, boolean> = { idle: true, walk: true, run: tru
 export const MAX_FRAMES = 24;
 export const MAX_FPS = 60;
 /**
- * O maior lado de uma folha gerada, em pixels: o que qualquer placa de vídeo de computador aceita como textura (16384; o
- * jogo é só para navegador de computador). Era 8192, até o Vault Boy: o tiro e a explosão dele alargam o quadro, e 24
- * quadros de 365 pixels dão 8760.
+ * O maior lado de uma folha gerada: `MAX_SHEET` de `atlas.ts` (8192). A folha de `buildPack` ainda é uma linha por
+ * animação, de qualquer largura; `paginate` (em `index.ts`) a corta em páginas que cabem.
  */
-export const MAX_SHEET = 16384;
+export { MAX_SHEET } from './atlas';
 
 /**
  * A `ModelSpec` de um pacote que escolheu os próprios quadros: o pedido da arte dá um mínimo por animação e uma duração,
@@ -232,9 +231,6 @@ export function buildPack(sheets: Readonly<Record<string, Image>>, c: PackConfig
   }
   const rows = derive(sheets, c);
   const { sheet, atlas } = layout(rows, c.spec, { anchorX: feetX(rows[0][0], c.feetRows), head: (idle) => headBox(idle, c.headRows, c.headSize, c.headShift) });
-  if (sheet.width > MAX_SHEET || sheet.height > MAX_SHEET) {
-    throw new Error(`a folha de ${c.name} ficou com ${sheet.width}×${sheet.height} pixels, mais que ${MAX_SHEET}: o ataque alcança longe demais ou tem quadros demais para uma textura só`);
-  }
   const face = c.face ? { face: { x: atlas.stand.x + c.face.x, y: atlas.stand.y + c.face.y, size: c.face.size } } : {};
   return { sheets: [sheet], atlas: { ...atlas, ...face, scale: c.worldScale } };
 }
