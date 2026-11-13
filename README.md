@@ -58,15 +58,21 @@ apps/server        Bun.serve: `/health`, `POST /api/rooms` (corpo JSON do pré-l
   src/bots.ts        os bots engraçados, puro: o diretor (quando e quantos chegam; o chefão, raro) e o cérebro de cada um (o que faz), sobre
                      a física do `@guess/world`; `attacks.json` (gerado por `bun run sprites`) dá a duração do ataque de cada
                      personagem
-  src/host.ts        `RoomHost`: sockets por token, timers que a sala pede, silêncio de 30 s, a presença de cada um repassada
+  src/host.ts        `RoomHost`: sockets por token, timers que a sala pede, silêncio de 90 s, a presença de cada um repassada
                      aos outros (~15 por segundo, só a mais recente; quem chega recebe a de todos), o empurrão entregue só a
                      quem foi empurrado, a fala repassada a todo mundo (uma por segundo por pessoa, nenhuma guardada), o laço
                      dos bots engraçados (só com a opção ligada e o jogo rodando), as
-                     estatísticas do jogo (conta cada empurrão entregue e cada queda, que é a presença passar a piscar, e
-                     passa à sala, que as mostra no snapshot do fim), e as imagens da sala em memória
+                     estatísticas do jogo (conta cada empurrão entregue e cada queda, que é a presença passar para baixo da
+                     rua, num contador próprio que entra na sala antes de cada passo dela, e o snapshot do fim os mostra), os
+                     limites (issue #72: um balde de pedidos por socket, a presença num balde bem mais largo, fechando com 4429 quem insiste;
+                     o empurrão no ritmo do empurrão e ao alcance pelas presenças; no máximo 16 visitantes), e as imagens da sala em memória
                      (ADR 0003): só de quem é da turma, liberadas quando nenhum post-it as usa (uma subida ainda sem post-it
                      espera 2 min; no máximo 2 por pessoa)
-  src/rooms.ts       `Rooms`: as salas vivas num mapa em memória, códigos de 4 letras sem I nem O
+  src/rooms.ts       `Rooms`: as salas vivas num mapa em memória, códigos de 4 letras sem I nem O; no máximo 2000, e o sorteio
+                     do código desiste depois de 100 tentativas (503)
+  src/limits.ts      baldes de fichas (por socket, por IP) e o IP de quem pede (o `X-Real-IP` do nginx só vale vindo do
+                     loopback ou de rede privada): criar sala (10, depois 1 a cada 6 s, 429) e abrir socket (24 abertos, 30
+                     de uma vez, depois 2 por segundo) por IP
   test/              sala, jogo pela sala (visibilidade no fio, expulsar, passar o papel, sucessão, timers, falsos), host
                      (imagens) e um servidor real numa porta livre: três abas jogam um jogo inteiro; subir e baixar imagem
 
