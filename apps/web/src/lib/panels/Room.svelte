@@ -10,6 +10,7 @@
   import { NO_SECRET, secretKey, stepCharacter } from '../secret';
   import { besideSide, EDGE, GAP, notepadBox, sideCollapsedAfter, sideInset, type Phase } from '../layout';
   import type { GameRequest, RemoteRoom, RemoteState } from '../room/remote';
+  import { moderatorTracker } from '../room/handover';
   import { characterToClaim, countdown, devTools, roomView } from '../room/view';
   import { roomPath } from '../route.svelte';
   import { musicWanted } from '../sound/music';
@@ -88,6 +89,17 @@
     refusedTimer = setTimeout(() => (refused = false), 2500);
   });
 
+  // o papel de moderador chegou a mim (passado, ou assumido porque o moderador caiu): um aviso que some sozinho
+  let promoted = $state(false);
+  let promotedTimer: ReturnType<typeof setTimeout> | undefined;
+  const seenModerator = moderatorTracker();
+  $effect(() => {
+    if (!seenModerator(room.moderator, room.you)) return;
+    promoted = true;
+    clearTimeout(promotedTimer);
+    promotedTimer = setTimeout(() => (promoted = false), 5000);
+  });
+
   /** ver `../secret.ts` */
   let secret = NO_SECRET;
   let pending: number | null = null;
@@ -137,7 +149,7 @@
     // os sons da sala (votação, acertou, fim de vez), snapshot a snapshot, direto do `RemoteRoom` (sem esperar o Svelte)
     const sounds = roomSoundsTracker();
     const offSounds = remote.watch((s) => { for (const name of sounds(s.status, s.room, s.room?.you ?? null)) playSfx(name); });
-    return () => { clearInterval(tick); clearTimeout(refusedTimer); offSounds(); setMusic(false); };
+    return () => { clearInterval(tick); clearTimeout(refusedTimer); clearTimeout(promotedTimer); offSounds(); setMusic(false); };
   });
 </script>
 
@@ -197,5 +209,6 @@
   {#if canTalk}<Chat bind:this={chat} onsend={(text) => remote.chat(text)} />{/if}
 
   {#if menuOpen}<Menu code={room.code} onclose={() => (menuOpen = false)} />{/if}
-  {#if refused}<div class="gs-toast" role="status">{t('error.refused')}</div>{/if}
+  {#if refused}<div class="gs-toast" role="status">{t('error.refused')}</div>
+  {:else if promoted}<div class="gs-toast gs-good" role="status">{t('mod.youAreModerator')}</div>{/if}
 </div>
