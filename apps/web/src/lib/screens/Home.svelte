@@ -1,21 +1,24 @@
 <script lang="ts">
   import { CODE_RE } from '@guess/protocol';
   import { NICKNAME_MAX } from '@guess/rules';
+  import { onMount } from 'svelte';
   import LangSwitch from '../hud/LangSwitch.svelte';
   import Stepper from '../hud/Stepper.svelte';
   import Switch from '../hud/Switch.svelte';
   import { checkCreate, createSettingsIn, maxPlayersOptions, rememberCreateSettingsIn, type FormProblem } from '../create';
   import { t } from '../i18n.svelte';
-  import { local, rememberAutoJoin, rememberCharacter, rememberedCharacter, rememberedNickname, rememberNickname } from '../identity';
-  import CharacterPicker from '../panels/CharacterPicker.svelte';
+  import { local, rememberAutoJoin, rememberCharacter, rememberedCharacter, rememberedNickname, rememberNickname, token } from '../identity';
+  import CharacterPicker, { characterName } from '../panels/CharacterPicker.svelte';
   import Stage from '../panels/Stage.svelte';
   import { clockText, turnOptions } from '../room/view';
-  import { openRoom } from '../rooms';
+  import { openRoom, peekRoom } from '../rooms';
   import { navigate, roomPath } from '../route.svelte';
 
   /**
    * O pré-lobby: criar uma sala (apelido, personagem, tamanho da vez, limite de pessoas, só moderar) e cair nela já na
    * turma; ou entrar numa com o código que a turma mandou. As configurações de criar ficam lembradas pelo navegador.
+   * O apelido vem focado (Enter cria). O código é conferido aqui mesmo (`peekRoom`): errado ou sala cheia, o erro aparece
+   * embaixo do campo e o que foi digitado fica; sem como saber (servidor antigo, rede), segue para a sala.
    */
   const saved = createSettingsIn(local());
   let nickname = $state(rememberedNickname());
@@ -26,6 +29,8 @@
   let problems = $state<FormProblem[]>([]);
   let opening = $state(false);
   let failed = $state(false);
+  let nickField = $state<HTMLInputElement>();
+  onMount(() => nickField?.focus());
 
   const turns = turnOptions();
   const turnIdx = $derived(turns.indexOf(turnMs));
@@ -48,15 +53,24 @@
   }
 
   let code = $state('');
-  let invalid = $state(false);
+  /** o que há de errado com o código: o formato, nenhuma sala com ele, ou sala cheia (com o limite) */
+  let codeProblem = $state<{ kind: 'invalid' | 'missing' } | { kind: 'full'; max: number } | null>(null);
+  let checking = $state(false);
   function typed(e: Event) {
     code = (e.currentTarget as HTMLInputElement).value.toUpperCase();
-    invalid = false;
+    codeProblem = null;
   }
-  function enter(e: SubmitEvent) {
+  async function enter(e: SubmitEvent) {
     e.preventDefault();
     const c = code.trim().toUpperCase();
-    if (CODE_RE.test(c)) navigate(roomPath(c)); else invalid = true;
+    if (!CODE_RE.test(c)) { codeProblem = { kind: 'invalid' }; return; }
+    checking = true;
+    const r = await peekRoom(c, token());
+    checking = false;
+    if (code.trim().toUpperCase() !== c) return; // digitou outra coisa enquanto procurava
+    if (r.kind === 'missing') codeProblem = { kind: 'missing' };
+    else if (r.kind === 'full') codeProblem = { kind: 'full', max: r.max };
+    else navigate(roomPath(c));
   }
 </script>
 
@@ -74,7 +88,7 @@
         <h2 class="gs-h">{t('pre.create')}</h2>
         <label class="ss-field">
           <span class="lbl">{t('sala.nickname')}</span>
-          <span class="control"><input class="ss-input" bind:value={nickname} maxlength={NICKNAME_MAX} placeholder={t('sala.nicknamePlaceholder')} spellcheck="false" autocomplete="nickname" aria-invalid={problems.includes('nickname')} oninput={() => (problems = problems.filter((p) => p !== 'nickname'))} /></span>
+          <span class="control"><input class="ss-input" bind:this={nickField} bind:value={nickname} maxlength={NICKNAME_MAX} placeholder={t('sala.nicknamePlaceholder')} spellcheck="false" autocomplete="nickname" aria-invalid={problems.includes('nickname')} oninput={() => (problems = problems.filter((p) => p !== 'nickname'))} /></span>
         </label>
         {#if problems.includes('nickname')}<p class="gs-error">{t('pre.needNickname')}</p>{/if}
 
@@ -106,11 +120,17 @@
       <form class="gs-form" onsubmit={enter}>
         <label class="ss-field">
           <span class="lbl">{t('home.code')}</span>
-          <span class="control"><input class="ss-input gs-code-input" value={code} oninput={typed} placeholder="ABCD" maxlength="4" autocapitalize="characters" autocomplete="off" spellcheck="false" aria-invalid={invalid} /></span>
+          <span class="control"><input class="ss-input gs-code-input" value={code} oninput={typed} placeholder="ABCD" maxlength="4" autocapitalize="characters" autocomplete="off" spellcheck="false" aria-invalid={codeProblem !== null} aria-describedby="gs-code-problem" /></span>
         </label>
-        <button class="ss-btn" type="submit" disabled={!code.trim()}>{t('home.enter')}</button>
+        <button class="ss-btn" type="submit" disabled={!code.trim() || checking || codeProblem !== null}>{checking ? t('home.checking') : t('home.enter')}</button>
       </form>
-      {#if invalid}<p class="gs-error">{t('home.codeInvalid')}</p>{/if}
+      {#if codeProblem}
+        <p class="gs-error gs-code-problem" id="gs-code-problem" role="alert">
+          {#if codeProblem.kind === 'invalid'}{t('home.codeInvalid')}
+          {:else if codeProblem.kind === 'missing'}{t('home.codeMissing')}
+          {:else if codeProblem.kind === 'full'}{t('sala.fullAsk', { n: codeProblem.max, max: codeProblem.max })}{/if}
+        </p>
+      {/if}
     </div>
     <div class="foot"><LangSwitch /><span class="gs-credit">{t('credit.character')}</span></div>
   </div>
@@ -118,7 +138,7 @@
   </div>
   <!-- a escolha do personagem numa barra embaixo, de ponta a ponta: casas maiores que dentro do cartão -->
   <div class="gs-charbar">
-    <span class="gs-lbl">{t('pre.character')}</span>
+    <span class="gs-charbar-lbl"><span class="gs-lbl">{t('pre.character')}</span>{#if character !== null}<span class="gs-charbar-name">{characterName(character)}</span>{/if}</span>
     <CharacterPicker layout="bar" value={character} onpick={(n) => { character = n; problems = problems.filter((p) => p !== 'character'); }} />
   </div>
 </div>

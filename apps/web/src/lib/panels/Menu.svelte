@@ -15,7 +15,8 @@
   function setVolume(mixer: Mixer, volume: number) { sound[mixer] = volume; setSoundSettings({ [mixer]: volume }); }
   function setMuted(muted: boolean) { sound.muted = muted; setSoundSettings({ muted }); }
   let back = $state<HTMLButtonElement>();
-  $effect(() => { back?.focus(); });
+  // o foco vai para o Voltar sem rolar o menu até ele: em telas baixas, o menu abre no topo (título e idioma)
+  $effect(() => { back?.focus({ preventScroll: true }); });
 </script>
 
 <div class="gs-backdrop" role="presentation" onclick={(e) => { if (e.target === e.currentTarget) onclose(); }}>

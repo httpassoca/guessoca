@@ -6,12 +6,12 @@
   import type { MsgKey } from '../i18n';
   import { t } from '../i18n.svelte';
   import { autoJoinIn, rememberCharacter, rememberedCharacter, rememberedNickname, rememberNickname, session, takeAutoJoin, token } from '../identity';
-  import CharacterPicker from '../panels/CharacterPicker.svelte';
+  import CharacterPicker, { characterName } from '../panels/CharacterPicker.svelte';
   import Room from '../panels/Room.svelte';
   import Stage from '../panels/Stage.svelte';
   import Who from '../panels/Who.svelte';
   import { RemoteRoom, type ClosedReason, type RemoteState } from '../room/remote';
-  import { roomView } from '../room/view';
+  import { joinState, roomView } from '../room/view';
   import { navigate } from '../route.svelte';
   import { wsUrl } from '../rooms';
 
@@ -49,6 +49,8 @@
   const v = $derived(room ? roomView(room) : null);
   const me = $derived(v?.me ?? null);
   const live = $derived(st.status === 'open');
+  /** antes de entrar: a sala cheia desliga o Entrar; o jogo começado avisa que entro de fantasma */
+  const gate = $derived(room ? joinState(room) : { full: false, late: false });
   const STATUS: Record<RemoteState['status'], MsgKey | null> = { idle: null, connecting: 'status.connecting', open: 'status.open', reconnecting: 'status.reconnecting', closed: null };
   const status = $derived.by(() => { const k = STATUS[st.status]; return k ? t(k) : ''; });
   const GONE = { notFound: ['gone.notFound.title', 'gone.notFound.msg'], ended: ['gone.ended.title', 'gone.ended.msg'], replaced: ['gone.replaced.title', 'gone.replaced.msg'], kicked: ['gone.kicked.title', 'gone.kicked.msg'] } as const satisfies Record<NonNullable<ClosedReason>, [MsgKey, MsgKey]>;
@@ -112,10 +114,12 @@
             </label>
             {#if problems.includes('nickname')}<p class="gs-error">{t('pre.needNickname')}</p>{/if}
             {#if problems.includes('character')}<p class="gs-error">{t('pre.needCharacter')}</p>{/if}
-            <button class="ss-btn primary full-width" type="submit" disabled={!live || !room}>{t('sala.join')}</button>
+            {#if gate.late && !gate.full}<p class="gs-banner">{t('sala.late')}</p>{/if}
+            <button class="ss-btn primary full-width" type="submit" disabled={!live || !room || gate.full} aria-describedby={gate.full ? 'gs-full' : undefined}>{t('sala.join')}</button>
           </form>
         {/if}
-        {#if st.error === 'roomFull'}<p class="gs-error">{t('sala.full', { max: room?.maxPlayers ?? 8 })}</p>{/if}
+        {#if gate.full && room}<p class="gs-error" id="gs-full">{t('sala.fullAsk', { n: room.members.length, max: room.maxPlayers })}</p>
+        {:else if st.error === 'roomFull'}<p class="gs-error">{t('sala.full', { max: room?.maxPlayers ?? 8 })}</p>{/if}
         {#if st.error === 'refused'}<p class="gs-error">{t('error.refused')}</p>{/if}
 
         <div class="gs-section">
@@ -138,7 +142,7 @@
     </div>
     {#if !auto}
       <div class="gs-charbar">
-        <span class="gs-lbl">{t('pre.character')}</span>
+        <span class="gs-charbar-lbl"><span class="gs-lbl">{t('pre.character')}</span>{#if character !== null}<span class="gs-charbar-name">{characterName(character)}</span>{/if}</span>
         <CharacterPicker layout="bar" value={character} onpick={(n) => (character = n)} />
       </div>
     {/if}

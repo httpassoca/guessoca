@@ -8,6 +8,8 @@
     check: '<path d="M5 12l5 5 9-10"/>',
     up: '<path d="M6 15l6-6 6 6"/>',
     down: '<path d="M6 9l6 6 6-6"/>',
+    left: '<path d="M15 6l-6 6 6 6"/>',
+    right: '<path d="M9 6l6 6-6 6"/>',
     crown: '<path d="M4 18h16M4 18l-1-10 5 4 4-6 4 6 5-4-1 10"/>',
     kick: '<path d="M6 6l12 12M18 6L6 18"/>',
     undo: '<path d="M9 7L5 11l4 4"/><path d="M5 11h9a5 5 0 0 1 0 10h-3"/>',
