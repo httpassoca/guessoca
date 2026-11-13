@@ -140,3 +140,7 @@ Two limits had to give way:
 ## Amendment: Sekiro
 
 A pack from the owner (`assets-src/sekiro/`, slot 27, generated for this game): a shinobi with a tied-up topknot, dark scarf and coat, and a katana. Size 1, 192×192 cells and, for the attack only, 256×224 cells where he stands 16 pixels further right (`dx: -16`); ground at row 172. The attack is a 24-frame, 1.1 s overhead katana strike that starts and ends on the idle pose. Common recipe, no pixel changed. The cast is now twenty-eight.
+
+## Amendment: a redrawn Joker
+
+The owner replaced the Joker (slot 15 kept) with a second art from the current prompt (`assets-src/joker/`): size 1 (128 pixels, was 136), 128×160 cells and 256×208 cells for the attack, where he stands 56 pixels further right (`dx: -56`); ground at row 148. The attack is 24 frames in 1.1 s. Common recipe, no pixel changed. The first art (144×160) stays locally as `assets-src/joker-v1/`.
