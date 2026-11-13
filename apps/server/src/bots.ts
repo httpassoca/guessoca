@@ -127,24 +127,25 @@ export class BotWorld {
     };
   }
 
-  /** Alguém (`by`, pessoa ou bot) empurrou este bot para o lado `dir`. */
-  shoved(id: string, dir: 1 | -1, by: string, now: number) {
+  /** Alguém (`by`, pessoa ou bot) empurrou este bot para o lado `dir`. Devolve se o empurrão pegou. */
+  shoved(id: string, dir: 1 | -1, by: string, now: number): boolean {
     const bot = this.bots.find((b) => b.id === id);
-    if (!bot || blinking(bot.body, now) || bot.doing === 'arrive') return;
+    if (!bot || blinking(bot.body, now) || bot.doing === 'arrive') return false;
     bot.body = applyShove(bot.body, dir, now);
     bot.grudge = by;
     bot.emote = { name: 'exclaim', since: now };
-    if (bot.doing === 'leave') return;
+    if (bot.doing === 'leave') return true;
     const byBot = this.bots.some((b) => b.id === by);
     if (byBot) {
       // bot contra bot: devolve ou sai correndo
       if (this.rng() < 0.6) this.start(bot, 'fight', now, by, 4000 + this.rng() * 5000);
       else this.start(bot, 'flee', now, by, 1500 + this.rng() * 2500);
-      return;
+      return true;
     }
     if (bot.temper === 'revenge') { bot.comebacks = Math.max(bot.comebacks, 1); this.start(bot, 'revenge', now, by, 9000 + this.rng() * 6000); }
     else if (bot.temper === 'leave') this.leave(bot, now);
     else this.start(bot, 'flee', now, by, 2000 + this.rng() * 3000);
+    return true;
   }
 
   /**

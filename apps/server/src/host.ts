@@ -1,4 +1,4 @@
-import { BOT_ID_RE, CLOSE_KICKED, CLOSE_REPLACED, CLOSE_ROOM_ENDED, IMAGE_BYTES_MAX, isWebp, parseClientMessage, PRESENCE_INTERVAL, SOCKET_IDLE_TIMEOUT, type Presence, type RoomInit } from '@guess/protocol';
+import { BOT_ID_RE, CLOSE_KICKED, CLOSE_REPLACED, CLOSE_ROOM_ENDED, IMAGE_BYTES_MAX, isWebp, parseClientMessage, PRESENCE_INTERVAL, SOCKET_IDLE_TIMEOUT, type Presence, type RoomInit, type StatName } from '@guess/protocol';
 import { CHARACTERS } from '@guess/rules';
 import attackMs from './attacks.json';
 import { BotWorld, type Seen } from './bots';
@@ -50,6 +50,8 @@ export type Socket = ServerWebSocket<SocketData>;
  * Os bots engraçados (`bots.ts`, emenda do ADR 0005) são simulados aqui: com a opção ligada e o jogo rodando, um laço
  * dá passos neles, manda a presença de cada um como a de uma pessoa, entrega os empurrões deles e avisa a sala quando a
  * lista de quem está no telhado muda. Fora disso não há laço nenhum.
+ * As estatísticas do jogo (issue #59) saem do que já passa por aqui, sem mensagem nova: cada empurrão entregue e cada
+ * presença que passa a piscar (uma queda) viram uma entrada `stats` da sala, que só conta com o jogo rodando.
  */
 export class RoomHost {
   state: RoomState;
@@ -148,7 +150,11 @@ export class RoomHost {
     if (!this.memberByToken(token)) return; // visitante (ainda sem apelido) não está no telhado
     let p = this.presences.get(token);
     if (!p) { p = { latest: presence, sentAt: -Infinity }; this.presences.set(token, p); }
+    // `blink` liga na queda e só desliga quando o pisca-pisca da volta acaba (`blinking`): passar a piscar é uma queda,
+    // uma vez só. A primeira presença depois de conectar não tem "antes" e não conta.
+    const fell = presence.blink && !p.latest.blink;
     p.latest = presence;
+    if (fell) this.count([token, 'falls']);
     if (p.handle) return; // a mais recente sai quando o timer vencer
     const wait = p.sentAt + this.presenceInterval - this.clock();
     if (wait <= 0) { this.flushPresence(token); return; }
@@ -174,10 +180,23 @@ export class RoomHost {
   /** Entrega o empurrão à aba de quem foi empurrado; é ela que se joga para trás (ADR 0005). */
   private routeShove(token: string, target: string, dir: 1 | -1) {
     const from = this.memberByToken(token);
-    if (from && BOT_ID_RE.test(target)) { this.botWorld?.shoved(target, dir, from.id, this.clock()); return; }
+    if (from && BOT_ID_RE.test(target)) {
+      if (this.botWorld?.shoved(target, dir, from.id, this.clock())) this.count([token, 'shoves']);
+      return;
+    }
     const to = this.state.members.find((m) => m.id === target);
     if (!from || !to || to === from || to.token === null) return;
-    this.sockets.get(to.token)?.send(JSON.stringify({ type: 'shoved', by: from.id, dir }));
+    const ws = this.sockets.get(to.token);
+    if (!ws) return;
+    ws.send(JSON.stringify({ type: 'shoved', by: from.id, dir }));
+    this.count([token, 'shoves'], [to.token, 'shovedByPlayers']);
+  }
+
+  /** Soma um em cada estatística (token de quem, qual), se o jogo está rodando; a sala guarda (`stats`). */
+  private count(...add: [token: string, stat: StatName][]) {
+    if (this.state.phase === 'dead' || this.state.game.phase !== 'playing') return;
+    const counted = add.flatMap(([token, stat]) => { const m = this.memberByToken(token); return m ? [{ member: m.id, stat }] : []; });
+    if (counted.length) this.apply({ kind: 'stats', add: counted });
   }
 
   /** Os bytes de uma imagem da sala, se existe. */
@@ -247,9 +266,17 @@ export class RoomHost {
     const taken = new Set(Object.values(this.state.game.characters));
     const enabled = this.state.funnyBots;
     const r = world.tick(now, dt, players, { enabled, taken });
+    const hit: [string, StatName][] = [];
     for (const s of r.shoves) {
       const to = this.state.members.find((m) => m.id === s.target);
-      if (to?.token) this.sockets.get(to.token)?.send(JSON.stringify({ type: 'shoved', by: s.by, dir: s.dir }));
+      const ws = to?.token ? this.sockets.get(to.token) : undefined;
+      if (!to?.token || !ws) continue;
+      ws.send(JSON.stringify({ type: 'shoved', by: s.by, dir: s.dir }));
+      hit.push([to.token, 'shovedByBots']);
+    }
+    if (hit.length) {
+      this.count(...hit);
+      if (this.botWorld !== world) return;
     }
     if (r.rosterChanged) {
       for (const id of [...this.botSent.keys()]) if (!world.bots.some((b) => b.id === id)) this.botSent.delete(id);

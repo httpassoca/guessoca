@@ -137,6 +137,13 @@ export type ServerMessage =
 /** Um bot engraçado no telhado agora: quem é. Onde está chega por `presence`, como a de uma pessoa. */
 export interface BotView { id: string; character: number }
 
+/**
+ * O que uma pessoa fez no telhado durante um jogo (issue #59), contado pelo servidor: quantas vezes caiu na rua, quantos
+ * empurrões deu (em gente ou em bot) e quantos levou, da turma e dos bots.
+ */
+export interface PlayerStats { falls: number; shoves: number; shovedByPlayers: number; shovedByBots: number }
+export type StatName = keyof PlayerStats;
+
 /** Uma pessoa da turma como todo mundo a vê. */
 export interface MemberView {
   /** id público, `m` e um número; o token nunca sai do servidor */
@@ -205,6 +212,8 @@ export interface RoomSnapshot {
   funnyBots: boolean;
   /** os bots que estão no telhado agora (só com o jogo rodando) */
   bots: BotView[];
+  /** pessoa → o que fez no telhado no jogo que acabou; só no fim (antes, vazio). Quem não aparece tem tudo zero */
+  stats: Record<string, PlayerStats>;
   /** quem joga, na ordem das vezes */
   order: string[];
   /** dono → autor */
