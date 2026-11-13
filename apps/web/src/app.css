@@ -413,6 +413,27 @@ html, body { margin: 0; min-height: 100%; background: var(--ss-bg); }
 .gs-room .gs-chat .ss-input:focus-visible { border-color: var(--ss-line-strong); outline: 2px solid var(--gs-focus); outline-offset: 2px; }
 .gs-chat .ss-kbd { position: absolute; right: 8px; pointer-events: none; }
 
+/*
+ * a barra de vida do chefão: embaixo, entre o bloco e a fala (onde, de `bossBarBox`). O nome na fonte de pixel (Tiny5,
+ * 16 px = 2× a nativa), um gomo por empurrão que ele aguenta: vermelho neon com a luz em cima e a sombra embaixo, como
+ * um ladrilho; o perdido pisca em branco e a barra treme em passos de pixel
+ */
+.gs-boss-wrap { position: absolute; z-index: 10; pointer-events: none; }
+.gs-boss { --gs-hp: oklch(64% 0.24 14); --gs-hp-hi: oklch(80% 0.15 14); --gs-hp-lo: oklch(44% 0.17 14);
+  display: flex; flex-direction: column; gap: 8px; padding: 10px 12px 12px; animation: gs-rise var(--gs-enter) var(--gs-ease); }
+.gs-boss-head { display: flex; align-items: baseline; gap: 10px; min-width: 0; font: 400 16px/16px 'Tiny5', var(--ss-font-mono), monospace; }
+.gs-boss-tag { flex: none; color: var(--gs-hp); }
+.gs-boss-name { flex: 1; min-width: 0; color: var(--ss-fg); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.gs-boss-count { flex: none; color: var(--ss-fg-muted); font-variant-numeric: tabular-nums; }
+.gs-boss-bar { display: flex; gap: 2px; padding: 2px; background: #0a0710; border: 2px solid color-mix(in srgb, var(--gs-hp) 35%, var(--ss-line)); }
+.gs-boss-bar .seg { flex: 1; height: 14px; background: color-mix(in srgb, var(--gs-hp) 12%, #0a0710); }
+.gs-boss-bar .seg.on { background: var(--gs-hp); box-shadow: inset 0 2px 0 var(--gs-hp-hi), inset 0 -2px 0 var(--gs-hp-lo); }
+.gs-boss-bar .seg.lost { animation: gs-boss-lost 520ms steps(4, end) both; }
+.gs-boss-bar.hit { animation: gs-boss-shake 280ms steps(1, end); }
+.gs-boss.down .gs-boss-name, .gs-boss.down .gs-boss-count { color: var(--ss-fg-faint); }
+@keyframes gs-boss-lost { from { background: #fff; } to { background: color-mix(in srgb, var(--gs-hp) 12%, #0a0710); } }
+@keyframes gs-boss-shake { 0% { transform: translate(-4px, 0); } 25% { transform: translate(4px, -2px); } 50% { transform: translate(-2px, 2px); } 75% { transform: translate(2px, 0); } 100% { transform: none; } }
+
 /* o bloco: preso embaixo ao lado da coluna; minimizado, uma aba que sobe um pouco com o mouse em cima */
 .gs-notepad { position: absolute; z-index: 11; bottom: var(--gs-edge); display: flex; flex-direction: column; gap: 12px; padding: 12px 16px 16px; }
 .gs-notepad textarea { width: 100%; box-sizing: border-box; }
@@ -447,7 +468,7 @@ html, body { margin: 0; min-height: 100%; background: var(--ss-bg); }
 
 @media (prefers-reduced-motion: reduce) {
   .gs-head .tip, .gs-notepad-tab, .gs-rank, .gs-chat, .gs-char, :is(.gs-screen, .gs-room) .ss-btn, .gs-slot, .gs-slot-pick, .gs-slot-over, .gs-trash { transition: none; }
-  .gs-menu, .gs-vote, .gs-progress.writing .ss-icon { animation: none; }
+  .gs-menu, .gs-vote, .gs-progress.writing .ss-icon, .gs-boss, .gs-boss-bar.hit { animation: none; }
 }
 
 /* o jogo e o fim (issue #69) */

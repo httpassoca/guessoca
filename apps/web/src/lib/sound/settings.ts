@@ -20,7 +20,7 @@ export const MIXERS: readonly Mixer[] = ['map', 'game'];
 export interface SoundSettings { map: number; game: number; muted: boolean }
 
 /**
- * De que mesa é cada som: pular, empurrar, a trilha e o telhado em volta (o trovão, a sirene lá embaixo) são do mapa;
+ * De que mesa é cada som: pular, empurrar, a trilha e o telhado em volta (o trovão, a sirene lá embaixo, o raio do chefão) são do mapa;
  * votação, acerto, fim de vez e sua vez são do jogo.
  */
 export function mixerOf(sound: SfxName | 'music'): Mixer {

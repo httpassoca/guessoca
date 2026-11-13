@@ -215,6 +215,98 @@ export function thunderAt(now: number, F = 1): number | null {
   return e ? e.start + 1500 + hash(e.k, 10) * 2000 : null;
 }
 
+// --- o raio do chefão derrubado ----------------------------------------------------------------------------------------
+
+/**
+ * Quanto dura o raio que cai na cidade quando o chefão é derrubado (o servidor avisa, `bossDown`): diferente do
+ * relâmpago de fundo, este se vê inteiro, do céu até o alto de um prédio, e clareia a tela toda. ms.
+ */
+export const STRIKE_MS = 900;
+
+/**
+ * O raio `t` ms depois de cair: o clarão da tela toda (`flash`, 0–1) e o raio em si (`bolt`, 0–1). Os dois piscam no
+ * começo (acende, quase apaga, acende de novo) e depois se apagam; o raio fica um pouco mais, esfriando.
+ */
+export function strikeAt(t: number): { flash: number; bolt: number } {
+  if (t < 0 || t >= STRIKE_MS) return { flash: 0, bolt: 0 };
+  // o primeiro clarão estoura a tela (a cidade vira recorte); o segundo é mais fraco, para o raio aparecer contra o céu
+  if (t < 70) return { flash: 1, bolt: 1 };
+  if (t < 130) return { flash: 0.15, bolt: 0 };
+  if (t < 210) return { flash: 0.5, bolt: 1 };
+  const flash = t < 700 ? 0.5 * (1 - (t - 210) / 490) ** 2 : 0;
+  return { flash, bolt: (1 - (t - 210) / (STRIKE_MS - 210)) ** 1.5 };
+}
+
+/**
+ * O contorno de uma faixa da cidade: em cada coluna da imagem (RGBA, `w`×`h`), a primeira linha com tinta; `h` na
+ * coluna vazia. É onde o raio encosta no prédio.
+ */
+export function roofline(data: Uint8ClampedArray, w: number, h: number): number[] {
+  return Array.from({ length: w }, (_, x) => {
+    for (let y = 0; y < h; y++) if (data[(y * w + x) * 4 + 3] > 0) return y;
+    return h;
+  });
+}
+
+/**
+ * Onde o raio cai, em pixels da tela: na faixa da cidade (`factor`, a paralaxe dela; `offset`, onde começa o ladrilho
+ * na tela; `tops`, o contorno dela), atrás de onde o chefão estava (`x`, unidades do mundo; `camX`, a câmera), sempre
+ * dentro dos 80% do meio da tela, e no prédio mais alto a até `reach` pixels disso (o raio procura o mais alto; no
+ * empate, o mais perto). Devolve o `x` da tela (o meio da coluna) e o `top` da coluna, em pixels da faixa.
+ */
+export function strikeTarget(o: { x: number; camX: number; width: number; scale: number; factor: number; offset: number; tops: readonly number[]; reach: number }): { x: number; top: number } {
+  const lo = o.width * 0.1, hi = o.width * 0.9;
+  const want = Math.max(lo, Math.min(hi, o.width / 2 + (o.x - o.camX) * o.factor * o.scale));
+  const n = o.tops.length;
+  if (!n) return { x: Math.round(want), top: 0 };
+  const colAt = (sx: number) => Math.floor((sx - o.offset) / o.scale);
+  const topAt = (sx: number) => o.tops[((colAt(sx) % n) + n) % n];
+  let best = { x: want, top: topAt(want), d: 0 };
+  for (let sx = Math.max(lo, want - o.reach); sx <= Math.min(hi, want + o.reach); sx += o.scale) {
+    const top = topAt(sx);
+    const d = Math.abs(sx - want);
+    if (top < best.top || (top === best.top && d < best.d)) best = { x: sx, top, d };
+  }
+  const x = Math.round(o.offset + (colAt(best.x) + 0.5) * o.scale);
+  return { x: Math.max(Math.ceil(lo), Math.min(Math.floor(hi), x)), top: best.top };
+}
+
+type Pt = { x: number; y: number };
+
+/**
+ * O caminho do raio, em pixels do mundo (inteiros), de `from` (no céu) até `to` (o alto do prédio): um ziguezague que
+ * só desce, e uns galhos que saem dele e se perdem no ar. Sai do `seed` (o chefão), então é o mesmo em toda aba.
+ */
+export function boltPath(seed: number, from: Pt, to: Pt): { main: Pt[]; branches: Pt[][] } {
+  const dy = to.y - from.y;
+  const n = Math.max(8, Math.round(dy / 12));
+  const step = dy / n;
+  const main: Pt[] = [{ x: Math.round(from.x), y: Math.round(from.y) }];
+  for (let i = 1; i < n; i++) {
+    const u = i / n;
+    // mais solto no meio, preso nas pontas
+    const amp = 4 + 9 * Math.sin(Math.PI * u);
+    const x = from.x + (to.x - from.x) * u + (hash(seed, i, 71) - 0.5) * 2 * amp;
+    const y = from.y + step * i + (hash(seed, i, 72) - 0.5) * step * 0.5;
+    main.push({ x: Math.round(x), y: Math.max(main[i - 1].y + 1, Math.round(y)) });
+  }
+  main.push({ x: Math.round(to.x), y: Math.max(main[n - 1].y + 1, Math.round(to.y)) });
+  const branches: Pt[][] = [];
+  const count = 2 + Math.floor(hash(seed, 73) * 3);
+  for (let b = 0; b < count; b++) {
+    let p = main[1 + Math.floor(hash(seed, b, 74) * (n * 0.65))];
+    const side = hash(seed, b, 75) < 0.5 ? -1 : 1;
+    const br: Pt[] = [p];
+    const len = 3 + Math.floor(hash(seed, b, 76) * 3);
+    for (let k = 0; k < len; k++) {
+      p = { x: Math.round(p.x + side * (4 + hash(seed, b, k, 77) * 8)), y: p.y + 4 + Math.round(hash(seed, b, k, 78) * 7) };
+      br.push(p);
+    }
+    branches.push(br);
+  }
+  return { main, branches };
+}
+
 /** O ângulo do holofote (radianos a partir da vertical, + para a direita): duas ondas lentas, no máximo ~31°. */
 export const searchlightAngle = (now: number) => 0.42 * Math.sin(now / 9000) + 0.12 * Math.sin(now / 3700 + 1);
 

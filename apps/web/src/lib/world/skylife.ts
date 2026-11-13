@@ -8,6 +8,11 @@
  * intercala com as camadas dele: `sky` (atrás da cidade de longe), `far` e `near` (por cima de cada faixa) e `street`
  * (antes da neblina da rua). Tudo em pixels da tela. Os sons (trovão, sirene) vão para a mesa do mapa (`playSfx`).
  *
+ * O raio do chefão derrubado (`strike`, quando o servidor avisa `bossDown`) é diferente do relâmpago de fundo: vale também
+ * fora da hora sorteada, e se vê inteiro, do alto da tela até o prédio mais alto da cidade de perto atrás de onde ele
+ * estava (por cima da cidade de longe, atrás da de perto), com o brilho e as faíscas no alto do prédio; o céu clareia
+ * mais. O clarão da tela toda e o tremor são de `scene.ts`; o som, do `WorldRuntime`.
+ *
  * Em desenvolvimento, `?ceu=N` acelera o céu N vezes (`skySpeed`), para ver o avião, o relâmpago e a sirene sem
  * esperar minutos.
  */
@@ -15,7 +20,7 @@ import type { Camera, View } from '@guess/world';
 import { Container, Graphics, Sprite, Texture } from 'pixi.js';
 import { playSfx } from '../sound/player';
 import { ROOFTOP, type SkylineStrip } from '../sprites/rooftop';
-import { carsAt, lightningFlash, meteorAt, navLights, planeAt, searchlightAngle, sirenAt, skySpeed, thunderAt, twinkleOn } from './ambient';
+import { boltPath, carsAt, hash, lightningFlash, meteorAt, navLights, planeAt, searchlightAngle, sirenAt, skySpeed, STRIKE_MS, strikeAt, strikeTarget, thunderAt, twinkleOn } from './ambient';
 import type { RooftopArt } from './art';
 import { PARALLAX, parallaxOffset } from './parallax';
 
@@ -41,6 +46,19 @@ const METEOR_TAIL = 7;
 /** os carros: a altura de cada faixa acima do fim da tela, em unidades do mundo, e o quanto aparecem */
 const LANES = [5, 13];
 const CAR_ALPHA = 0.85;
+/**
+ * o raio do chefão derrubado: o miolo branco, o meio lilás e o halo roxo (largura em pixels do mundo), o clarão do céu
+ * mais forte que o do relâmpago de fundo, o quanto procura um prédio alto para os lados (pixels do mundo) e o brilho no
+ * alto do prédio atingido (raio em pixels do mundo)
+ */
+const BOLT = [
+  { w: 7, color: 0x6f5cff, alpha: 0.22 },
+  { w: 3, color: 0xb9adff, alpha: 0.7 },
+  { w: 1, color: 0xffffff, alpha: 1 },
+] as const;
+const STRIKE_SKY_ALPHA = 0.6;
+const STRIKE_REACH = 70;
+const IMPACT_R = 16;
 /** o horizonte, como em `backdrop.ts`: 40 unidades acima do chão do telhado mais baixo */
 const HORIZON = 40;
 
@@ -90,9 +108,24 @@ export class SkyLife {
   /** o que está desenhado nos `Graphics` (para não limpar à toa a cada quadro) */
   private flashed = false;
   private streaked = false;
+  /** o raio do chefão derrubado: por cima da cidade de longe (atrás da de perto, que esconde o pé dele) e o brilho no prédio */
+  private readonly bolt = new Graphics();
+  private readonly impact = new Graphics();
+  private readonly nearTops: readonly number[];
+  /** o raio em andamento: o sorteio dele, onde o chefão estava, quando caiu e, depois do primeiro quadro, em que ponto da faixa de perto */
+  private struck: { seed: number; x: number; at: number; layerX: number | null; top: number } | null = null;
+  private bolted = false;
 
   constructor(art: RooftopArt) {
     this.flash.blendMode = 'add';
+    this.bolt.blendMode = 'add';
+    this.impact.blendMode = 'add';
+    this.nearTops = art.roofline('near');
+    // por cima das janelas que piscam (que entram nos mesmos contêineres depois, conforme aparecem)
+    this.bolt.zIndex = this.impact.zIndex = 1;
+    this.far.sortableChildren = this.near.sortableChildren = true;
+    this.far.addChild(this.bolt);
+    this.near.addChild(this.impact);
     this.beam = new Sprite({ texture: coneTexture(), anchor: { x: 0.5, y: 1 }, tint: BEAM_COLOR, alpha: BEAM_ALPHA });
     const body = new Sprite(art.frame('plane'));
     const f = ROOFTOP.frames.plane;
@@ -109,6 +142,12 @@ export class SkyLife {
     this.carTexture = art.frame('car');
   }
 
+  /**
+   * O chefão foi derrubado (o servidor avisou): um raio cai num prédio da cidade de perto, atrás de onde ele estava
+   * (`x`, unidades do mundo). `seed` dá o desenho do raio (o mesmo em toda aba). `now` em ms, o relógio de `update`.
+   */
+  strike(seed: number, x: number, now: number) { this.struck = { seed, x, at: now, layerX: null, top: 0 }; }
+
   /** Um quadro: `strips` diz onde está o topo de cada faixa da cidade (pixels da tela). `now` em ms. */
   update(cam: Camera, view: View, now: number, strips: Record<'far' | 'near', { top: number }>) {
     const s = view.scale;
@@ -116,10 +155,12 @@ export class SkyLife {
     const horizon = view.groundY - HORIZON * s;
 
     // o relâmpago: o céu clareia atrás da cidade (os prédios ficam recortados contra ele); nunca no lobby
-    const flash = lightningFlash(now, this.lobby, F);
+    const strike = this.struck ? strikeAt(now - this.struck.at) : null;
+    if (this.struck && now - this.struck.at >= STRIKE_MS) this.struck = null;
+    const flash = Math.max(FLASH_ALPHA * lightningFlash(now, this.lobby, F), STRIKE_SKY_ALPHA * (strike?.flash ?? 0));
     if (this.flashed) this.flash.clear();
     this.flashed = flash > 0;
-    if (flash > 0) this.flash.rect(0, 0, view.width, horizon + 4 * s).fill({ color: FLASH_COLOR, alpha: FLASH_ALPHA * flash });
+    if (flash > 0) this.flash.rect(0, 0, view.width, horizon + 4 * s).fill({ color: FLASH_COLOR, alpha: flash });
     this.flash.visible = this.flashed;
     if (!this.lobby) {
       const th = thunderAt(now, F);
@@ -175,6 +216,8 @@ export class SkyLife {
     // as janelas da cidade ao fundo que piscam: por cima de cada repetição da faixa
     for (const strip of ROOFTOP.skylines) this.twinkle(strip, cam, view, now, strips[strip.layer as 'far' | 'near']?.top);
 
+    this.drawStrike(cam, view, now, strips.near.top, strike?.bolt ?? 0);
+
     // os carros, lá embaixo na neblina da rua, andando com a rua (a paralaxe dela)
     const cars = carsAt(now);
     cars.forEach((c, i) => {
@@ -184,6 +227,55 @@ export class SkyLife {
       sp.position.set(Math.round((c.x - cam.x * PARALLAX.street) * s + view.width / 2), view.height - LANES[c.lane] * s);
     });
     for (let i = cars.length; i < this.carPool.length; i++) this.carPool[i].visible = false;
+  }
+
+  /**
+   * O raio do chefão: do alto da tela até o prédio mais alto perto de onde ele estava, na cidade de perto (o lugar é
+   * escolhido no primeiro quadro e depois anda com a faixa, como o prédio), desenhado em pixels do mundo; e o brilho no
+   * alto do prédio, com umas faíscas.
+   */
+  private drawStrike(cam: Camera, view: View, now: number, nearTop: number, amount: number) {
+    if (this.bolted) { this.bolt.clear(); this.impact.clear(); }
+    this.bolted = amount > 0 && !!this.struck;
+    this.bolt.visible = this.impact.visible = this.bolted;
+    const st = this.struck;
+    if (!st || amount <= 0) return;
+    const s = view.scale;
+    const shift = cam.x * PARALLAX.near;
+    if (st.layerX === null) {
+      const strip = ROOFTOP.skylines.find((k) => k.layer === 'near');
+      const offset = parallaxOffset(cam.x, PARALLAX.near, strip?.w ?? 1, s);
+      const t = strikeTarget({ x: st.x, camX: cam.x, width: view.width, scale: s, factor: PARALLAX.near, offset, tops: this.nearTops, reach: STRIKE_REACH * s });
+      st.layerX = Math.floor(t.x / s) + Math.round(shift);
+      st.top = t.top;
+    }
+    // em pixels do mundo: x na faixa de perto (que anda com a câmera), y a partir do alto da tela
+    const ox = -Math.round(shift) * s, top = Math.round(nearTop / s);
+    const hit = { x: st.layerX, y: top + st.top };
+    const from = { x: st.layerX + Math.round((hash(st.seed, 81) - 0.5) * 50), y: -4 };
+    const path = boltPath(st.seed, from, hit);
+    const dot = (g: Graphics, x: number, y: number, w: number, color: number, alpha: number) => g.rect(ox + (x - (w >> 1)) * s, y * s, w * s, s).fill({ color, alpha });
+    const line = (g: Graphics, pts: readonly { x: number; y: number }[], w: number, color: number, alpha: number) => {
+      for (let i = 1; i < pts.length; i++) {
+        const a = pts[i - 1], b = pts[i];
+        const n = Math.max(Math.abs(b.x - a.x), Math.abs(b.y - a.y));
+        for (let k = 0; k < n; k++) dot(g, Math.round(a.x + ((b.x - a.x) * k) / n), Math.round(a.y + ((b.y - a.y) * k) / n), w, color, alpha);
+      }
+    };
+    for (const layer of BOLT) {
+      line(this.bolt, path.main, layer.w, layer.color, layer.alpha * amount);
+      for (const br of path.branches) line(this.bolt, br, Math.max(1, layer.w - 2), layer.color, layer.alpha * amount * 0.6);
+    }
+    // o alto do prédio acende: um halo e umas faíscas que voam para os lados e caem
+    const cx = ox + hit.x * s, cy = hit.y * s;
+    this.impact.circle(cx, cy, IMPACT_R * s).fill({ color: 0x6f5cff, alpha: 0.35 * amount });
+    this.impact.circle(cx, cy, IMPACT_R * 0.45 * s).fill({ color: 0xd9d2ff, alpha: 0.6 * amount });
+    const age = (now - st.at) / 1000;
+    for (let i = 0; i < 10; i++) {
+      const vx = (hash(st.seed, i, 82) - 0.5) * 70, vy = -20 - hash(st.seed, i, 83) * 50;
+      const x = hit.x + vx * age, y = hit.y + vy * age + 90 * age * age;
+      this.impact.rect(ox + Math.round(x) * s, Math.round(y) * s, s, s).fill({ color: i % 3 ? 0xfff1c2 : 0xffffff, alpha: amount });
+    }
   }
 
   private addCar(): Sprite {

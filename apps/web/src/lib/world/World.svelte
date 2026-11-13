@@ -5,9 +5,9 @@
   import type { RemoteRoom } from '../room/remote';
   import type { RoomView } from '../room/view';
   import { playSfx } from '../sound/player';
-  import { character, properName } from '../sprites/characters';
   import { alive, nextExpiry, say, type Bubble } from './bubbles';
   import { heads } from './heads';
+  import { characterName as nameOf } from './names';
   import { WorldRuntime, type SceneStatus } from './runtime';
 
   /**
@@ -41,11 +41,6 @@
     if (at === null) return;
     bubbleTimer = setTimeout(() => { bubbles = alive(bubbles, performance.now()); scheduleBubbles(); }, Math.max(0, at - performance.now()) + 1);
   }
-  /** o nome de um personagem, para a etiqueta de um bot: o herói e o esqueleto pelo que são (traduzido); os outros pelo nome próprio */
-  const nameOf = (n: number) => {
-    const c = character(n);
-    return c.model === 'hero' ? t('char.hero') : c.model === 'skeleton' ? t('char.skeleton') : properName(c.name);
-  };
 
   onMount(() => {
     runtime = new WorldRuntime({
@@ -53,6 +48,7 @@
       onStatus: (s, detail) => { status = s; if (detail) document.documentElement.dataset.renderer = detail; },
       onEvent: (ev) => { if (ev.type === 'jump' || ev.type === 'shove') playSfx(ev.type); },
       onShoved: () => playSfx('shove'), // levei um empurrão que pegou
+      onStrike: () => playSfx('strike'), // o chefão caiu: o raio na cidade
     });
     const offChat = remote.onChat((e) => { bubbles = say(bubbles, e.member, e.text, performance.now()); scheduleBubbles(); });
     // a fonte dos balões já carregada quando a primeira fala chegar

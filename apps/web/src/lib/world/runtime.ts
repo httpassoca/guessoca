@@ -46,6 +46,8 @@ export interface RuntimeOptions {
   onEvent?: (ev: WorldEvent) => void;
   /** levei um empurrão que pegou (os que chegam atordoado, caído ou voltando são ignorados), para o som */
   onShoved?: () => void;
+  /** o chefão foi derrubado e o raio caiu na cidade, para o som */
+  onStrike?: () => void;
 }
 
 /**
@@ -118,6 +120,12 @@ export class WorldRuntime {
       if (!this.body || !canBeShoved(this.body, now)) return;
       this.body = applyShove(this.body, dir, now);
       this.opts.onShoved?.();
+    }));
+
+    // o chefão derrubado: o raio cai na cidade (o servidor avisa todo mundo na mesma hora)
+    this.off.push(this.opts.remote.onBossDown(({ bot, x }) => {
+      this.scene?.strike(Number(bot.replace(/\D/g, '')) || 1, x, performance.now());
+      this.opts.onStrike?.();
     }));
 
     // quem acerta comemora: sai da diferença entre snapshots, direto do `RemoteRoom` (o primeiro é só a base)

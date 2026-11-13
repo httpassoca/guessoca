@@ -55,6 +55,9 @@ export interface ShovedEvent { by: string; dir: 1 | -1 }
 /** Alguém da sala (`member`, eu inclusive) falou `text` (já limpo: só texto, numa linha). */
 export interface ChatEvent { member: string; text: string }
 
+/** O chefão `bot` foi derrubado agora, perto de `x` (unidades do mundo): o raio cai na cidade. */
+export interface BossDownEvent { bot: string; x: number }
+
 export const BACKOFF_START = 500;
 export const BACKOFF_MAX = 10_000;
 
@@ -69,7 +72,7 @@ const finalReason = (code: number): ClosedReason => CLOSE_REASONS[code] ?? (code
  *
  * O telhado passa por fora do estado (ADR 0005): a presença de cada pessoa (as duas últimas, com a hora em que chegaram)
  * se lê com `presenceOf`, os empurrões que recebo com `onShoved` e as falas de todo mundo (a minha também, de volta do
- * servidor) com `onChat`; nenhum deles avisa quem observa o estado. Um servidor que ainda não conhece a fala só a ignora.
+ * servidor) com `onChat` e o chefão derrubado com `onBossDown`; nenhum deles avisa quem observa o estado. Um servidor que ainda não conhece a fala só a ignora.
  */
 export class RemoteRoom {
   private st: RemoteState = { status: 'idle', room: null, reason: null, error: null, errorSeq: 0, receivedAt: 0, attempt: 0 };
@@ -86,6 +89,7 @@ export class RemoteRoom {
   private readonly presences = new Map<string, PresenceTrack>();
   private readonly shovedListeners = new Set<(e: ShovedEvent) => void>();
   private readonly chatListeners = new Set<(e: ChatEvent) => void>();
+  private readonly bossDownListeners = new Set<(e: BossDownEvent) => void>();
   private readonly makeSocket: SocketFactory;
   private readonly clock: Clock;
   private readonly now: () => number;
@@ -159,10 +163,17 @@ export class RemoteRoom {
     return () => { this.chatListeners.delete(listener); };
   }
 
+  /** Avisa a cada chefão derrubado (o servidor manda a todo mundo na mesma hora). Devolve como parar de ouvir. */
+  onBossDown(listener: (e: BossDownEvent) => void) {
+    this.bossDownListeners.add(listener);
+    return () => { this.bossDownListeners.delete(listener); };
+  }
+
   dispose() {
     this.disposed = true;
     this.shovedListeners.clear();
     this.chatListeners.clear();
+    this.bossDownListeners.clear();
     this.clearTimer();
     const ws = this.socket; this.socket = null;
     ws?.close(1000, 'saiu');
@@ -192,6 +203,12 @@ export class RemoteRoom {
       if (!text) return;
       const e: ChatEvent = { member: msg.member, text };
       for (const l of this.chatListeners) l(e);
+      return;
+    }
+    if (msg.type === 'bossDown') {
+      if (typeof msg.bot !== 'string' || typeof msg.x !== 'number' || !Number.isFinite(msg.x)) return;
+      const e: BossDownEvent = { bot: msg.bot, x: msg.x };
+      for (const l of this.bossDownListeners) l(e);
       return;
     }
     if (msg.type !== 'snapshot') return; // pong: só conta como resposta

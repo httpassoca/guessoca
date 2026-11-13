@@ -2,8 +2,8 @@ import { describe, expect, test } from 'bun:test';
 import { renderSfx, SFX, SFX_NAMES } from '../src/lib/sound/sfx';
 
 describe('os efeitos sonoros, gerados de parâmetros', () => {
-  test('os oito existem', () => {
-    expect([...SFX_NAMES].sort()).toEqual(['gotIt', 'jump', 'shove', 'siren', 'thunder', 'turnEnd', 'vote', 'yourTurn']);
+  test('os nove existem', () => {
+    expect([...SFX_NAMES].sort()).toEqual(['gotIt', 'jump', 'shove', 'siren', 'strike', 'thunder', 'turnEnd', 'vote', 'yourTurn']);
     for (const name of SFX_NAMES) expect(SFX[name]).toBeDefined();
   });
 

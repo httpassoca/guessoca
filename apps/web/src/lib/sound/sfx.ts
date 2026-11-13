@@ -1,11 +1,11 @@
 /**
- * Os oito efeitos sonoros, cada um como parâmetros do sfxr escritos aqui (nenhum arquivo de áudio no repositório).
+ * Os nove efeitos sonoros, cada um como parâmetros do sfxr escritos aqui (nenhum arquivo de áudio no repositório).
  * `renderSfx` gera as amostras com o jsfxr, sem DOM: o tocador (`player.ts`) põe isso num AudioBuffer uma vez só.
  */
 import { jsfxr, type SfxrParams } from 'jsfxr';
 
-export type SfxName = 'jump' | 'shove' | 'vote' | 'gotIt' | 'turnEnd' | 'yourTurn' | 'thunder' | 'siren';
-export const SFX_NAMES: readonly SfxName[] = ['jump', 'shove', 'vote', 'gotIt', 'turnEnd', 'yourTurn', 'thunder', 'siren'];
+export type SfxName = 'jump' | 'shove' | 'vote' | 'gotIt' | 'turnEnd' | 'yourTurn' | 'thunder' | 'siren' | 'strike';
+export const SFX_NAMES: readonly SfxName[] = ['jump', 'shove', 'vote', 'gotIt', 'turnEnd', 'yourTurn', 'thunder', 'siren', 'strike'];
 
 const SQUARE = 0, SAW = 1, SINE = 2, NOISE = 3;
 
@@ -30,6 +30,8 @@ export const SFX: Record<SfxName, Partial<SfxrParams>> = {
   thunder: { wave_type: NOISE, p_base_freq: 0.06, p_freq_ramp: -0.03, p_env_attack: 0.12, p_env_sustain: 0.32, p_env_punch: 0.15, p_env_decay: 0.62, p_lpf_freq: 0.16, p_lpf_resonance: 0.2, sound_vol: 0.3 },
   /** uma sirene lá embaixo na rua (a luz vermelha e azul nas fachadas): um ui-ó lento e baixinho */
   siren: { wave_type: SINE, p_base_freq: 0.36, p_vib_strength: 0.45, p_vib_speed: 0.12, p_env_attack: 0.3, p_env_sustain: 0.5, p_env_decay: 0.45, p_lpf_freq: 0.6, sound_vol: 0.07 },
+  /** o raio que cai na cidade quando o chefão é derrubado: um estalo seco, perto, que vira um trovão grave rolando */
+  strike: { wave_type: NOISE, p_base_freq: 0.11, p_freq_ramp: -0.06, p_env_attack: 0, p_env_sustain: 0.3, p_env_punch: 0.75, p_env_decay: 0.6, p_lpf_freq: 0.34, p_lpf_ramp: -0.08, p_lpf_resonance: 0.25, sound_vol: 0.42 },
 };
 
 /**
