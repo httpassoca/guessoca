@@ -112,7 +112,7 @@ apps/web           Vite + Svelte 5 + PixiJS v8 + dssoca
                            a rotina dos gatos no relógio de parede semeada pela sala, os caminhos entre poleiros, as reações
                            à presença, os bandos de pássaros que saem e voltam), fauna (Pixi: desenha os bichos entre os
                            corpos, tingidos para a noite), World.svelte (que também desenha
-                           os balões de fala, na fonte Tiny5 de `public/fonts/`), e a vida no telhado (issue #70): ambient
+                           os balões de fala, na fonte VT323 de `public/fonts/`), e a vida no telhado (issue #70): ambient
                            (puro: quando cada coisa acontece, por hash do relógio: janelas, letreiros, avião, relâmpago,
                            carros, sirene, respingos, gotas, vapor), windows (Pixi: as janelas que acendem e apagam por cima
                            das fachadas, a luz da sirene), skylife (Pixi: relâmpago, holofote, avião, estrela cadente,

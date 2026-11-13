@@ -21,7 +21,7 @@
  * fundo): não tem post-it, e não é para ninguém procurar um. A etiqueta que o `declutter` subiu tem um fio até a cabeça.
    *
    * A fala de alguém vira um balão na mesma etiqueta, logo acima da cabeça (debaixo do apelido, que sobe enquanto ele
-   * está lá): papel branco, contorno escuro e rabicho como os balões dos emotes, na fonte de pixel Tiny5 (`app.css`,
+   * está lá): papel branco, contorno escuro e rabicho como os balões dos emotes, na fonte de pixel VT323 (`app.css`,
    * `.gs-bubble`). Sempre como texto, nunca HTML. Quanto dura e a troca pela fala seguinte é com `bubbles.ts`.
    */
   let { remote, room, v, blocked, insetLeft }: { remote: RemoteRoom; room: RoomSnapshot; v: RoomView; blocked: boolean; insetLeft: number } = $props();
@@ -56,7 +56,7 @@
     });
     const offChat = remote.onChat((e) => { bubbles = say(bubbles, e.member, e.text, performance.now()); scheduleBubbles(); });
     // a fonte dos balões já carregada quando a primeira fala chegar
-    document.fonts?.load("8px 'Tiny5'").catch(() => {});
+    document.fonts?.load("25px 'VT323'").catch(() => {});
     runtime.setRoom(untrack(() => room));
     runtime.start();
     return () => { offChat(); clearTimeout(bubbleTimer); runtime?.dispose(); runtime = null; };
