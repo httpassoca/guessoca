@@ -30,6 +30,7 @@ describe('tabela de tradução', () => {
 
   test('o crédito do personagem está nas duas línguas', () => {
     for (const lang of LANGS) expect(translate(lang, 'credit.character')).toContain('Ozzbit Games');
+    for (const lang of LANGS) expect(translate(lang, 'credit.birds')).toContain('carysaurus');
   });
 
   test('a língua é lembrada pelo navegador, com português quando não há nada guardado', () => {

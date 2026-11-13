@@ -1,4 +1,4 @@
-import { CLOSE_ROOM_NOT_FOUND, IMAGE_BYTES_MAX, IMAGE_ID_RE, isWebp, parseRoomInit, SOCKET_IDLE_TIMEOUT, SOCKET_MESSAGE_BYTES_MAX, TOKEN_RE } from '@guess/protocol';
+import { CLOSE_ROOM_NOT_FOUND, IMAGE_BYTES_MAX, IMAGE_ID_RE, isWebp, parseRoomInit, SOCKET_IDLE_TIMEOUT, SOCKET_MESSAGE_BYTES_MAX, TOKEN_RE, type RoomPeek } from '@guess/protocol';
 import type { SocketData } from './host';
 import type { Log } from './log';
 import { Rooms, ROOMS_MAX } from './rooms';
@@ -30,6 +30,7 @@ export const LIMITS: Limits = { createBurst: 10, createPerSecond: 1 / 6, roomsMa
 /** O corpo de `POST /api/rooms` (as escolhas do pré-lobby) não passa disto. */
 const ROOM_INIT_BYTES_MAX = 1024;
 
+const PEEK_PATH = /^\/api\/rooms\/([A-Za-z]+)$/;
 const IMAGES_PATH = /^\/api\/rooms\/([A-Za-z]+)\/images(?:\/([^/]+))?$/;
 
 /** Lê o corpo até `max` bytes; passou disso, null (sem guardar o resto). */
@@ -57,6 +58,7 @@ function parseJson(bytes: Uint8Array): unknown {
  * HTTP: `/health`, `POST /api/rooms` (abre uma sala com as escolhas do pré-lobby no corpo JSON, `RoomInit`: o que falta
  * ou não vale fica no padrão; corpo acima de `ROOM_INIT_BYTES_MAX` → 413), as imagens dos post-its e o cliente estático. WebSocket em
  * `/ws?room=CODE&token=T`. Sala inexistente: o upgrade é aceito e fechado com um código que o cliente sabe explicar.
+ * `GET /api/rooms/CODE?token=T`: uma olhada na sala antes de entrar (`RoomPeek`), ou 404.
  * Imagens (ADR 0002): `POST /api/rooms/CODE/images?token=T` com um WebP → `{ id }`; `GET /api/rooms/CODE/images/ID`.
  */
 export function createServer(opts: ServerOptions) {
@@ -127,6 +129,15 @@ export function createServer(opts: ServerOptions) {
         return Response.json({ code: host.code });
       }
       if (url.pathname.startsWith('/api/admin/')) return (await admin?.handle(req, url)) ?? new Response('sistema desligado', { status: 404 });
+      const peek = PEEK_PATH.exec(url.pathname);
+      if (peek) {
+        if (req.method !== 'GET') return new Response('method not allowed', { status: 405 });
+        const st = rooms.get(peek[1])?.state;
+        if (!st || st.phase === 'dead') return Response.json({ found: false }, { status: 404 });
+        const token = url.searchParams.get('token');
+        const body: RoomPeek = { phase: st.game.phase, members: st.members.length, maxPlayers: st.maxPlayers, member: !!token && st.members.some((m) => m.token === token) };
+        return Response.json(body, { headers: { 'cache-control': 'no-store' } });
+      }
       const image = IMAGES_PATH.exec(url.pathname);
       if (image) return images(req, url, image[1].toUpperCase(), image[2]);
       if (url.pathname === '/ws') {

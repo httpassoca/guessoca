@@ -3,7 +3,7 @@
    * O rosto do personagem `n` (a cabeça do primeiro quadro do parado), num quadradinho com a cor dele. null = sem
    * personagem. O quadrado `atlas.head` (pixels do quadro, achado pela receita do modelo em `tools/sprites`) é ampliado
    * até `size` pixels da tela; a escala aqui não é inteira, e o `image-rendering: pixelated` do `.gs-swatch` (`app.css`)
-   * evita o borrão. A cor (`--c`) é a de `characters.json`, igual a `--gs-char-N`.
+   * evita o borrão. A folha é a do parado (`char-N-idle`, a página 0). A cor (`--c`) é a de `characters.json`, igual a `--gs-char-N`.
    */
   import { artScale, character, sheetSize } from '../sprites/characters';
   let { n, size = 22 }: { n: number | null; size?: number } = $props();
@@ -24,7 +24,7 @@
     style:--c={art.color}
     style:width="{size}px"
     style:height="{size}px"
-    style:background-image="url({art.sheet})"
+    style:background-image="url({art.sheets[0]})"
     style:background-size="{sheet.w * scale}px {sheet.h * scale}px"
     style:background-position="-{face.x * scale}px -{face.y * scale}px"
   ></span>

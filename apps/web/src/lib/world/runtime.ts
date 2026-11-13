@@ -8,7 +8,7 @@
  *
  * O que toca na arte: monta a lista de `SceneBody` (unidades do mundo) para `scene.ts`, com `animSince` dos outros
  * medido aqui (a presença não leva quando a animação começou), e põe cada post-it em HTML em `headAnchor` (pixels da
- * tela), separado por `declutter`, com `z-index` 1000 − `z` (quem está mais à frente cobre). O balão de fala mora nessa
+ * tela), separado por `declutter` (quem está falando fica no lugar; quem sobe ganha um fio até a cabeça, `--gs-lift`), com `z-index` 1000 − `z` (quem está mais à frente cobre). O balão de fala mora nessa
  * mesma etiqueta (`World.svelte`); daqui sai só o tamanho do pixel dele (`--gs-chat-px`), que é a escala do
  * telhado: um pixel do balão é um pixel do mundo.
  */
@@ -25,6 +25,7 @@ import { fixedSteps, STEP_MS } from './loop';
 import { PresenceSender, presenceOfBody, type Emote } from './presence';
 import type { Scene, SceneBody } from './scene';
 import { snapShift } from './bubbles';
+import { presentCharacters } from './sheet-cache';
 import { declutter, type Tag } from './declutter';
 import { rememberedZoom, rememberZoom } from '../identity';
 import { headAnchor, makeView, renderView, stepZoom } from './view';
@@ -258,10 +259,13 @@ export class WorldRuntime {
     if (this.animOf.size > bodies.length) { const here = new Set(bodies.map((b) => b.id)); for (const id of this.animOf.keys()) if (!here.has(id)) this.animOf.delete(id); }
 
     if (this.scene) {
+      this.scene.setRoom(room.code);
       // antes de o jogo começar o telhado fica em preto e branco; a primeira vez sem transição
       this.scene.setLobby(room.phase === 'lobby', !this.moodSet);
       this.moodSet = true;
     }
+    // as folhas de quem está na sala (a turma e os bots, o chefão entre eles) carregam antes de o corpo aparecer
+    this.scene?.want(presentCharacters(room), now);
     this.scene?.render(list, cam, view, now, this.lang);
     this.placeHeads(list, cam, view);
   }
@@ -271,7 +275,7 @@ export class WorldRuntime {
   private sceneBody(b: CrowdBody, now: number): SceneBody {
     let a = this.animOf.get(b.id);
     if (!a || a.anim !== b.anim) { a = { anim: b.anim, since: now }; this.animOf.set(b.id, a); }
-    return { id: b.id, character: b.character, x: b.x, y: b.y, z: b.z, facing: b.facing, anim: b.anim, animSince: a.since, emote: b.emote, blink: b.blink, scale: b.scale };
+    return { id: b.id, character: b.character, x: b.x, y: b.y, z: b.z, facing: b.facing, anim: b.anim, animSince: a.since, emote: b.emote, blink: b.blink, scale: b.scale, bot: b.bot };
   }
 
   /** Cada post-it vai sobre a cabeça do seu dono, com `translate3d`; quem não está no telhado some. */
@@ -288,12 +292,16 @@ export class WorldRuntime {
       // o balão de fala fica centrado na cabeça: com largura ímpar cairia em meio pixel e a fonte de pixel borraria
       const bubble = el.querySelector<HTMLElement>('.gs-bubble');
       const shift = bubble ? snapShift(bubble.getBoundingClientRect().width) : 0;
-      shown.push({ el, bubble, shift, tag: { id: b.id, x: p.x, y: p.y, w: box.offsetWidth, h: box.offsetHeight, z: b.z } });
+      shown.push({ el, bubble, shift, tag: { id: b.id, x: p.x, y: p.y, w: box.offsetWidth, h: box.offsetHeight, z: b.z, pin: !!bubble } });
     }
     const lift = declutter(shown.map((s) => s.tag));
     for (const { el, tag, bubble, shift } of shown) {
       if (bubble) { const t = shift ? `${shift}px` : ''; if (bubble.style.translate !== t) bubble.style.translate = t; }
-      el.style.transform = `translate3d(${Math.round(tag.x)}px, ${Math.round(tag.y - (lift.get(tag.id) ?? 0))}px, 0)`;
+      const up = Math.round(lift.get(tag.id) ?? 0);
+      el.style.transform = `translate3d(${Math.round(tag.x)}px, ${Math.round(tag.y) - up}px, 0)`;
+      // a etiqueta que subiu ganha um fio até a cabeça (`.gs-head .stem`, no CSS): dá para ver de quem ela é
+      const stem = up > 0 ? `${up}px` : '0px';
+      if (el.style.getPropertyValue('--gs-lift') !== stem) el.style.setProperty('--gs-lift', stem);
       // quem está mais à frente (z menor) por cima; 1000 passa de qualquer z do mapa (0–`DEPTH`)
       el.style.zIndex = String(Math.round(1000 - tag.z));
       if (el.style.visibility !== 'visible') el.style.visibility = 'visible';

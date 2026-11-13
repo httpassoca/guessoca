@@ -63,7 +63,7 @@ const CLOSE_REASONS: Record<number, NonNullable<ClosedReason>> = { [CLOSE_ROOM_N
 const finalReason = (code: number): ClosedReason => CLOSE_REASONS[code] ?? (code >= 4000 && code < 5000 ? 'ended' : null);
 
 /**
- * A ponta do cliente no socket da sala (ADR 0002): conecta com o token da aba, aplica os snapshots inteiros que o
+ * A ponta do cliente no socket da sala (ADR 0002): conecta com o token desta sala neste navegador, aplica os snapshots inteiros que o
  * servidor manda e reconecta sozinha com espera crescente. Os pedidos viram mensagens; o servidor aplica ou recusa
  * (a recusa fica em `state.error`, o snapshot que temos continua valendo).
  *

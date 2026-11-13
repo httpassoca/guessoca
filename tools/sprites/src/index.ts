@@ -1,22 +1,25 @@
 /**
  * `bun run sprites`: roda as receitas sobre os pacotes em `assets-src/` (fora do git, ADR 0007) e escreve as folhas que o
- * jogo usa em `apps/web/public/sprites/` (`char-N.png`, ou `char-N.webp` para a arte grande do Kratos e do Vorcaro, uma por personagem) e os atlas em
+ * jogo usa em `apps/web/public/sprites/` (`char-N-idle.png` e `char-N-moves.png`, ou `.webp` para a arte grande dos de sete folhas: as páginas de
+ * cada personagem, `paginate` em `atlas.ts`, nenhuma com lado maior que `MAX_SHEET`) e os atlas em
  * `apps/web/src/lib/sprites/` (`hero.json`, `skeleton.json`, `kratos.json`, `vorcaro.json`, `orelha.json`, `bolsonaro.json`, `knight.json`, `oldsnake.json`, `pinocchio.json`, `eve.json`, `katarina.json`, `punisher.json`, `mista.json` e `characters.json`, que liga cada personagem ao seu).
  * Só a saída vai para o git; o CI e o Docker nunca precisam dos pacotes.
  * O telhado (objetos em grade de texto e a cidade ao fundo) não usa o pacote e sai primeiro, mesmo sem ele.
  *
  * Ordem: `rooftop.png` + `skyline-*.png` + `rooftop.json` (de `rooftop.ts` e `skyline.ts`); depois cada modelo de
  * `models` (`hero.ts`, `skeleton.ts`, e `kratos.ts`, `vorcaro.ts`, `orelha.ts`, `bolsonaro.ts`, `knight.ts`, `oldsnake.ts`, `pinocchio.ts`, `eve.ts`, `katarina.ts`, `punisher.ts` e `mista.ts`, os de sete folhas de `pack.ts`), com as folhas nos lugares que `characters.ts` dá a ele; `characters.json`;
- * `emotes-<língua>.png` e `emotes.json` (`emotes.ts`); e por fim apaga nomes antigos que não existem mais. É o único
+ * `cats.png` + `birds.png` + `critters.json` (os bichos do telhado, `critters.ts`, dos pacotes em `assets-src/cats` e
+ * `assets-src/birds`); `emotes-<língua>.png` e `emotes.json` (`emotes.ts`); e por fim apaga nomes antigos que não existem mais. É o único
  * arquivo que toca o disco (com `png.ts`); as receitas são puras. `bun run sprites:preview` (`preview.ts`) lê o que
  * sai daqui e amplia para conferir.
  */
 import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { emoteSheet, type EmoteLang } from './emotes';
-import { characters } from './characters';
+import { characters, sheetFiles } from './characters';
+import { buildCritters, critterFiles } from './critters';
 import { buildHero, ANIMATIONS } from './hero';
-import type { Atlas } from './atlas';
+import { paginate, type Atlas } from './atlas';
 import type { Image } from './image';
 import { buildPack, packFiles } from './pack';
 import { PACKS } from './packs';
@@ -90,20 +93,45 @@ for (const m of models) {
     continue;
   }
   const built = m.build(Object.fromEntries(m.files.map(([name, file]) => [name, readPng(join(m.pack, file))])));
+  // a folha de uma linha por animação vira páginas de até `MAX_SHEET` (só quadros inteiros mudam de lugar)
+  let paged: ReturnType<typeof paginate>[];
+  try { paged = built.sheets.map((sheet) => paginate(sheet, built.atlas)); } catch (e) { throw new Error(`${m.model}: ${(e as Error).message}`); }
   const slots = list.flatMap((c, n) => (c.model === m.model ? [n] : []));
-  for (const [i, n] of slots.entries()) await writeSheet(join(out, list[n].sheet.replace(/^\/sprites\//, '')), built.sheets[i]);
-  atlases[m.model] = built.atlas;
-  console.log(`${m.model}: personagens ${slots.join(', ')}, folhas de ${built.sheets[0].width}×${built.sheets[0].height}, quadro ${built.atlas.frame.w}×${built.atlas.frame.h}`);
+  for (const [i, n] of slots.entries()) {
+    const files = sheetFiles(n, m.model, paged[i].pages.length);
+    for (const [p, page] of paged[i].pages.entries()) await writeSheet(join(out, files[p].replace(/^\/sprites\//, '')), page);
+  }
+  atlases[m.model] = paged[0].atlas;
+  console.log(`${m.model}: personagens ${slots.join(', ')}, páginas de ${paged[0].pages.map((p) => `${p.width}×${p.height}`).join(' + ')}, quadro ${built.atlas.frame.w}×${built.atlas.frame.h}`);
 }
+// com as páginas de cada modelo sabidas, os endereços das folhas de cada personagem
+const entries = characters((model) => atlases[model]?.pages?.length ?? 2);
 // só os atlas de quem está na lista, na ordem dela
 writeFileSync(atlasesPath, JSON.stringify(Object.fromEntries([...new Set(list.map((c) => c.atlas))].flatMap((m) => (atlases[m] ? [[m, atlases[m]]] : []))), null, 2) + '\n');
-writeFileSync(join(atlasOut, 'characters.json'), JSON.stringify(list, null, 2) + '\n');
+writeFileSync(join(atlasOut, 'characters.json'), JSON.stringify(entries, null, 2) + '\n');
 // quanto dura o ataque de cada personagem, em ms, na ordem dos lugares: o servidor simula os bots engraçados
 // (`apps/server/src/bots.ts`) e não leva os atlas do cliente na imagem de produção
 writeFileSync(
   join(root, 'apps/server/src/attacks.json'),
   JSON.stringify(list.map((c) => { const a = atlases[c.atlas]?.animations.shove; return a ? Math.round((a.frames / a.fps) * 1000) : 450; })) + '\n',
 );
+
+// os bichos do telhado (`critters.ts`): gatos e pássaros, dos dois pacotes em assets-src/cats e assets-src/birds. Sem
+// eles, as folhas e o atlas que já estão no git ficam como estão.
+{
+  const files = critterFiles();
+  const absent = files.filter(([, file]) => !existsSync(join(root, 'assets-src', file))).map(([, file]) => file);
+  if (absent.length) {
+    console.error(`bichos: pacote não encontrado (falta ${absent.slice(0, 3).join(', ')}${absent.length > 3 ? '…' : ''}).\n  Baixe o "Pet Cats Pack" (LuizMelo) para assets-src/cats/ e o "Bird Sprites" grátis (carysaurus) para assets-src/birds/ (ver docs/art.md).\n  As folhas dos bichos ficam como estão.`);
+    missing.push('bichos');
+  } else {
+    const built = buildCritters(Object.fromEntries(files.map(([name, file]) => [name, readPng(join(root, 'assets-src', file))])));
+    writePng(join(out, 'cats.png'), built.cats);
+    writePng(join(out, 'birds.png'), built.birds);
+    writeFileSync(join(atlasOut, 'critters.json'), JSON.stringify(built.atlas, null, 2) + '\n');
+    console.log(`bichos: gatos ${built.cats.width}×${built.cats.height}, pássaros ${built.birds.width}×${built.birds.height}`);
+  }
+}
 
 const langs: EmoteLang[] = ['pt-BR', 'en-US'];
 let emoteAtlas = null;
@@ -116,10 +144,11 @@ for (const lang of langs) {
 writeFileSync(join(atlasOut, 'emotes.json'), JSON.stringify(emoteAtlas, null, 2) + '\n');
 // nomes de antes do esqueleto (os atlas moravam no `public`, as folhas eram `hero-N.png`): se ainda estão lá, saem
 for (const stale of ['hero.json', 'emotes.json', ...Array.from({ length: 8 }, (_, n) => `hero-${n}.png`)]) rmSync(join(out, stale), { force: true });
-// e toda folha `char-*` que não é de um lugar de hoje (o elenco encolheu, ou um lugar mudou de formato): pela lista de
-// agora, não por uma lista de nomes escrita à mão, que já apagou a folha de um lugar que voltou a existir
-const live = new Set(list.map((c) => c.sheet.replace(/^\/sprites\//, '')));
-for (const file of readdirSync(out)) if (/^char-\d+\.(png|webp)$/.test(file) && !live.has(file)) rmSync(join(out, file), { force: true });
+// e toda folha `char-*` que não é de um lugar de hoje (o elenco encolheu, um lugar mudou de formato, ou é a folha única
+// `char-N.<formato>` de antes das páginas): pela lista de agora, não por uma lista de nomes escrita à mão, que já apagou
+// a folha de um lugar que voltou a existir
+const live = new Set(entries.flatMap((c) => c.sheets.map((s) => s.replace(/^\/sprites\//, ''))));
+for (const file of readdirSync(out)) if (/^char-\d+(-[a-z0-9-]+)?\.(png|webp)$/.test(file) && !live.has(file)) rmSync(join(out, file), { force: true });
 if (missing.length) {
   console.error(`faltou o pacote de: ${missing.join(', ')}`);
   process.exitCode = 1;

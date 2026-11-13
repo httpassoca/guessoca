@@ -4,7 +4,9 @@
  * a âncora, a cabeça, as animações e a escala). Puro, para os componentes e para o mundo (Pixi) lerem do mesmo lugar.
  *
  * Entrada: os dois JSON ao lado, escritos por `tools/sprites/src/index.ts` (não editar à mão; `bun run sprites` refaz).
- * As folhas ficam em `apps/web/public/sprites/char-N.<png|webp>`. Quem lê: `world/scene.ts` (os quadros), `world/view.ts`
+ * As folhas ficam em `apps/web/public/sprites/char-N-idle.<png|webp>` (a página 0: só o parado, numa linha) e
+ * `char-N-moves.<png|webp>` (a página 1: as outras animações, cada uma começando numa linha nova e quebrando em
+ * `pages[p].cols` quadros), nenhuma com lado maior que 8192 (`MAX_SHEET` em `tools/sprites/src/atlas.ts`). Quem lê: `world/scene.ts` (os quadros), `world/view.ts`
  * (a altura da cabeça), `panels/Hero.svelte` e `panels/Swatch.svelte` (o retrato e o rosto). Coordenadas: tudo aqui está
  * em pixels do quadro (ou da folha, em `frameAt`), com a âncora entre os pés; 1 pixel do quadro = `artScale(atlas)`
  * unidades do mundo (1 no pixel art feito no tamanho do jogo; menos nos de sete folhas, cuja folha é a arte no tamanho
@@ -32,8 +34,13 @@ export interface Atlas {
   head: { x: number; y: number; size: number };
   /** o retângulo do primeiro quadro do parado, em pixels do quadro (o retrato em `Hero`, sem a folga do golpe) */
   stand: { x: number; y: number; w: number; h: number };
-  /** cada animação: a linha na folha, quantos quadros, a velocidade, e se dá a volta (sem loop, para no último) */
-  animations: Record<AnimationName, { row: number; frames: number; fps: number; loop: boolean }>;
+  /**
+   * cada animação: a folha (`page`) e a linha dela em que começa (`row`), quantos quadros, a velocidade, e se dá a volta
+   * (sem loop, para no último). Uma animação com mais quadros que `pages[page].cols` continua na linha de baixo
+   */
+  animations: Record<AnimationName, { page: number; row: number; frames: number; fps: number; loop: boolean }>;
+  /** as folhas do modelo, em pixels, e quantos quadros cada uma tem por linha; a 0 é o parado */
+  pages: { w: number; h: number; cols: number }[];
   /** a quem dar o crédito da arte (o herói: "Ozzbit Games", ADR 0007), ou null */
   credit: string | null;
   /** o quadrado do rosto em `Swatch`, quando não é o de `head` (um companheiro mais alto ao lado: `head` é o alto do conjunto) */
@@ -58,33 +65,35 @@ export interface CharacterArt {
   name: string;
   /** a cor do personagem, para bordas e marcas na interface */
   color: string;
-  /** o endereço da folha (`/sprites/char-N.png`) */
-  sheet: string;
+  /** os endereços das folhas, uma por página do atlas: `[/sprites/char-N-idle.png, /sprites/char-N-moves.png]` */
+  sheets: string[];
   atlas: Atlas;
 }
 
 /** Os personagens, na ordem dos lugares do protocolo. */
 export const CHARACTER_ART: readonly CharacterArt[] = list.map((c) => ({
-  model: c.model, name: c.name, color: c.color, sheet: c.sheet, atlas: ATLASES[c.atlas],
+  model: c.model, name: c.name, color: c.color, sheets: c.sheets, atlas: ATLASES[c.atlas],
 }));
 
 /** O personagem `n`; fora da faixa, o primeiro. */
 export const character = (n: number): CharacterArt => CHARACTER_ART[n] ?? CHARACTER_ART[0];
 
-/** O canto do quadro `frame` da animação `name` na folha, em pixels da folha. */
-export function frameAt(atlas: Atlas, name: AnimationName, frame: number): { x: number; y: number } {
+/** O quadro `frame` da animação `name`: em que folha (`page`) e o canto dele nela, em pixels da folha. */
+export function frameAt(atlas: Atlas, name: AnimationName, frame: number): { page: number; x: number; y: number } {
   const a = atlas.animations[name];
   const i = a.loop ? ((frame % a.frames) + a.frames) % a.frames : Math.max(0, Math.min(a.frames - 1, frame));
-  return { x: i * atlas.frame.w, y: a.row * atlas.frame.h };
+  const cols = atlas.pages[a.page].cols;
+  return { page: a.page, x: (i % cols) * atlas.frame.w, y: (a.row + Math.floor(i / cols)) * atlas.frame.h };
 }
 
-/** A folha inteira de um modelo, em pixels: a linha mais comprida de largura, uma linha por animação de altura. */
-export function sheetSize(atlas: Atlas): { w: number; h: number } {
-  return {
-    w: Math.max(...Object.values(atlas.animations).map((a) => a.frames)) * atlas.frame.w,
-    h: Object.keys(atlas.animations).length * atlas.frame.h,
-  };
+/** O tamanho da folha `page` de um modelo, em pixels (0, o padrão: a do parado, que o seletor e o rosto usam). */
+export function sheetSize(atlas: Atlas, page = 0): { w: number; h: number } {
+  const { w, h } = atlas.pages[page];
+  return { w, h };
 }
+
+/** A maior folha de um modelo, pelo maior lado, em pixels: o que tem que caber no `MAX_TEXTURE_SIZE` da placa. */
+export const largestSheet = (atlas: Atlas): number => Math.max(...atlas.pages.flatMap((p) => [p.w, p.h]));
 
 /** O índice do quadro da animação `name` depois de `elapsed` ms nela, no fps do modelo: em loop dá a volta, sem loop para no último. */
 export function frameIndex(atlas: Atlas, name: AnimationName, elapsed: number): number {
