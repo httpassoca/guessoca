@@ -1,6 +1,6 @@
 /**
  * Os bots engraçados (issue #55, emenda do ADR 0005): personagens que ninguém controla e que aparecem no telhado com o
- * jogo rodando, para distrair e fazer rir. Não sabem nada do jogo (vez, voto, relógio): só veem corpos no telhado.
+ * jogo rodando, para distrair e fazer rir. O corpo e o que fazem não dependem do jogo (vez, voto, relógio): só veem corpos no telhado. A fala de alguns é outra coisa (`talk.ts`).
  * Puro: sem sockets nem relógio; o `RoomHost` chama `tick` umas trinta vezes por segundo com a hora, as pessoas como as
  * conhece (a última presença de cada uma) e um sorteio (`rng`), e repassa o que sai (presenças, empurrões, a lista).
  *
@@ -122,8 +122,11 @@ export interface Bot {
   trail: { at: number; vx: number; vz: number; up: boolean }[];
 }
 
-/** O que saiu de um passo: os empurrões em pessoas (para o `RoomHost` entregar) e se a lista de bots mudou. */
-export interface BotTick { shoves: { target: string; by: string; dir: 1 | -1 }[]; rosterChanged: boolean }
+/**
+ * O que saiu de um passo: os empurrões em pessoas (para o `RoomHost` entregar), se a lista de bots mudou, e, para a fala
+ * (`talk.ts`), os empurrões de bot em bot que pegaram (`hits`) e os bots que caíram do telhado (`falls`).
+ */
+export interface BotTick { shoves: { target: string; by: string; dir: 1 | -1 }[]; rosterChanged: boolean; hits: { bot: string; by: string }[]; falls: string[] }
 
 export interface BotWorldOptions {
   /** quantos personagens existem (`CHARACTERS`) */
@@ -239,6 +242,8 @@ export class BotWorld {
   tick(now: number, dt: number, players: readonly Seen[], ctx: { enabled: boolean; taken: ReadonlySet<number> }): BotTick {
     const before = this.bots.map((b) => b.id).join();
     const shoves: BotTick['shoves'] = [];
+    const hits: BotTick['hits'] = [];
+    const falls: string[] = [];
     this.players = [...players];
     // quem já pode levar outro empurrão de bot não precisa mais estar aqui (o mapa não cresce sem fim)
     for (const [id, at] of this.lastShoved) if (now - at >= BOT_SHOVE_PLAYER_MS) this.lastShoved.delete(id);
@@ -277,7 +282,7 @@ export class BotWorld {
       for (const ev of r.events) {
         if (ev.type === 'shove') {
           for (const id of ev.targets) {
-            if (this.bots.some((b) => b.id === id)) { this.shoved(id, bot.body.facing, bot.id, now); continue; }
+            if (this.bots.some((b) => b.id === id)) { if (this.shoved(id, bot.body.facing, bot.id, now)) hits.push({ bot: id, by: bot.id }); continue; }
             if (now - (this.lastShoved.get(id) ?? -Infinity) < BOT_SHOVE_PLAYER_MS) continue; // o golpe sai, mas não pega
             this.lastShoved.set(id, now);
             shoves.push({ target: id, by: bot.id, dir: bot.body.facing });
@@ -285,12 +290,13 @@ export class BotWorld {
         } else if (ev.type === 'fell') {
           // caiu: em geral some; quem ainda tem volta, volta no ponto de volta (o `stepBody` cuida)
           // o chefão não vai embora por ter caído: volta sempre
+          falls.push(bot.id);
           if (bot.doing === 'leave' || !ctx.enabled || (!bot.boss && bot.comebacks <= 0)) this.remove(bot);
           else { if (!bot.boss) bot.comebacks--; this.start(bot, bot.grudge && bot.temper === 'revenge' ? 'revenge' : 'wander', now, bot.grudge, 8000); }
         }
       }
     }
-    return { shoves, rosterChanged: this.bots.map((b) => b.id).join() !== before };
+    return { shoves, rosterChanged: this.bots.map((b) => b.id).join() !== before, hits, falls };
   }
 
   // --- o diretor ----------------------------------------------------------------------------------------------------
