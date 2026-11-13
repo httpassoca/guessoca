@@ -104,6 +104,10 @@ _Evitar_: reação, emoji, fala
 Uma mensagem curta, de até 60 caracteres, escrita no campo do canto de baixo à direita (Enter foca, Enter manda). Não fica guardada nem em lista: vira um balão de pixel perto do personagem de quem falou, da família dos balões dos emotes, que todo mundo vê por 3 a 6 s conforme o tamanho; uma fala nova da mesma pessoa troca a anterior. Uma por segundo por pessoa. Fala quem tem personagem, no lobby, no jogo e no fim; bot não fala. Passa por fora do estado da sala e não conta como atividade.
 _Evitar_: mensagem, chat (em português), histórico, log
 
+**Bicho** (`critter`):
+Os gatos e os pássaros que moram no telhado: três gatos, um por prédio, e cinco pombos e um corvo em poleiros (a placa do hotel, a mureta do fundo, a caixa-d'água, a antena, a torre). São enfeite vivo: não são sólidos, não têm post-it nem nome, não contam para nada no jogo e não passam pela rede. Cada aba os calcula sozinha, numa rotina pelo relógio de parede semeada pela sala (todas as abas veem o mesmo gato fazendo a mesma coisa) e em reações à presença: o gato senta e olha quem chega perto, foge pulando o vão de quem corre para ele, empurra ou pousa perto, vem sentar do lado de quem fica parado perto dele, se afasta dos bots, e o mais perto mia na comemoração; o bando sai voando quando alguém corre ou pula perto e volta depois. O pouso do chefão espanta todos os bichos daquele telhado.
+_Evitar_: pet, mascote, NPC, animal (no código é `critter`)
+
 **Presença** (`presence`):
 Onde o personagem de uma pessoa está, como se move e o que anima. Sai de cada aba umas quinze vezes por segundo e chega às outras por fora do estado da sala; não conta como atividade.
 _Evitar_: posição, tracking, telemetria, sync

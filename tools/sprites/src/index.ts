@@ -8,7 +8,8 @@
  *
  * Ordem: `rooftop.png` + `skyline-*.png` + `rooftop.json` (de `rooftop.ts` e `skyline.ts`); depois cada modelo de
  * `models` (`hero.ts`, `skeleton.ts`, e `kratos.ts`, `vorcaro.ts`, `orelha.ts`, `bolsonaro.ts`, `knight.ts`, `oldsnake.ts`, `pinocchio.ts`, `eve.ts`, `katarina.ts`, `punisher.ts` e `mista.ts`, os de sete folhas de `pack.ts`), com as folhas nos lugares que `characters.ts` dá a ele; `characters.json`;
- * `emotes-<língua>.png` e `emotes.json` (`emotes.ts`); e por fim apaga nomes antigos que não existem mais. É o único
+ * `cats.png` + `birds.png` + `critters.json` (os bichos do telhado, `critters.ts`, dos pacotes em `assets-src/cats` e
+ * `assets-src/birds`); `emotes-<língua>.png` e `emotes.json` (`emotes.ts`); e por fim apaga nomes antigos que não existem mais. É o único
  * arquivo que toca o disco (com `png.ts`); as receitas são puras. `bun run sprites:preview` (`preview.ts`) lê o que
  * sai daqui e amplia para conferir.
  */
@@ -16,6 +17,7 @@ import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync
 import { join, resolve } from 'node:path';
 import { emoteSheet, type EmoteLang } from './emotes';
 import { characters, sheetFiles } from './characters';
+import { buildCritters, critterFiles } from './critters';
 import { buildHero, ANIMATIONS } from './hero';
 import { paginate, type Atlas } from './atlas';
 import type { Image } from './image';
@@ -113,6 +115,23 @@ writeFileSync(
   join(root, 'apps/server/src/attacks.json'),
   JSON.stringify(list.map((c) => { const a = atlases[c.atlas]?.animations.shove; return a ? Math.round((a.frames / a.fps) * 1000) : 450; })) + '\n',
 );
+
+// os bichos do telhado (`critters.ts`): gatos e pássaros, dos dois pacotes em assets-src/cats e assets-src/birds. Sem
+// eles, as folhas e o atlas que já estão no git ficam como estão.
+{
+  const files = critterFiles();
+  const absent = files.filter(([, file]) => !existsSync(join(root, 'assets-src', file))).map(([, file]) => file);
+  if (absent.length) {
+    console.error(`bichos: pacote não encontrado (falta ${absent.slice(0, 3).join(', ')}${absent.length > 3 ? '…' : ''}).\n  Baixe o "Pet Cats Pack" (LuizMelo) para assets-src/cats/ e o "Bird Sprites" grátis (carysaurus) para assets-src/birds/ (ver docs/art.md).\n  As folhas dos bichos ficam como estão.`);
+    missing.push('bichos');
+  } else {
+    const built = buildCritters(Object.fromEntries(files.map(([name, file]) => [name, readPng(join(root, 'assets-src', file))])));
+    writePng(join(out, 'cats.png'), built.cats);
+    writePng(join(out, 'birds.png'), built.birds);
+    writeFileSync(join(atlasOut, 'critters.json'), JSON.stringify(built.atlas, null, 2) + '\n');
+    console.log(`bichos: gatos ${built.cats.width}×${built.cats.height}, pássaros ${built.birds.width}×${built.birds.height}`);
+  }
+}
 
 const langs: EmoteLang[] = ['pt-BR', 'en-US'];
 let emoteAtlas = null;

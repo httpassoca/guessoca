@@ -83,9 +83,10 @@ apps/web           Vite + Svelte 5 + PixiJS v8 + dssoca
   src/lib/image.ts         a imagem do post-it: reduz a 512 px, WebP baixando a qualidade até caber, sobe por POST
   src/lib/hints.ts         as dicas de primeira vez (o cartão das teclas no telhado), lembradas por navegador (localStorage)
   src/lib/effects.ts       "efeitos de tela" (os filtros de filme) ligados ou não, por navegador (localStorage)
-  src/lib/sprites/         os atlas gerados (`characters.json`, `atlases.json`, `emotes.json`, `rooftop.json`),
-                           `characters.ts`, que diz de que modelo é cada personagem, a folha, a cor e onde está cada quadro
-                           no atlas do modelo, e `rooftop.ts`, o mesmo para os objetos do telhado e as faixas da cidade
+  src/lib/sprites/         os atlas gerados (`characters.json`, `atlases.json`, `emotes.json`, `rooftop.json`,
+                           `critters.json`), `characters.ts`, que diz de que modelo é cada personagem, a folha, a cor e onde
+                           está cada quadro no atlas do modelo, `rooftop.ts`, o mesmo para os objetos do telhado e as faixas
+                           da cidade, e `critters.ts`, as tiras dos gatos e dos pássaros
   src/lib/world/            o telhado no navegador: controls (teclas → `Input`), loop (60 passos por segundo), presence (manda
                            a própria ~15/s e um batimento por segundo parado; interpola a dos outros), crowd (quem desenhar,
                            jogadores falsos parados em lugares fixos), view (escala inteira, onde vão o post-it e o balão),
@@ -101,7 +102,10 @@ apps/web           Vite + Svelte 5 + PixiJS v8 + dssoca
                            carregadas só para quem está na sala), sheet-cache (puro: que folha está carregada, quando
                            soltar, quanto encolher uma folha maior que a textura da placa), runtime (o laço,
                            o empurrão de ida e de volta, o salto de quem acertou, os post-its em HTML sobre as cabeças), bubbles
-                           (puro: os balões de fala, quanto duram e a troca pelo seguinte) e World.svelte (que também desenha
+                           (puro: os balões de fala, quanto duram e a troca pelo seguinte), critters (puro: os bichos do telhado,
+                           a rotina dos gatos no relógio de parede semeada pela sala, os caminhos entre poleiros, as reações
+                           à presença, os bandos de pássaros que saem e voltam), fauna (Pixi: desenha os bichos entre os
+                           corpos, tingidos para a noite) e World.svelte (que também desenha
                            os balões de fala, na fonte Tiny5 de `public/fonts/`)
   src/lib/sound/           os efeitos sonoros: sfx (cinco sons como parâmetros do sfxr, gerados com o jsfxr; nenhum arquivo de
                            áudio), room (os sons da sala tirados da diferença entre snapshots: votação, acertou, fim de vez),
@@ -133,6 +137,9 @@ tools/sprites      `bun run sprites` (@guess/sprites): as receitas que geram as 
   src/rooftop.ts     o telhado em grades de texto: a paleta, a prancheta (`Sketch`) que carimba grades, tampo, muretas,
                      fachadas, as três caixas do mapa (ar-condicionado, chaminé, caixa-d'água), antenas, letreiros de neon,
                      poças, lua e neblina; a folha `rooftop.png` e o atlas
+  src/critters.ts    os bichos do telhado: três gatos do "Pet Cats Pack" (LuizMelo, CC0) e o pombo e o corvo do "Bird
+                     Sprites" (carysaurus), recortados sem mudar pixel, mais o voo dos pássaros desenhado em grade de
+                     texto; as folhas `cats.png` e `birds.png` e o atlas `critters.json`
   src/skyline.ts     a cidade ao fundo: faixas que repetem, geradas por um sorteio semeado (longe e perto)
   src/preview.ts     `bun run sprites:preview`: folhas de contato ampliadas (4×) da saída, em `.preview/`
   test/              as receitas com imagens de mentira (o pacote não é preciso para testar)
@@ -177,6 +184,8 @@ cp -r ~/dev/tmp/male_hero_free assets-src/   # uma vez, na máquina do dono
 cp -r <folhas do esqueleto> assets-src/skeleton/   # IDLE.png, WALK.png, FWD_SWING.png, DOWN_SWING.png, ...
 cp -r <pasta de um personagem> assets-src/<dir>/   # os de sete folhas: idle.png, walk.png, run.png, jump.png, fall.png,
                                                    # fall_loop.png e attack.png (ou shove.png); `dir` é o de `packs.ts`
+cp -r "Pet Cats Pack"/. assets-src/cats/           # os gatos (LuizMelo, itch.io): Cat-1 … Cat-6 e Meow-VFX
+cp Birds_Free_Carysaurus/*.png assets-src/birds/   # os pássaros grátis (carysaurus, itch.io)
 bun run sprites                             # refaz as folhas e os atlas
 ```
 
@@ -221,6 +230,13 @@ O que sai:
   perspectiva, então o topo visível cai no `top` da caixa (os testes conferem contra o `MAP`). Mais antenas, a luz da
   torre, os letreiros "BAR", "HOTEL" (com uma letra que falha) e "24H", poças e a lua. Não precisam do pacote: saem mesmo
   sem ele.
+- `cats.png` e `birds.png` (atlas em `critters.json`): os bichos que moram no telhado (issue #71). Três gatos do "Pet
+  Cats Pack" de LuizMelo (CC0; `assets-src/cats/`, a pasta `Pet Cats Pack` do zip): o preto (`Cat-2`), o cinza tigrado
+  (`Cat-6`) e o branco (`Cat-5`), doze animações cada, e as linhas do miau. O pombo e o corvo do "Bird Sprites" grátis
+  de carysaurus (`assets-src/birds/`: `Pigeon-Idle.png`, `Crow-Idle.png`; crédito obrigatório, o pacote não pode ser
+  redistribuído): o parado do pacote e três quadros de bater de asas desenhados em grade de texto com as cores do
+  próprio pássaro (o pacote grátis não tem voo). Nenhum pixel do pacote muda; o jogo desenha a 1× e tinge para a noite.
+  Sem os dois pacotes, a receita deixa essas folhas como estão. Como entram no jogo: "Bichos" em `docs/art.md`.
 - `skyline-far.png` e `skyline-near.png`: a cidade ao fundo, gerada por `tools/sprites/src/skyline.ts` com uma semente
   fixa (a mesma semente dá sempre a mesma cidade): prédios, janelas acesas, antenas, caixas-d'água e um pouco de neon, em
   faixas que repetem. O cliente as rola a frações diferentes da câmera.
@@ -292,4 +308,6 @@ certbot) são guiados por `bash deploy/wizard.sh`, que termina provando HTTPS e 
 
 Herói: [Ozzbit Games](https://ozzbit-games.itch.io) (pacote "male hero", uso pessoal e não comercial). O pacote original
 não está no repositório; só as folhas geradas pelo pipeline (ADR 0007). O cavaleiro esqueleto e os personagens de sete folhas são arte do dono do jogo.
+Pássaros: [carysaurus](https://carysaurus.itch.io/bird-sprites) ("Bird Sprites", versão grátis; crédito obrigatório, o
+pacote não está no repositório). Gatos: [LuizMelo](https://luizmelo.itch.io/pet-cat-pack) ("Pet Cats Pack", CC0).
 Guessoca não é comercial e não tem anúncios.

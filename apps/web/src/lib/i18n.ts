@@ -23,6 +23,7 @@ const pt = {
   'home.codeInvalid': 'O código tem quatro letras (sem I nem O)',
   'home.enter': 'Entrar',
   'credit.character': 'Herói: Ozzbit Games',
+  'credit.birds': 'Pássaros: carysaurus',
   'nav.home': 'Início',
   // conexão
   'status.connecting': 'conectando…',
@@ -297,6 +298,7 @@ const en: Record<MsgKey, string> = {
   'home.codeInvalid': 'The code is four letters (no I or O)',
   'home.enter': 'Join',
   'credit.character': 'Hero: Ozzbit Games',
+  'credit.birds': 'Birds: carysaurus',
   'nav.home': 'Home',
   'status.connecting': 'connecting…',
   'status.open': 'live',

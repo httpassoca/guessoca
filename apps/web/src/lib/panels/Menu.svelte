@@ -60,7 +60,7 @@
         </ul>
       </div>
       <p class="gs-hint">{t('menu.leaveHint')}</p>
-      <p class="gs-credit">{t('credit.character')}</p>
+      <p class="gs-credit">{t('credit.character')} · {t('credit.birds')}</p>
     </div>
     <div class="gs-float-foot">
       <Confirm label={t('menu.leave')} onconfirm={() => navigate('/')} />
