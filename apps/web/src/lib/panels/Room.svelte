@@ -226,7 +226,7 @@
   {/if}
 
   {#if room.phase === 'ended' && endOpen}
-    <EndCard {v} {room} onclose={() => (endOpen = false)} onplayagain={() => send({ type: 'playAgain' })} />
+    <EndCard {v} {room} left={topLeft} onclose={() => (endOpen = false)} onplayagain={() => send({ type: 'playAgain' })} />
   {/if}
 
   {#if canTalk}<Chat bind:this={chat} onsend={(text) => remote.chat(text)} />{/if}

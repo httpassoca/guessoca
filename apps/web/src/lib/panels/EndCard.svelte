@@ -9,13 +9,13 @@
    * O cartão do fim, no meio da tela, assim que o jogo acaba: quem acertou primeiro (ou que ninguém acertou) e o
    * post-it de cada um, revelado, com o que deu (acertou em tal lugar, desistiu, não chegou lá). Fecha para a coluna
    * (Esc, ou o botão), onde ficam "Quem era quem", as estatísticas e o "Jogar de novo"; o moderador também joga de
-   * novo daqui. Só desenha o que `roomView` já diz.
+   * novo daqui. Centra no que sobra à direita da coluna (`left`). Só desenha o que `roomView` já diz.
    */
-  let { v, room, onclose, onplayagain }: { v: RoomView; room: RoomSnapshot; onclose: () => void; onplayagain: () => void } = $props();
+  let { v, room, left, onclose, onplayagain }: { v: RoomView; room: RoomSnapshot; left: number; onclose: () => void; onplayagain: () => void } = $props();
   const winner = $derived(v.ranking.find((r) => r.place === 1)?.member ?? null);
 </script>
 
-<div class="gs-end-wrap">
+<div class="gs-end-wrap" style:left="{left}px">
   <section class="gs-float gs-end" aria-labelledby="gs-end-title">
     <h2 id="gs-end-title" class="gs-end-title">{t('end.title')}</h2>
     {#if winner}

@@ -36,7 +36,7 @@
     <tr>
       <th scope="col" aria-label={t('stats.player')}></th>
       {#each columns as c (c)}
-        <th scope="col" class="num"><Tooltip text={t(TIP[c])}><span>{t(HEAD[c])}</span></Tooltip></th>
+        <th scope="col" class="num {c}"><Tooltip text={t(TIP[c])}><span>{t(HEAD[c])}</span></Tooltip></th>
       {/each}
     </tr>
   </thead>

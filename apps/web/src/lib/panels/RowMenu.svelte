@@ -14,12 +14,18 @@
   let root = $state<HTMLElement>();
   const close = () => (open = false);
 
-  function onKey(e: KeyboardEvent) {
-    if (e.key !== 'Escape') return;
-    e.stopPropagation();
-    e.preventDefault();
-    close();
-  }
+  // o Esc chega na janela (o clique solta o foco do botão): ouvido antes de todos, na captura, para não abrir o menu
+  $effect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      e.stopPropagation();
+      e.preventDefault();
+      close();
+    };
+    window.addEventListener('keydown', onKey, { capture: true });
+    return () => window.removeEventListener('keydown', onKey, { capture: true });
+  });
   function onOutside(e: PointerEvent) {
     if (open && root && !root.contains(e.target as Node)) close();
   }
@@ -27,8 +33,7 @@
 
 <svelte:window onpointerdown={onOutside} />
 
-<!-- svelte-ignore a11y_no_static_element_interactions -->
-<span class="gs-rowmenu" bind:this={root} onkeydown={onKey}>
+<span class="gs-rowmenu" bind:this={root}>
   <Tooltip text={label}>
     <button class="ss-btn ghost gs-icon-btn" type="button" aria-label={label} aria-haspopup="true" aria-expanded={open} onclick={() => (open = !open)}><Icon name="more" /></button>
   </Tooltip>

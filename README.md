@@ -102,11 +102,12 @@ apps/web           Vite + Svelte 5 + PixiJS v8 + dssoca
   src/lib/sound/           os efeitos sonoros: sfx (cinco sons como parâmetros do sfxr, gerados com o jsfxr; nenhum arquivo de
                            áudio), room (os sons da sala tirados da diferença entre snapshots: votação, acertou, fim de vez),
                            settings (volume e mudo por navegador) e player (um AudioContext, ligado na primeira interação)
-  src/lib/keys.ts          Tab = passar, N = bloco, Esc = menu, Enter = falar (fora de campo de texto)
-  src/lib/panels/          Room (o telhado atrás de tudo, a barra, a coluna da fase que recolhe, teclado), TurnBar (vez e votação
-                           no alto), Roster (a tira de post-its embaixo), Lobby (ordem arrastável, autores, personagens, tamanho da vez), Writing
+  src/lib/keys.ts          Tab = passar (fora da vez, com o foco solto, nada), N = bloco, Esc = menu, Enter = falar (fora de campo de texto)
+  src/lib/panels/          Room (o telhado atrás de tudo, a barra, a coluna da fase que recolhe, teclado), TurnBar (vez, quem vem
+                           depois, pausa e votação no alto), Roster (a tira de post-its embaixo), Lobby (ordem arrastável, autores, personagens, tamanho da vez), Writing
                            e PostitEditor (ao vivo, imagem, Pronto, moderador escreve os vazios), Playing (vez, votação, ranking),
-                           ModPanel, Ended, Stats (as estatísticas do jogo, na coluna do fim), Notepad, Menu, Chat (o campo da
+                           ModPanel, Ended, Stats (as estatísticas do jogo, na coluna do fim), EndCard
+                           (o cartão do fim, no meio), RowMenu (o ⋯ do moderador numa linha da turma), Notepad, Menu, Chat (o campo da
                            fala, no canto de baixo à direita)
   src/lib/screens/         Home (abrir sala, entrar com código, crédito) e Sala (apelido, depois o jogo; sala inexistente,
                            encerrada ou expulso)
