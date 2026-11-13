@@ -15,7 +15,8 @@
  *
  *     scenery [ backdrop, platforms.back ]   ← bloom (`film.scenery`)
  *     shadows                                 elipses no chão
- *     bodies                                  um sprite por corpo, ordenado por profundidade
+ *     bodies                                  um sprite por corpo, ordenado por profundidade, e os bichos
+ *                                             (gatos e pássaros, `fauna.ts`) entre eles pela profundidade
  *     platforms.front                         a mureta da frente, cobre os pés na beirada
  *     balloons                                balões dos emotes, sempre por cima dos corpos
  *     celebration                             o confete de quem acertou (`celebration.ts`)
@@ -41,6 +42,8 @@ import { artScale, CHARACTER_ART, character, frameIndex } from '../sprites/chara
 import { loadRooftopArt } from './art';
 import { Backdrop } from './backdrop';
 import { Celebration } from './celebration';
+import { seedOf } from './critters';
+import { Fauna } from './fauna';
 import { Film } from './film';
 import { lobbyMatrix, moodStep } from './mood';
 import { Platforms } from './platforms';
@@ -65,6 +68,8 @@ export interface SceneBody extends Vec3 {
    * art continuar com pixels quadrados; o sprite, a sombra e o balão crescem juntos, a partir dos pés
    */
   scale?: number;
+  /** um bot engraçado (os gatos se afastam dele) */
+  bot?: boolean;
 }
 
 /** As animações na ordem das linhas da folha (`ANIMATION_NAMES` em `tools/sprites/src/atlas.ts`). */
@@ -114,6 +119,9 @@ export class Scene {
   private readonly bodies = new Container({ sortableChildren: true });
   private readonly balloons = new Container();
   private readonly celebration = new Celebration();
+  /** os gatos e os pássaros (issue #71); null até as folhas carregarem, ou se não carregarem */
+  private fauna: Fauna | null = null;
+  private roomCode = '';
   private readonly drawn = new Map<string, Drawn>();
   /** quadros por personagem, animação e índice (cada personagem no atlas do seu modelo) */
   private readonly frames: Texture[][][] = [];
@@ -200,10 +208,22 @@ export class Scene {
     this.scenery.addChild(this.backdrop, this.platforms.back);
     this.world.addChild(this.scenery, this.shadows, this.bodies, this.platforms.front, this.balloons, this.celebration, this.weather);
     this.applyEffects();
+    // os bichos não seguram a cena: sem as folhas deles, o telhado abre sem bichos
+    try {
+      this.fauna = await Fauna.create(this.bodies);
+      if (this.roomCode) this.fauna.setSeed(seedOf(this.roomCode));
+    } catch (err) { console.error('telhado: sem bichos', err); }
   }
 
   /** `id` acertou agora: confete em volta dele por uns 2 s, seguindo de onde ele estiver. */
-  celebrate(id: string, now: number) { this.celebration.start(id, now); }
+  celebrate(id: string, now: number) { this.celebration.start(id, now); this.fauna?.cheer(id); }
+
+  /** A sala (o código): os bichos tiram dela a semente da rotina, a mesma em toda aba. */
+  setRoom(code: string) {
+    if (code === this.roomCode) return;
+    this.roomCode = code;
+    this.fauna?.setSeed(seedOf(code));
+  }
 
   /**
    * Desenha um quadro: `list` em unidades do mundo, `cam`/`view` como em `project` (a escala inteira de `view` amplia
@@ -265,6 +285,11 @@ export class Scene {
         d.balloon.visible = true;
       }
     });
+    // os bichos, entre os corpos pela profundidade, no relógio de parede (o mesmo em toda aba)
+    this.fauna?.update(
+      list.map((b) => ({ id: b.id, x: b.x, y: b.y, z: b.z, anim: b.anim, bot: b.bot ?? false, scale: b.scale ?? 1 })),
+      sorted.map((b) => depthKey(b)), cam, view, Date.now(),
+    );
     for (const [id, d] of this.drawn) if (!seen.has(id)) { d.sprite.destroy(); d.shadow.destroy(); d.balloon.destroy(); this.drawn.delete(id); }
     this.app.render();
   }

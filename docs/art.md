@@ -32,6 +32,8 @@ owner's files ──cp──▶ assets-src/ (gitignored)         text grids in c
 
 - **Hero**: Ozzbit Games' free "male hero" pack. Personal and non-commercial use only, modifications allowed, **credit required** ("Herói: Ozzbit Games", the `credit.character` i18n key, shown in the menu and on the home screen; `hero.json` carries `"credit": "Ozzbit Games"`). The pack itself must never be redistributed.
 - **Skeleton knight** and every seven-sheet character (`PACKS` in `tools/sprites/src/packs.ts`): the owner's own art, most of it made by an image model at the owner's request. No restriction and no credit (`"credit": null`).
+- **Cats** (`cats.png`): LuizMelo's "Pet Cats Pack", CC0. No restriction; the README names the author anyway.
+- **Birds** (`birds.png`): carysaurus's free "Bird Sprites". Free and commercial use, **credit required** ("Pássaros: carysaurus", the `credit.birds` i18n key, shown next to the hero's credit in the menu and on the home screen; `critters.json` carries `"credit": "carysaurus"`), and the pack must not be redistributed or resold: only the generated sheet is committed. The flight frames are drawn by us in code.
 - **Scenery, emotes and skyline**: drawn in code (text grids and a seeded generator). No licence strings attached.
 - **Never commit `assets-src/`.** It's in `.gitignore` and `.dockerignore`. Commit only the generated output.
 - Art from any other pack needs a licence that allows this use (a free, non-commercial game whose repo is public). Signs and text are our own words: no real brands or game names.
@@ -56,6 +58,7 @@ Pipeline, `tools/sprites/src/` (`@guess/sprites`, pure apart from `png.ts` and t
 | `emotes.ts` | The emote balloons, from a 3×5 text font, one sheet per language. |
 | `rooftop.ts` | The rooftop palette, the `Sketch` stamping board, every prop/texture/sign as a text grid, and the shelf-packed `rooftop.png` + atlas. |
 | `skyline.ts` | The two seeded, seamlessly tiling city strips. |
+| `critters.ts` | The cats and birds: slices the two packs without changing a pixel, draws the birds' wing flap as text grids, stacks one strip per animation into `cats.png` and `birds.png` + `critters.json`. |
 | `../test/` | Recipe tests with fake images; real-art tests skip when `assets-src/` is absent. |
 
 Generated data, `apps/web/src/lib/sprites/`:
@@ -68,6 +71,7 @@ Generated data, `apps/web/src/lib/sprites/`:
 | `emotes.json` | Each balloon's rectangle and tail tip (shared by both languages). |
 | `characters.ts` | Typed access for the client: `CHARACTER_ART`, `character(n)`, `frameAt`, `frameIndex`, `sheetSize`, `fitScale`, `attackMs`. |
 | `rooftop.ts` | Typed access to `rooftop.json`; the sheet URLs. |
+| `critters.json`, `critters.ts` | The critter strips (sheet rectangle, frames, fps, loop, feet anchor) and `stripFrame`. |
 
 Client rendering, `apps/web/src/lib/world/` (Pixi files have no automated tests; the pure ones do):
 
@@ -82,6 +86,8 @@ Client rendering, `apps/web/src/lib/world/` (Pixi files have no automated tests;
 | `celebration.ts` | The confetti around whoever just guessed right. |
 | `confetti.ts` | Pure confetti maths (seeded pieces, closed-form position by age, world units). |
 | `cheer.ts` | Pure: who newly got it right, from two consecutive snapshots. |
+| `critters.ts` | Pure: the cats' wall-clock routine, routes between perches, reactions to presence; the bird flocks. |
+| `fauna.ts` | Draws the critters inside the bodies container, tinted, sorted among the bodies by depth. |
 | `parallax.ts` | Pure parallax offset and the per-layer factors. |
 | `film.ts` | The film look: bloom on scenery, RGB split and CRT grain/scanlines/vignette on the world. |
 | `art.ts` | Loads `rooftop.png` and the skylines into textures; tiles get their own repeat-mode canvas. |
@@ -107,7 +113,7 @@ There are four spaces. Comments say which one a value is in.
 - **Scale**: `pickScale` in `view.ts` uses the largest integer that fits about 600×300 world units on screen, clamped to 2–6 (3 on a 1080p window). The integer scale keeps pixels square. `groundY` is 80 % of the screen height.
 - **Why everything is pixelated**: `TextureSource.defaultOptions.scaleMode = 'nearest'`, `antialias: false`, `roundPixels: true`, `resolution: 1`, and `image-rendering: pixelated` in the HTML. Tiles are copied to their own canvas with `addressMode: 'repeat'` so a `TilingSprite` never samples a neighbour on the sheet. Never introduce smooth scaling or fractional scales on sprites.
 - **Depth sorting**: bodies are sorted by `depthKey(p) = z`, larger first (further back is drawn first), with ties broken by id so the order doesn't flicker. Each sprite's `zIndex` is its place in that list. Height doesn't count: someone riding a head has nearly the same `z` as the person below, so who covers whom is decided by `z` (then id), not by who is on top.
-- **Layer order** inside the world container: `scenery` (backdrop, then `platforms.back`: back decor, roof tops, ledges, facades, edges, facade signs, floor decor, box props) → shadows → bodies → `platforms.front` (front parapets, covering feet at the edge) → emote balloons → confetti → weather. The post-its and panels are HTML above the canvas and never pass through the filters.
+- **Layer order** inside the world container: `scenery` (backdrop, then `platforms.back`: back decor, roof tops, ledges, facades, edges, facade signs, floor decor, box props) → shadows → bodies (and the critters, sorted among them by depth) → `platforms.front` (front parapets, covering feet at the edge) → emote balloons → confetti → weather. The post-its and panels are HTML above the canvas and never pass through the filters.
 - **Shadow**: an ellipse at the ground under the feet (`groundAt(MAP, x, z)`), not at the body's height, so a jump reads as height. It's `BODY_RX·1.3` by `BODY_RZ·DEPTH_K·1.8` world units at 40 % black, and shrinks to 45 % size by 120 units above the ground.
 - **`BODY_H = 40`** is the physics height (what you stand on when riding a head). It isn't the sprite height (hero 37, skeleton 51, Kratos 61, Vorcaro 50, Orelha 15, Bolsonaro 70, knight 10, Old Snake 49, Pinocchio 50, Eve 50, Katarina 50, Punisher 59, Mista 52). Post-it height comes from the atlas instead: `headY(n) = anchor.y − head.y + 3` (hero 40, skeleton 47). The emote tail sits at `headY − 11`, `EMOTE_GAP = 14` units in front of the face.
 
@@ -280,6 +286,27 @@ All of these are client-side constants, tuned by eye at 1080p (scale 3). No `bun
 ### 8. The confetti (issue #58)
 
 When a guess is confirmed, every client draws confetti around that character for about 2 s (`celebration.ts`, maths in `confetti.ts`), and the guesser's own browser launches its body upward (`applyCheer` in `@guess/world`). No sheet: each piece is `Texture.WHITE` stretched to a 1- or 2-world-pixel square in a flat colour from the rooftop `PALETTE` (the neons, the lit window, the antenna and TV lights). It keeps the pixel grid: positions are whole world units times the integer scale, no rotation, and no alpha: a piece blinks out at the end of its life instead of fading. Half the pieces burst at once and the rest are born over one second from wherever the character is, then stay in the world, so the launch leaves a trail. Tune `CONFETTI_PIECES`, `CONFETTI_COLORS` and the speed, drag and fall ranges in `confetti.ts`; the launch height is `CHEER_VY`.
+
+### 9. The critters: cats and birds (issue #71)
+
+Ambient animals that live on the roof, from two itch.io packs, drawn by the client only (no network, no physics).
+
+**Getting the packs.** Download LuizMelo's "Pet Cats Pack" and carysaurus's free "Bird Sprites" (the free file is `Birds_Free_Carysaurus.zip`; don't buy the paid one). Unzip the cats' `Pet Cats Pack/` folder into `assets-src/cats/` (`Cat-1` … `Cat-6`, `Meow-VFX`) and the three bird PNGs into `assets-src/birds/`. Then `bun run sprites`. Without them the recipe says what's missing and keeps the committed sheets.
+
+**The recipe** (`tools/sprites/src/critters.ts`) changes no pixel of the packs:
+
+- cats: 50×50 cells, feet on row 31 (ground row 32), feet centre x 25. `CATS` picks three folders (the folder numbers don't follow the pack's preview: Cat-2 is black, Cat-6 the grey tabby, Cat-5 white; Cat-3 has no `Itch`), `CAT_ANIMS` the twelve animations with their frame counts (the sheet width / 50) and fps chosen by eye. All cat frames are cropped to one union rectangle (30×16), so every strip shares the anchor. The meow lines (`Meow-VFX`, three 16×16 frames) get their own strip, anchored at the mouth end;
+- birds: 32×32 cells, feet on row 31, the 12-frame idle of the pigeon and the crow (the yellow bird is left out). The free pack has no flight, so `PIGEON_FLY` and `CROW_FLY` draw three frames each (wings up, spread, down) as text grids in **that bird's own colours** (`PIGEON`, `CROW`, read from the idle with `palette()`), with the idle's head, placed so the body line sits on `FLY_BODY_ROW`. A test checks they use only the bird's colours.
+
+**Drawing** (`apps/web/src/lib/world/fauna.ts`): 1× (one sheet pixel = one world unit, times the view's integer scale), mirrored by facing, tinted `0xc8c0ff` (Pixi `tint`) so daylight art sits in the night without touching its pixels, in the bodies container with a `zIndex` between the bodies behind and in front of it (no bloom; the lobby's grey comes from the world filter). The clock is `Date.now()`, so frames agree across tabs.
+
+**Behaviour** (`apps/web/src/lib/world/critters.ts`, pure and tested in `apps/web/test/world-critters.test.ts`):
+
+- **Places.** `CAT_SPOTS` are world points with the roof index: box lids from `MAP` (y = box `top`), the front parapet (roof top + 4, z 0), the back ledge (roof top + 5, z `DEPTH`), the floor. `floorOf` gives where a cat steps down to (in front of a box's footprint). `BIRDS` perch on the HOTEL sign (roof top + 23, z `DEPTH + 3` like the back decor), the back ledge, the tank lid, the antenna's middle crossbar (+24) and, for the crow, on the mast's beacon (+39). A new prop or a moved decor needs its perch moved by hand: nothing ties them.
+- **Routes.** `route(a, b, gait)` is straight legs: hop down, walk to the front lane (z 18, clear of every box), along it, leap each gap edge to edge in an arc, out of the lane, hop up. `routeAt(route, t)` is closed form.
+- **Routine.** Each cat has `beats` (act at a place for some ms, or walk between two places); `scheduled(i, seed, now)` plays them on a loop over the wall clock, shifted by a hash of the room code (`seedOf`). Every tab shows the same cat doing the same thing.
+- **Reactions** come from presence via `Watcher` (who started a jump or shove, who landed, who runs, how long each has stood still): someone within `CAT_LOOK_R` → the resting cat sits and faces them; running, shoving or landing within `CAT_SCARE_R`, or a bot within `CAT_BOT_R` → meow (not for bots) and run to the refuge on the next roof; standing still `CAT_VISIT_MS` near it on its roof → the cat walks over, sits beside, then lies down and sleeps, and leaves when the person moves; the boss landing on a roof scatters its cats and flocks; a confirmed guess makes the nearest cat meow. After a reaction the cat walks back to its scheduled place and waits there until the routine reaches it, so tabs converge. Birds: running, jumping, shoving or landing within `BIRD_SCARE_R` sends the whole flock up `flightOffset`'s arc, with a few grey 1-px feathers using the confetti's closed-form maths, and it drops back along the same arc 20–60 s later; the crow only leaves for the boss.
+- **Tuning**: the radii and times are the constants at the top of each section; speeds `CAT_WALK`/`CAT_RUN` keep the feet from sliding; `FLY_*` and `FLIGHT_MS` shape the flight.
 
 ## Verification
 

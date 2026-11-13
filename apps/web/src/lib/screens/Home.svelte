@@ -112,7 +112,7 @@
       </form>
       {#if invalid}<p class="gs-error">{t('home.codeInvalid')}</p>{/if}
     </div>
-    <div class="foot"><LangSwitch /><span class="gs-credit">{t('credit.character')}</span></div>
+    <div class="foot"><LangSwitch /><span class="gs-credit">{t('credit.character')} · {t('credit.birds')}</span></div>
   </div>
   <Stage n={character} {nickname} />
   </div>

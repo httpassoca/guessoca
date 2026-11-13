@@ -248,6 +248,7 @@ export class WorldRuntime {
     for (const b of bodies) list.push(this.sceneBody(b, now));
 
     if (this.scene) {
+      this.scene.setRoom(room.code);
       // antes de o jogo começar o telhado fica em preto e branco; a primeira vez sem transição
       this.scene.setLobby(room.phase === 'lobby', !this.moodSet);
       this.moodSet = true;
@@ -261,7 +262,7 @@ export class WorldRuntime {
   private sceneBody(b: CrowdBody, now: number): SceneBody {
     let a = this.animOf.get(b.id);
     if (!a || a.anim !== b.anim) { a = { anim: b.anim, since: now }; this.animOf.set(b.id, a); }
-    return { id: b.id, character: b.character, x: b.x, y: b.y, z: b.z, facing: b.facing, anim: b.anim, animSince: a.since, emote: b.emote, blink: b.blink, scale: b.scale };
+    return { id: b.id, character: b.character, x: b.x, y: b.y, z: b.z, facing: b.facing, anim: b.anim, animSince: a.since, emote: b.emote, blink: b.blink, scale: b.scale, bot: b.bot };
   }
 
   /** Cada post-it vai sobre a cabeça do seu dono, com `translate3d`; quem não está no telhado some. */

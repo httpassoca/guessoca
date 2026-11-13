@@ -1,0 +1,555 @@
+{
+  "cats": {
+    "sheet": "/sprites/cats.png",
+    "names": [
+      "preto",
+      "tigrado",
+      "branco"
+    ],
+    "strips": {
+      "preto/idle": {
+        "x": 0,
+        "y": 0,
+        "w": 30,
+        "h": 16,
+        "frames": 10,
+        "fps": 8,
+        "loop": true,
+        "anchor": {
+          "x": 15,
+          "y": 16
+        }
+      },
+      "preto/walk": {
+        "x": 0,
+        "y": 16,
+        "w": 30,
+        "h": 16,
+        "frames": 8,
+        "fps": 10,
+        "loop": true,
+        "anchor": {
+          "x": 15,
+          "y": 16
+        }
+      },
+      "preto/run": {
+        "x": 0,
+        "y": 32,
+        "w": 30,
+        "h": 16,
+        "frames": 8,
+        "fps": 14,
+        "loop": true,
+        "anchor": {
+          "x": 15,
+          "y": 16
+        }
+      },
+      "preto/meow": {
+        "x": 0,
+        "y": 48,
+        "w": 30,
+        "h": 16,
+        "frames": 4,
+        "fps": 8,
+        "loop": false,
+        "anchor": {
+          "x": 15,
+          "y": 16
+        }
+      },
+      "preto/lying": {
+        "x": 0,
+        "y": 64,
+        "w": 30,
+        "h": 16,
+        "frames": 8,
+        "fps": 8,
+        "loop": false,
+        "anchor": {
+          "x": 15,
+          "y": 16
+        }
+      },
+      "preto/itch": {
+        "x": 0,
+        "y": 80,
+        "w": 30,
+        "h": 16,
+        "frames": 2,
+        "fps": 6,
+        "loop": true,
+        "anchor": {
+          "x": 15,
+          "y": 16
+        }
+      },
+      "preto/sleep1": {
+        "x": 0,
+        "y": 96,
+        "w": 30,
+        "h": 16,
+        "frames": 1,
+        "fps": 1,
+        "loop": true,
+        "anchor": {
+          "x": 15,
+          "y": 16
+        }
+      },
+      "preto/sleep2": {
+        "x": 0,
+        "y": 112,
+        "w": 30,
+        "h": 16,
+        "frames": 1,
+        "fps": 1,
+        "loop": true,
+        "anchor": {
+          "x": 15,
+          "y": 16
+        }
+      },
+      "preto/sitting": {
+        "x": 0,
+        "y": 128,
+        "w": 30,
+        "h": 16,
+        "frames": 1,
+        "fps": 1,
+        "loop": true,
+        "anchor": {
+          "x": 15,
+          "y": 16
+        }
+      },
+      "preto/lick1": {
+        "x": 0,
+        "y": 144,
+        "w": 30,
+        "h": 16,
+        "frames": 5,
+        "fps": 6,
+        "loop": true,
+        "anchor": {
+          "x": 15,
+          "y": 16
+        }
+      },
+      "preto/lick2": {
+        "x": 0,
+        "y": 160,
+        "w": 30,
+        "h": 16,
+        "frames": 5,
+        "fps": 6,
+        "loop": true,
+        "anchor": {
+          "x": 15,
+          "y": 16
+        }
+      },
+      "preto/stretch": {
+        "x": 0,
+        "y": 176,
+        "w": 30,
+        "h": 16,
+        "frames": 13,
+        "fps": 8,
+        "loop": false,
+        "anchor": {
+          "x": 15,
+          "y": 16
+        }
+      },
+      "tigrado/idle": {
+        "x": 0,
+        "y": 192,
+        "w": 30,
+        "h": 16,
+        "frames": 10,
+        "fps": 8,
+        "loop": true,
+        "anchor": {
+          "x": 15,
+          "y": 16
+        }
+      },
+      "tigrado/walk": {
+        "x": 0,
+        "y": 208,
+        "w": 30,
+        "h": 16,
+        "frames": 8,
+        "fps": 10,
+        "loop": true,
+        "anchor": {
+          "x": 15,
+          "y": 16
+        }
+      },
+      "tigrado/run": {
+        "x": 0,
+        "y": 224,
+        "w": 30,
+        "h": 16,
+        "frames": 8,
+        "fps": 14,
+        "loop": true,
+        "anchor": {
+          "x": 15,
+          "y": 16
+        }
+      },
+      "tigrado/meow": {
+        "x": 0,
+        "y": 240,
+        "w": 30,
+        "h": 16,
+        "frames": 4,
+        "fps": 8,
+        "loop": false,
+        "anchor": {
+          "x": 15,
+          "y": 16
+        }
+      },
+      "tigrado/lying": {
+        "x": 0,
+        "y": 256,
+        "w": 30,
+        "h": 16,
+        "frames": 8,
+        "fps": 8,
+        "loop": false,
+        "anchor": {
+          "x": 15,
+          "y": 16
+        }
+      },
+      "tigrado/itch": {
+        "x": 0,
+        "y": 272,
+        "w": 30,
+        "h": 16,
+        "frames": 2,
+        "fps": 6,
+        "loop": true,
+        "anchor": {
+          "x": 15,
+          "y": 16
+        }
+      },
+      "tigrado/sleep1": {
+        "x": 0,
+        "y": 288,
+        "w": 30,
+        "h": 16,
+        "frames": 1,
+        "fps": 1,
+        "loop": true,
+        "anchor": {
+          "x": 15,
+          "y": 16
+        }
+      },
+      "tigrado/sleep2": {
+        "x": 0,
+        "y": 304,
+        "w": 30,
+        "h": 16,
+        "frames": 1,
+        "fps": 1,
+        "loop": true,
+        "anchor": {
+          "x": 15,
+          "y": 16
+        }
+      },
+      "tigrado/sitting": {
+        "x": 0,
+        "y": 320,
+        "w": 30,
+        "h": 16,
+        "frames": 1,
+        "fps": 1,
+        "loop": true,
+        "anchor": {
+          "x": 15,
+          "y": 16
+        }
+      },
+      "tigrado/lick1": {
+        "x": 0,
+        "y": 336,
+        "w": 30,
+        "h": 16,
+        "frames": 5,
+        "fps": 6,
+        "loop": true,
+        "anchor": {
+          "x": 15,
+          "y": 16
+        }
+      },
+      "tigrado/lick2": {
+        "x": 0,
+        "y": 352,
+        "w": 30,
+        "h": 16,
+        "frames": 5,
+        "fps": 6,
+        "loop": true,
+        "anchor": {
+          "x": 15,
+          "y": 16
+        }
+      },
+      "tigrado/stretch": {
+        "x": 0,
+        "y": 368,
+        "w": 30,
+        "h": 16,
+        "frames": 13,
+        "fps": 8,
+        "loop": false,
+        "anchor": {
+          "x": 15,
+          "y": 16
+        }
+      },
+      "branco/idle": {
+        "x": 0,
+        "y": 384,
+        "w": 30,
+        "h": 16,
+        "frames": 10,
+        "fps": 8,
+        "loop": true,
+        "anchor": {
+          "x": 15,
+          "y": 16
+        }
+      },
+      "branco/walk": {
+        "x": 0,
+        "y": 400,
+        "w": 30,
+        "h": 16,
+        "frames": 8,
+        "fps": 10,
+        "loop": true,
+        "anchor": {
+          "x": 15,
+          "y": 16
+        }
+      },
+      "branco/run": {
+        "x": 0,
+        "y": 416,
+        "w": 30,
+        "h": 16,
+        "frames": 8,
+        "fps": 14,
+        "loop": true,
+        "anchor": {
+          "x": 15,
+          "y": 16
+        }
+      },
+      "branco/meow": {
+        "x": 0,
+        "y": 432,
+        "w": 30,
+        "h": 16,
+        "frames": 4,
+        "fps": 8,
+        "loop": false,
+        "anchor": {
+          "x": 15,
+          "y": 16
+        }
+      },
+      "branco/lying": {
+        "x": 0,
+        "y": 448,
+        "w": 30,
+        "h": 16,
+        "frames": 8,
+        "fps": 8,
+        "loop": false,
+        "anchor": {
+          "x": 15,
+          "y": 16
+        }
+      },
+      "branco/itch": {
+        "x": 0,
+        "y": 464,
+        "w": 30,
+        "h": 16,
+        "frames": 2,
+        "fps": 6,
+        "loop": true,
+        "anchor": {
+          "x": 15,
+          "y": 16
+        }
+      },
+      "branco/sleep1": {
+        "x": 0,
+        "y": 480,
+        "w": 30,
+        "h": 16,
+        "frames": 1,
+        "fps": 1,
+        "loop": true,
+        "anchor": {
+          "x": 15,
+          "y": 16
+        }
+      },
+      "branco/sleep2": {
+        "x": 0,
+        "y": 496,
+        "w": 30,
+        "h": 16,
+        "frames": 1,
+        "fps": 1,
+        "loop": true,
+        "anchor": {
+          "x": 15,
+          "y": 16
+        }
+      },
+      "branco/sitting": {
+        "x": 0,
+        "y": 512,
+        "w": 30,
+        "h": 16,
+        "frames": 1,
+        "fps": 1,
+        "loop": true,
+        "anchor": {
+          "x": 15,
+          "y": 16
+        }
+      },
+      "branco/lick1": {
+        "x": 0,
+        "y": 528,
+        "w": 30,
+        "h": 16,
+        "frames": 5,
+        "fps": 6,
+        "loop": true,
+        "anchor": {
+          "x": 15,
+          "y": 16
+        }
+      },
+      "branco/lick2": {
+        "x": 0,
+        "y": 544,
+        "w": 30,
+        "h": 16,
+        "frames": 5,
+        "fps": 6,
+        "loop": true,
+        "anchor": {
+          "x": 15,
+          "y": 16
+        }
+      },
+      "branco/stretch": {
+        "x": 0,
+        "y": 560,
+        "w": 30,
+        "h": 16,
+        "frames": 13,
+        "fps": 8,
+        "loop": false,
+        "anchor": {
+          "x": 15,
+          "y": 16
+        }
+      },
+      "meow/pop": {
+        "x": 0,
+        "y": 576,
+        "w": 6,
+        "h": 8,
+        "frames": 3,
+        "fps": 8,
+        "loop": false,
+        "anchor": {
+          "x": 0,
+          "y": 8
+        }
+      }
+    }
+  },
+  "birds": {
+    "sheet": "/sprites/birds.png",
+    "credit": "carysaurus",
+    "names": [
+      "pigeon",
+      "crow"
+    ],
+    "strips": {
+      "pigeon/idle": {
+        "x": 0,
+        "y": 0,
+        "w": 28,
+        "h": 19,
+        "frames": 12,
+        "fps": 10,
+        "loop": true,
+        "anchor": {
+          "x": 13,
+          "y": 19
+        }
+      },
+      "pigeon/fly": {
+        "x": 0,
+        "y": 19,
+        "w": 28,
+        "h": 19,
+        "frames": 4,
+        "fps": 12,
+        "loop": true,
+        "anchor": {
+          "x": 13,
+          "y": 19
+        }
+      },
+      "crow/idle": {
+        "x": 0,
+        "y": 38,
+        "w": 28,
+        "h": 19,
+        "frames": 12,
+        "fps": 10,
+        "loop": true,
+        "anchor": {
+          "x": 13,
+          "y": 19
+        }
+      },
+      "crow/fly": {
+        "x": 0,
+        "y": 57,
+        "w": 28,
+        "h": 19,
+        "frames": 4,
+        "fps": 12,
+        "loop": true,
+        "anchor": {
+          "x": 13,
+          "y": 19
+        }
+      }
+    }
+  }
+}

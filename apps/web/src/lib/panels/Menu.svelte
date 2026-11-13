@@ -57,7 +57,7 @@
           <li><span>{t('keys.chat')}</span><Kbd keys={['Enter']} /></li>
         </ul>
       </div>
-      <p class="gs-credit">{t('credit.character')}</p>
+      <p class="gs-credit">{t('credit.character')} · {t('credit.birds')}</p>
     </div>
     <div class="gs-float-foot">
       <button class="ss-btn ghost" type="button" onclick={() => navigate('/')}>{t('menu.leave')}</button>
