@@ -103,8 +103,12 @@ export interface RoomView {
   missing: PostitCard[];
   /** lobby, moderador: os donos cujo post-it posso escrever agora (não prontos; nem o meu nem o que já escrevo) */
   hostCanWrite: string[];
-  /** lobby, moderador: o meu post-it está vazio e eu não posso escrevê-lo; Começar espera o autor */
+  /**
+   * lobby, moderador: o meu post-it está vazio e eu não posso escrevê-lo; Começar espera o autor (`ownPostitAuthor`).
+   * Sozinho na turma ninguém escreve o meu (o círculo me faz autor de mim mesmo): aí não há o que esperar, e é falso.
+   */
   ownPostitEmpty: boolean;
+  ownPostitAuthor: MemberView | null;
   readyCount: number;
   /** post-its com texto (o meu também: o servidor diz se está escrito, sem dizer o quê) */
   writtenCount: number;
@@ -216,6 +220,8 @@ export function roomView(s: RoomSnapshot): RoomView {
   const hostCards = hostLobby ? postits.filter((p) => !p.mine && p.owner.id !== writtenByMe && !p.ready) : [];
   const writtenCount = players.filter((p) => s.postits[p.id]?.written || !!s.postits[p.id]?.text?.trim()).length;
   const allWritten = players.length > 0 && writtenCount === players.length;
+  const myAuthorId = me ? authorOf(me.id) : null;
+  const ownPostitAuthor = hostLobby && me && s.postits[me.id] && !s.postits[me.id].written && myAuthorId !== me.id ? (myAuthorId && byId.get(myAuthorId)) || null : null;
   const startBlock: StartBlock | null = !hostLobby ? null : players.length < MIN_PLAYERS ? 'players' : !allWritten ? 'empty' : null;
   return {
     me, isModerator, isPlayer, isGhost: !!me && !isPlayer, done, players,
@@ -226,7 +232,8 @@ export function roomView(s: RoomSnapshot): RoomView {
     writeFor,
     missing: hostCards.filter((p) => p.progress === 'empty'),
     hostCanWrite: hostCards.map((p) => p.owner.id),
-    ownPostitEmpty: hostLobby && !!me && !!s.postits[me.id] && !s.postits[me.id].written,
+    ownPostitEmpty: ownPostitAuthor !== null,
+    ownPostitAuthor,
     readyCount: postits.filter((p) => p.ready).length,
     writtenCount,
     allReady: postits.length > 0 && postits.length === players.length && postits.every((p) => p.ready),
@@ -242,6 +249,14 @@ export function roomView(s: RoomSnapshot): RoomView {
     vote,
     ranking,
   };
+}
+
+/**
+ * A tela de entrar (ainda visitante): `full`, a turma já chegou ao limite (o Entrar vem desligado); `late`, o jogo já
+ * começou (quem entra fica de fantasma até o próximo).
+ */
+export function joinState(s: Pick<RoomSnapshot, 'members' | 'maxPlayers' | 'phase'>): { full: boolean; late: boolean } {
+  return { full: s.members.length >= s.maxPlayers, late: s.phase !== 'lobby' };
 }
 
 /** O tempo que sobra agora, contando desde quando o snapshot chegou; parado, fica no que sobrou. Nunca negativo. */
