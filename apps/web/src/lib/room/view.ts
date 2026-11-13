@@ -44,6 +44,8 @@ export interface TurmaRow {
   status: PostitCard['status'];
   /** o lugar no ranking, se já acertou ou desistiu */
   place: number | null;
+  /** quantas vezes já teve a vez neste jogo */
+  turns: number;
 }
 
 /** Por que o moderador ainda não pode começar: falta gente jogando, ou algum post-it está sem texto. */
@@ -190,6 +192,7 @@ export function roomView(s: RoomSnapshot): RoomView {
     return {
       member, pos: i + 1, writesFor: (target && byId.get(target)) || null, writing: tp ? progressOf(tp) : 'empty',
       card, status: got.has(member.id) ? 'got' : gaveUp.has(member.id) ? 'gaveUp' : 'playing', place: place.get(member.id) ?? null,
+      turns: s.turns?.[member.id] ?? 0, // um servidor antigo (no meio de um deploy) ainda não manda
     };
   });
 

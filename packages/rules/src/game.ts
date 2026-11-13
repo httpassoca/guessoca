@@ -79,6 +79,11 @@ export interface GameState {
   got: string[];
   /** quem desistiu, na ordem em que desistiu: fica abaixo de `got` */
   gaveUp: string[];
+  /**
+   * quantas vezes cada pessoa teve a vez neste jogo: conta quando a vez começa para ela (a de quem está desconectado é
+   * pulada sem começar, e não conta); zera ao começar o jogo e em "jogar de novo"
+   */
+  turns: Record<string, number>;
 }
 
 /** O que quem chama sabe e o jogo não: a hora, o sorteio, quem está online e quem é jogador falso. */
@@ -171,6 +176,7 @@ export function createGame(init: { turnMs?: number } = {}): GameState {
     vote: null,
     got: [],
     gaveUp: [],
+    turns: {},
   };
 }
 
@@ -214,6 +220,7 @@ export function removeMember(g: GameState, id: string, ctx: Ctx): { game: GameSt
   delete next.characters[id];
   next.got = next.got.filter((m) => m !== id);
   next.gaveUp = next.gaveUp.filter((m) => m !== id);
+  delete next.turns[id];
   if (next.phase === 'lobby') {
     fixAuthors(next, events);
   } else {
@@ -434,6 +441,7 @@ function apply(g: GameState, actor: string, moderator: boolean, action: GameActi
       g.paused = false;
       g.got = [];
       g.gaveUp = [];
+      g.turns = {};
       events.push({ type: 'lobby' });
       return null;
     }
@@ -479,6 +487,7 @@ function startPlaying(g: GameState, ctx: Ctx, events: GameEvent[]): void {
   g.paused = false;
   g.got = [];
   g.gaveUp = [];
+  g.turns = {};
   events.push({ type: 'started' });
   startTurn(g, ctx, events, null);
 }
@@ -494,7 +503,8 @@ function canTakeTurn(g: GameState, ctx: Ctx, id: string): boolean {
 
 /**
  * A próxima vez: a próxima pessoa de `order` depois de `after` que pode jogar, dando a volta (e voltando a `after`, se
- * só ela pode). `after` null ou fora da ordem: do começo da ordem. Ninguém pode: sem vez.
+ * só ela pode). `after` null ou fora da ordem: do começo da ordem. Ninguém pode: sem vez. A vez que começa entra na
+ * conta de `turns`.
  */
 function startTurn(g: GameState, ctx: Ctx, events: GameEvent[], after: string | null, order: readonly string[] = g.order): void {
   const i = after === null ? -1 : order.indexOf(after);
@@ -505,6 +515,7 @@ function startTurn(g: GameState, ctx: Ctx, events: GameEvent[], after: string | 
     return;
   }
   g.turn = { owner, left: g.turnMs, since: g.paused ? null : ctx.now };
+  g.turns[owner] = (g.turns[owner] ?? 0) + 1;
   events.push({ type: 'turn', owner });
 }
 

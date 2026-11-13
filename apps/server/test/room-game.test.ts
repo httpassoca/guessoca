@@ -90,7 +90,7 @@ describe('sala: mensagens de jogo', () => {
     const snap = snapshotFor(s.state, 't2', T0 + 13_000);
     expect(snap).toMatchObject({
       phase: 'playing', you: 'm2', moderator: 'm1', dev: false, order: ['m1', 'm2', 'm3'],
-      authors: { m2: 'm1', m3: 'm2', m1: 'm3' }, turnMs: TURN_DEFAULT, paused: false, got: [], gaveUp: [],
+      authors: { m2: 'm1', m3: 'm2', m1: 'm3' }, turnMs: TURN_DEFAULT, paused: false, got: [], gaveUp: [], turns: { m1: 1 },
       turn: { owner: 'm1', left: TURN_DEFAULT - 10_000, running: false },
       vote: { claimer: 'm1', voters: ['m2', 'm3'], voted: ['m2'], left: VOTE_MS - 3_000, yours: false },
     });

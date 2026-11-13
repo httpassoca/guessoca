@@ -475,6 +475,7 @@ describe('jogar de novo', () => {
       paused: false,
       got: [],
       gaveUp: [],
+      turns: {},
     });
   });
 
@@ -633,5 +634,67 @@ describe('consultas', () => {
     expect(revealed(s.game, 'c')).toBe(false);
     s.do('a', { type: 'endGame' });
     expect(revealed(s.game, 'c')).toBe(true);
+  });
+});
+
+describe('contador de vezes', () => {
+  test('conta a vez quando ela começa, para quem a tem', () => {
+    const s = playing();
+    expect(s.game.turns).toEqual({ a: 1 });
+    s.do('a', { type: 'skip' });
+    s.do('b', { type: 'skip' });
+    s.advance(TURN); // a vez de c vence sozinha
+    expect(s.owner).toBe('a');
+    expect(s.game.turns).toEqual({ a: 2, b: 1, c: 1 });
+  });
+
+  test('a vez pulada de quem está offline (ou é falso) não conta', () => {
+    const s = new Sim('a', 'b', 'c');
+    s.join('f', { fake: true });
+    s.start();
+    s.drop('b');
+    s.do('a', { type: 'skip' });
+    expect(s.owner).toBe('c');
+    s.do('c', { type: 'skip' });
+    expect(s.owner).toBe('a');
+    expect(s.game.turns).toEqual({ a: 2, c: 1 });
+  });
+
+  test('a votação recusada não começa outra vez; o acerto passa a vez para a próxima', () => {
+    const s = playing();
+    s.do('a', { type: 'claim' });
+    s.do('b', { type: 'vote', yes: false });
+    s.do('c', { type: 'vote', yes: false });
+    expect(s.owner).toBe('a');
+    expect(s.game.turns).toEqual({ a: 1 });
+    s.do('a', { type: 'claim' });
+    s.do('b', { type: 'vote', yes: true });
+    s.do('c', { type: 'vote', yes: true });
+    expect(s.game.turns).toEqual({ a: 1, b: 1 });
+  });
+
+  test('pausar e soltar o relógio não conta', () => {
+    const s = playing();
+    s.do('a', { type: 'pause', on: true });
+    s.do('a', { type: 'pause', on: false });
+    expect(s.game.turns).toEqual({ a: 1 });
+  });
+
+  test('quem é expulso sai da conta', () => {
+    const s = playing();
+    s.do('a', { type: 'skip' });
+    s.kick('b');
+    expect(s.game.turns).toEqual({ a: 1, c: 1 });
+  });
+
+  test('zera em "jogar de novo" e ao começar outro jogo', () => {
+    const s = playing();
+    s.do('a', { type: 'skip' });
+    s.do('a', { type: 'endGame' });
+    expect(s.game.turns).toEqual({ a: 1, b: 1 }); // no fim ainda se vê
+    s.do('a', { type: 'playAgain' });
+    expect(s.game.turns).toEqual({});
+    s.start();
+    expect(s.game.turns).toEqual({ a: 1 });
   });
 });
