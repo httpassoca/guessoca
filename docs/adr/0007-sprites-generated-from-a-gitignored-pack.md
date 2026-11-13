@@ -144,3 +144,11 @@ A pack from the owner (`assets-src/sekiro/`, slot 27, generated for this game): 
 ## Amendment: a redrawn Joker
 
 The owner replaced the Joker (slot 15 kept) with a second art from the current prompt (`assets-src/joker/`): size 1 (128 pixels, was 136), 128×160 cells and 256×208 cells for the attack, where he stands 56 pixels further right (`dx: -56`); ground at row 148. The attack is 24 frames in 1.1 s. Common recipe, no pixel changed. The first art (144×160) stays locally as `assets-src/joker-v1/`.
+
+## Amendment: Sanji, the Blade Runner and a redrawn Eve
+
+Three folders from the owner, all generated for this game, imported with the common recipe and no pixel changed. The cast is now thirty.
+
+- **Sanji** (`assets-src/sanji/`, slot 28): size 1.10 (141 pixels), 192×208 cells and 256×256 attack cells where he stands 11 pixels further right (`dx: -11`); ground at row 192. The attack is 24 frames in 1.2 s, exactly `SHOVE_MAX_MS`.
+- **Blade Runner** (`assets-src/bladerunner/`, slot 29): size 1, 160×160 cells and 192×160 attack cells with the feet at the same x; ground at row 144. The attack is a braced two-handed pistol shot, 22 frames in 0.95 s.
+- **Eve, redrawn** (slot 9 kept): the first art (192×192, 140 pixels, fixed frames) is replaced by one from the current prompt: size 1, 160×176 cells and 240×208 attack cells where she stands 32 pixels further right (`dx: -32`); ground at row 160. The attack is 24 frames in 1 s. The old folder stays locally as `assets-src/eve-v1/`.

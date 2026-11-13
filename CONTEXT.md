@@ -81,7 +81,7 @@ O mundo sempre ligado: entrar na sala põe a pessoa no telhado. Lobby, jogo e fi
 _Evitar_: mapa, fase, level, cenário, cena
 
 **Personagem** (`character`):
-O corpo de cada pessoa no telhado. São vinte e oito, um de cada modelo: o herói (loiro), o cavaleiro esqueleto (de capa vermelha) e os que o dono foi mandando, de gente conhecida de jogos e quadrinhos a um cachorro e a dois do próprio Guimas. A lista, na ordem dos lugares, é `PACKS` em `tools/sprites/src/packs.ts`. Cada pessoa escolhe um, e duas pessoas podem usar o mesmo. Os corpos são sólidos: não se atravessa um grupo, pula-se por cima, e dá para ficar na cabeça de alguém e ser carregado.
+O corpo de cada pessoa no telhado. São trinta, um de cada modelo: o herói (loiro), o cavaleiro esqueleto (de capa vermelha) e os que o dono foi mandando, de gente conhecida de jogos e quadrinhos a um cachorro e a dois do próprio Guimas. A lista, na ordem dos lugares, é `PACKS` em `tools/sprites/src/packs.ts`. Cada pessoa escolhe um, e duas pessoas podem usar o mesmo. Os corpos são sólidos: não se atravessa um grupo, pula-se por cima, e dá para ficar na cabeça de alguém e ser carregado.
 _Evitar_: avatar, boneco, skin, sprite (é o desenho), herói
 
 **Empurrão** (`shove`):
