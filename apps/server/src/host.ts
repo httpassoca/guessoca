@@ -422,6 +422,11 @@ export class RoomHost {
       this.count(...hit);
       if (this.botWorld !== world) return;
     }
+    // o chefão derrubado: o raio cai na cidade em toda aba ao mesmo tempo
+    for (const d of r.downs) {
+      const raw = JSON.stringify({ type: 'bossDown', bot: d.id, x: Math.round(d.x * 10) / 10 });
+      for (const ws of this.sockets.values()) ws.send(raw);
+    }
     if (r.rosterChanged) {
       for (const id of [...this.botSent.keys()]) if (!world.bots.some((b) => b.id === id)) this.botSent.delete(id);
       this.apply({ kind: 'bots', bots: world.roster() }); // a sala manda o snapshot com a lista nova

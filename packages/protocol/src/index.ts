@@ -180,13 +180,21 @@ export type ServerMessage =
   | { type: 'shoved'; by: string; dir: 1 | -1 }
   /** `member` falou `text`; chega a todo mundo, inclusive a quem falou */
   | { type: 'chat'; member: string; text: string }
+  /**
+   * o chefão `bot` foi derrubado agora (os pontos dele acabaram; não quando vai embora sozinho ou cai): um raio cai na
+   * cidade, em toda aba ao mesmo tempo, perto de `x` (onde ele estava, em unidades do mundo). Um cliente de antes disso
+   * só ignora
+   */
+  | { type: 'bossDown'; bot: string; x: number }
   | { type: 'pong' };
 
 /**
  * Um bot engraçado no telhado agora: quem é. Onde está chega por `presence`, como a de uma pessoa. `scale`: quantas vezes
  * maior ele é desenhado (só o chefão manda, `BOSS_SCALE`); sem isto vale 1 (um servidor ou cliente de antes do chefão).
+ * `hp` e `hpMax`: quantos empurrões o chefão ainda aguenta, de quantos (a barra de vida embaixo da tela); só o chefão
+ * manda, e um servidor de antes da barra não manda (o cliente não mostra barra nenhuma).
  */
-export interface BotView { id: string; character: number; scale?: number }
+export interface BotView { id: string; character: number; scale?: number; hp?: number; hpMax?: number }
 
 /**
  * O que uma pessoa fez no telhado durante um jogo (issue #59), contado pelo servidor: quantas vezes caiu na rua, quantos

@@ -122,8 +122,14 @@ export interface Bot {
   trail: { at: number; vx: number; vz: number; up: boolean }[];
 }
 
-/** O que saiu de um passo: os empurrões em pessoas (para o `RoomHost` entregar) e se a lista de bots mudou. */
-export interface BotTick { shoves: { target: string; by: string; dir: 1 | -1 }[]; rosterChanged: boolean }
+/** Um chefão derrubado (os pontos dele acabaram): quem e onde estava. */
+export interface BossDown { id: string; x: number; y: number; z: number }
+
+/**
+ * O que saiu de um passo: os empurrões em pessoas (para o `RoomHost` entregar), se a lista de bots mudou desde o passo
+ * anterior (quem está no telhado, ou os pontos do chefão) e os chefões derrubados desde o passo anterior (o raio).
+ */
+export interface BotTick { shoves: { target: string; by: string; dir: 1 | -1 }[]; rosterChanged: boolean; downs: BossDown[] }
 
 export interface BotWorldOptions {
   /** quantos personagens existem (`CHARACTERS`) */
@@ -157,6 +163,9 @@ export class BotWorld {
   /** por pessoa: a última vez que um bot a empurrou */
   private readonly lastShoved = new Map<string, number>();
   private players: Seen[] = [];
+  /** a lista como o último passo a viu (para avisar quando muda) e os chefões derrubados desde então */
+  private rosterKey = '[]';
+  private downs: BossDown[] = [];
 
   constructor(private readonly rng: () => number, private readonly opts: BotWorldOptions) {
     this.platforms = opts.platforms ?? MAP;
@@ -165,7 +174,7 @@ export class BotWorld {
   }
 
   /** Quem está no telhado, para o snapshot. */
-  roster(): BotView[] { return this.bots.map((b) => ({ id: b.id, character: b.character, ...(b.boss ? { scale: BOSS_SCALE } : {}) })); }
+  roster(): BotView[] { return this.bots.map((b) => ({ id: b.id, character: b.character, ...(b.boss ? { scale: BOSS_SCALE, hp: b.hp, hpMax: BOSS_HP } : {}) })); }
 
   /** A presença de um bot agora, como a de uma pessoa. */
   presence(bot: Bot, now: number): Presence {
@@ -214,6 +223,8 @@ export class BotWorld {
     bot.emote = { name: 'exclaim', since: now };
     bot.hp--;
     if (bot.hp <= 0) {
+      // derrubado: o raio cai na cidade (o host avisa todo mundo no próximo passo)
+      this.downs.push({ id: bot.id, x: bot.body.x, y: bot.body.y, z: bot.body.z });
       // voa piscando e some no ar: não volta
       bot.exit = 'blink';
       this.start(bot, 'leave', now, null, BOSS_OUT_MS);
@@ -237,7 +248,6 @@ export class BotWorld {
    * `taken`: os personagens que as pessoas usam (os bots preferem os outros).
    */
   tick(now: number, dt: number, players: readonly Seen[], ctx: { enabled: boolean; taken: ReadonlySet<number> }): BotTick {
-    const before = this.bots.map((b) => b.id).join();
     const shoves: BotTick['shoves'] = [];
     this.players = [...players];
     // quem já pode levar outro empurrão de bot não precisa mais estar aqui (o mapa não cresce sem fim)
@@ -290,7 +300,13 @@ export class BotWorld {
         }
       }
     }
-    return { shoves, rosterChanged: this.bots.map((b) => b.id).join() !== before };
+    // a lista muda com quem chega e sai e com os pontos do chefão (que caem também por fora do passo, no empurrão de uma pessoa)
+    const key = JSON.stringify(this.roster());
+    const rosterChanged = key !== this.rosterKey;
+    this.rosterKey = key;
+    const downs = this.downs;
+    this.downs = [];
+    return { shoves, rosterChanged, downs };
   }
 
   // --- o diretor ----------------------------------------------------------------------------------------------------

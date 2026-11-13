@@ -289,7 +289,11 @@ export function step(state: RoomState, input: RoomInput, now: number, opts: Step
       break;
     }
     case 'bots': {
-      s.bots = input.bots.map((b) => ({ id: b.id, character: b.character, ...(b.scale !== undefined ? { scale: b.scale } : {}) }));
+      s.bots = input.bots.map((b) => ({
+        id: b.id, character: b.character,
+        ...(b.scale !== undefined ? { scale: b.scale } : {}),
+        ...(b.hp !== undefined && b.hpMax !== undefined ? { hp: b.hp, hpMax: b.hpMax } : {}),
+      }));
       break;
     }
     case 'alive': {

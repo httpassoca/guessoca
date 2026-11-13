@@ -154,6 +154,44 @@ describe('bots engraçados', () => {
       }
     });
 
+    test('a lista leva os pontos que ainda aguenta (`hp`, de `hpMax`), só no chefão, e muda a cada empurrão que conta', () => {
+      const { world, boss, step, now } = withBoss(76);
+      boss.leaveAt = Infinity;
+      step();
+      const view = () => world.roster().find((v) => v.id === boss.id)!;
+      expect(view()).toEqual({ id: boss.id, character: boss.character, scale: BOSS_SCALE, hp: BOSS_HP, hpMax: BOSS_HP });
+      for (const v of world.roster()) if (v.id !== boss.id) { expect(v.hp).toBeUndefined(); expect(v.hpMax).toBeUndefined(); }
+      // o empurrão chega por fora do passo (o host): o passo seguinte avisa que a lista mudou
+      world.shoved(boss.id, 1, 'm1', now());
+      expect(step().rosterChanged).toBe(true);
+      expect(view().hp).toBe(BOSS_HP - 1);
+      // nada mudou: não avisa de novo
+      expect(step().rosterChanged).toBe(false);
+    });
+
+    test('derrubado (os pontos acabaram), o passo avisa uma vez, com onde ele estava; indo embora sozinho, não', () => {
+      const { world, boss, step, now, wait } = withBoss(77);
+      boss.leaveAt = Infinity;
+      step();
+      for (let hit = 1; hit < BOSS_HP; hit++) { world.shoved(boss.id, 1, 'm1', now()); expect(step().downs).toEqual([]); wait(700); }
+      const x = boss.body.x;
+      world.shoved(boss.id, 1, 'm1', now());
+      const r = step();
+      expect(r.downs).toHaveLength(1);
+      expect(r.downs[0].id).toBe(boss.id);
+      expect(Math.abs(r.downs[0].x - x)).toBeLessThan(20);
+      expect(world.roster().find((v) => v.id === boss.id)?.hp).toBe(0);
+      expect(step().downs).toEqual([]);
+
+      // outro chefão que vai embora na hora dele não cai em raio nenhum
+      const other = withBoss(78);
+      other.boss.leaveAt = other.now() + 100;
+      let downs = 0;
+      for (let i = 0; i < 400; i++) downs += other.step().downs.length;
+      expect(other.world.bots).not.toContain(other.boss);
+      expect(downs).toBe(0);
+    });
+
     test('o tranco não o tira do telhado, nem na beirada', () => {
       const { world, boss, wait, now } = withBoss(75);
       boss.leaveAt = Infinity;
