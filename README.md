@@ -34,7 +34,7 @@ packages/rules     sala e jogo, puros (@guess/rules)
   test/              lobby, escrita no lobby, apagar, começar e jogo com `Sim` e sorteio semeado
 packages/world     o telhado, puro (@guess/world, ADR 0005): o mapa (três prédios com vãos, caixas para subir), `stepBody`
                    (andar, correr, profundidade, pular, gravidade, lados que bloqueiam, degrau, corpos sólidos, ficar na
-                   cabeça de alguém e ser carregado, cair na rua e voltar piscando), `shoveTargets`/`applyShove`, e a
+                   cabeça de alguém e ser carregado, cair na rua e voltar piscando), `shoveTargets`/`applyShove`, `applyCheer` (o salto de quem acertou), e a
                    projeção 2.5D (`project`, `depthKey`, `followCamera`) que o Pixi e os post-its em HTML dividem (ADR 0006)
   test/              movimento, corpos, empurrão, animação, projeção e câmera, a 60 passos por segundo
 packages/protocol  mensagens cliente ↔ servidor (@guess/protocol): todas as ações do jogo e de volta `snapshot`, `error`
@@ -60,8 +60,10 @@ apps/server        Bun.serve: `/health`, `POST /api/rooms` (corpo JSON do pré-l
                      personagem
   src/host.ts        `RoomHost`: sockets por token, timers que a sala pede, silêncio de 30 s, a presença de cada um repassada
                      aos outros (~15 por segundo, só a mais recente; quem chega recebe a de todos), o empurrão entregue só a
-                     quem foi empurrado, a fala repassada a todo mundo (uma por segundo por pessoa, nenhuma guardada), o laço dos bots engraçados (só com a opção ligada e o jogo rodando), e as
-                     imagens da sala em memória
+                     quem foi empurrado, a fala repassada a todo mundo (uma por segundo por pessoa, nenhuma guardada), o laço
+                     dos bots engraçados (só com a opção ligada e o jogo rodando), as
+                     estatísticas do jogo (conta cada empurrão entregue e cada queda, que é a presença passar a piscar, e
+                     passa à sala, que as mostra no snapshot do fim), e as imagens da sala em memória
                      (ADR 0003): só de quem é da turma, liberadas quando nenhum post-it as usa (uma subida ainda sem post-it
                      espera 2 min; no máximo 2 por pessoa)
   src/rooms.ts       `Rooms`: as salas vivas num mapa em memória, códigos de 4 letras sem I nem O
@@ -76,6 +78,7 @@ apps/web           Vite + Svelte 5 + PixiJS v8 + dssoca
                            crescente até 10 s, e para de vez em 4404/4410/4409/4403 dizendo por quê
   src/lib/room/view.ts     o snapshot visto por mim: quem sou, para quem escrevo, de quem é a vez, se posso acertar, passar,
                            desistir ou votar, os post-its como posso vê-los, o ranking, a contagem regressiva
+  src/lib/room/stats.ts    as estatísticas do fim do jogo: do snapshot para as linhas da tabela (uma por pessoa) e os destaques
   src/lib/image.ts         a imagem do post-it: reduz a 512 px, WebP baixando a qualidade até caber, sobe por POST
   src/lib/effects.ts       "efeitos de tela" (os filtros de filme) ligados ou não, por navegador (localStorage)
   src/lib/sprites/         os atlas gerados (`characters.json`, `atlases.json`, `emotes.json`, `rooftop.json`),
@@ -86,14 +89,16 @@ apps/web           Vite + Svelte 5 + PixiJS v8 + dssoca
                            jogadores falsos parados em lugares fixos), view (escala inteira, onde vão o post-it e o balão),
                            heads, dressing (puro: que objeto veste cada caixa do mapa, onde ficam tampo e fachada de cada
                            telhado, antenas, letreiros e poças, o neon que falha), parallax (puro: a faixa que rola a uma
-                           fração da câmera), rain (puro: as gotas reaproveitadas), art (as texturas da folha do telhado),
+                           fração da câmera), rain (puro: as gotas reaproveitadas), cheer (puro: quem acabou de
+                           acertar, pela diferença entre snapshots), confetti (puro: os pedaços do confete e onde cada um está
+                           pela idade), celebration (Pixi: o confete em volta de quem acertou), art (as texturas da folha do telhado),
                            backdrop (céu, lua, a cidade em duas camadas de paralaxe, a queda até a rua com neblina), platforms
                            (os telhados vestidos, num lugar só: tampo, muretas, fachada, objetos das caixas, enfeites), weather
                            (chuva e neblina da frente), film (os filtros só no mundo: brilho no cenário, aberração e VHS em
                            tudo), scene (Pixi: as camadas, corpos por profundidade, sombras, balões, câmera), runtime (o laço,
-                           o empurrão de ida e de volta, os post-its em HTML sobre as cabeças), bubbles (puro: os balões de fala, quanto
-                           duram e a troca pelo seguinte) e World.svelte (que também desenha os balões de fala, na fonte Tiny5
-                           de `public/fonts/`)
+                           o empurrão de ida e de volta, o salto de quem acertou, os post-its em HTML sobre as cabeças), bubbles
+                           (puro: os balões de fala, quanto duram e a troca pelo seguinte) e World.svelte (que também desenha
+                           os balões de fala, na fonte Tiny5 de `public/fonts/`)
   src/lib/sound/           os efeitos sonoros: sfx (cinco sons como parâmetros do sfxr, gerados com o jsfxr; nenhum arquivo de
                            áudio), room (os sons da sala tirados da diferença entre snapshots: votação, acertou, fim de vez),
                            settings (volume e mudo por navegador) e player (um AudioContext, ligado na primeira interação)
@@ -101,7 +106,8 @@ apps/web           Vite + Svelte 5 + PixiJS v8 + dssoca
   src/lib/panels/          Room (o telhado atrás de tudo, a barra, a coluna da fase que recolhe, teclado), TurnBar (vez e votação
                            no alto), Roster (a tira de post-its embaixo), Lobby (ordem arrastável, autores, personagens, tamanho da vez), Writing
                            e PostitEditor (ao vivo, imagem, Pronto, moderador escreve os vazios), Playing (vez, votação, ranking),
-                           ModPanel, Ended, Notepad, Menu, Chat (o campo da fala, no canto de baixo à direita)
+                           ModPanel, Ended, Stats (as estatísticas do jogo, na coluna do fim), Notepad, Menu, Chat (o campo da
+                           fala, no canto de baixo à direita)
   src/lib/screens/         Home (abrir sala, entrar com código, crédito) e Sala (apelido, depois o jogo; sala inexistente,
                            encerrada ou expulso)
   test/                    tradução, rotas, identidade, teclas, imagem, `RemoteRoom` com socket falso e contra o servidor de

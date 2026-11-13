@@ -1,6 +1,7 @@
 /**
  * O telhado ligado (ADR 0005/0006): o laço de `requestAnimationFrame` que dá passos fixos de 60 Hz no meu corpo com o
- * teclado, manda a minha presença e os meus empurrões, aplica os empurrões que recebo, segue com a câmera e desenha
+ * teclado, manda a minha presença e os meus empurrões, aplica os empurrões que recebo, comemora quem acerta (confete
+ * em volta dele; se fui eu, o meu corpo é lançado para o alto), segue com a câmera e desenha
  * (Pixi embaixo, os post-its em HTML por cima, posicionados à mão a cada quadro, sem passar pelo Svelte).
  * Junta peças puras e testadas (`controls`, `loop`, `presence`, `crowd`, `view`, `keys`); ele mesmo é só cola e não
  * tem teste automático.
@@ -13,10 +14,11 @@
  */
 import { EMOTE_MS, EMOTES, type RoomSnapshot } from '@guess/protocol';
 import { attackMs, character } from '../sprites/characters';
-import { applyShove, blinking, createBody, followCamera, MAP, stepBody, type Body, type Camera, type WorldEvent } from '@guess/world';
+import { applyCheer, applyShove, blinking, createBody, followCamera, MAP, stepBody, type Body, type Camera, type WorldEvent } from '@guess/world';
 import type { Lang } from '../i18n';
 import { isTextField, swallowsSpace, worldKey } from '../keys';
 import type { RemoteRoom, RemoteStatus } from '../room/remote';
+import { cheerTracker } from './cheer';
 import { Controls } from './controls';
 import { crowd, othersOf, type CrowdBody } from './crowd';
 import { fixedSteps, STEP_MS } from './loop';
@@ -50,6 +52,9 @@ export interface RuntimeOptions {
  */
 const spawnOffset = (index: number) => ((index % 5) - 2) * 14;
 
+/** um acerto que esperou mais que isto para ser desenhado (a aba estava no fundo) não comemora mais, ms */
+const CHEER_STALE_MS = 500;
+
 /** o intervalo mínimo entre dois passos de zoom da roda, em ms */
 const WHEEL_MS = 120;
 
@@ -80,6 +85,8 @@ export class WorldRuntime {
   /** quando a animação de cada outro mudou (a presença não leva isso) */
   private readonly animOf = new Map<string, { anim: string; since: number }>();
   private readonly off: (() => void)[] = [];
+  /** quem acertou desde o último quadro, e quando soubemos (issue #58) */
+  private cheers: { id: string; at: number }[] = [];
 
   constructor(private readonly opts: RuntimeOptions) { this.lang = opts.lang; }
 
@@ -103,6 +110,10 @@ export class WorldRuntime {
     this.off.push(() => window.removeEventListener('wheel', wheel));
     listen('focusin', (e) => { if (isTextField(e.target as HTMLElement)) this.controls.releaseAll(); });
     this.off.push(this.opts.remote.onShoved(({ dir }) => { if (this.body) this.body = applyShove(this.body, dir, performance.now()); }));
+
+    // quem acerta comemora: sai da diferença entre snapshots, direto do `RemoteRoom` (o primeiro é só a base)
+    const cheers = cheerTracker();
+    this.off.push(this.opts.remote.watch((st) => { for (const id of cheers(st.status, st.room)) this.cheers.push({ id, at: performance.now() }); }));
 
     this.opts.onStatus?.('loading');
     import('./scene')
@@ -170,7 +181,7 @@ export class WorldRuntime {
     const elapsed = now - this.last;
     this.last = now;
     const room = this.room;
-    if (!room || !room.you) return;
+    if (!room || !room.you) { this.cheers = []; return; }
     const remote = this.opts.remote;
 
     // a conexão voltou: a minha presença sai de novo na hora
@@ -181,6 +192,17 @@ export class WorldRuntime {
     const me = room.members[meIndex];
     if (!this.body) this.body = createBody(MAP, now, spawnOffset(Math.max(0, meIndex)));
     const bodies = crowd(room, (id) => remote.presenceOf(id), now, MAP);
+
+    // a comemoração de quem acabou de acertar: confete em todo navegador; o salto, só no navegador de quem acertou
+    // (cada um é dono do próprio corpo, ADR 0005), e os outros veem pela presença
+    if (this.cheers.length) {
+      for (const c of this.cheers) {
+        if (now - c.at > CHEER_STALE_MS) continue;
+        if (c.id === room.you && !this.broken) this.body = applyCheer(this.body);
+        this.scene?.celebrate(c.id, now);
+      }
+      this.cheers = [];
+    }
 
     if (!this.broken) {
       const others = othersOf(bodies);

@@ -4,18 +4,21 @@
   import Switch from '../hud/Switch.svelte';
   import { t } from '../i18n.svelte';
   import type { GameRequest } from '../room/remote';
+  import { endStats } from '../room/stats';
   import type { RoomView } from '../room/view';
+  import Stats from './Stats.svelte';
   import Turma from './Turma.svelte';
 
   /**
    * O jogo e o fim, na coluna: a turma com o post-it e o estado de cada um (o meu "?" até ser revelado) e, para o
    * moderador, os poderes (marcar, reordenar, expulsar e passar o papel por linha; passar a vez, pausar, encerrar e ligar
    * ou desligar os bots engraçados aqui).
-   * No fim, tudo revelado; "Jogar de novo" fica no pé da coluna (`Room`). A vez e a votação ficam em cima, no meio
+   * No fim, tudo revelado, e embaixo as estatísticas do jogo (`Stats`); "Jogar de novo" fica no pé da coluna (`Room`). A vez e a votação ficam em cima, no meio
    * (`TurnBar`); o ranking, no canto de cima à direita.
    */
   let { v, room, send }: { v: RoomView; room: RoomSnapshot; send: (r: GameRequest) => void } = $props();
   const ended = $derived(room.phase === 'ended');
+  const stats = $derived(endStats(room));
 </script>
 
 {#if ended}
@@ -31,6 +34,13 @@
   <div class="gs-sec-head"><h3>{ended ? t('end.postits') : t('play.postits')}</h3></div>
   <Turma {v} {room} {send} />
 </section>
+
+{#if stats}
+  <section class="gs-block gs-sec">
+    <div class="gs-sec-head"><h3>{t('stats.title')}</h3></div>
+    <Stats {stats} {room} />
+  </section>
+{/if}
 
 {#if v.isModerator && !ended}
   <section class="gs-block gs-sec">
