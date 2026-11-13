@@ -44,7 +44,8 @@ packages/protocol  mensagens cliente ↔ servidor (@guess/protocol): todas as a�
 
 apps/server        Bun.serve: `/health`, `POST /api/rooms` (corpo JSON do pré-lobby, `{ turnMs, maxPlayers, onlyModerate }`, até
                    1 KB; o que falta ou não vale fica no padrão) → `{ code }`, `POST /api/rooms/CODE/images?token=T` (WebP até
-                   300 KB → `{ id }`; 404/403/413/415), `GET /api/rooms/CODE/images/ID`, cliente estático com fallback SPA,
+                   300 KB → `{ id }`; 404/403/413/415), `GET /api/rooms/CODE/images/ID`, `GET /api/rooms/CODE?token=T` (uma olhada
+                   antes de entrar: fase, turma, limite e se o token já é da turma; 404 sem sala), cliente estático com fallback SPA,
                    WebSocket em `/ws?room=CODE&token=T`. `dev` (fora de produção) aceita jogadores falsos
   src/room.ts        máquina de estado da sala, pura: `step(state, input, now, { rng })` → estado novo, mensagens e
                      fechamentos por token, eventos para o log; timers como dado (morte em 10 min sem ação de alguém da
@@ -80,6 +81,7 @@ apps/web           Vite + Svelte 5 + PixiJS v8 + dssoca
                            desistir ou votar, os post-its como posso vê-los, o ranking, a contagem regressiva
   src/lib/room/stats.ts    as estatísticas do fim do jogo: do snapshot para as linhas da tabela (uma por pessoa) e os destaques
   src/lib/image.ts         a imagem do post-it: reduz a 512 px, WebP baixando a qualidade até caber, sobe por POST
+  src/lib/hints.ts         as dicas de primeira vez (o cartão das teclas no telhado), lembradas por navegador (localStorage)
   src/lib/effects.ts       "efeitos de tela" (os filtros de filme) ligados ou não, por navegador (localStorage)
   src/lib/sprites/         os atlas gerados (`characters.json`, `atlases.json`, `emotes.json`, `rooftop.json`),
                            `characters.ts`, que diz de que modelo é cada personagem, a folha, a cor e onde está cada quadro

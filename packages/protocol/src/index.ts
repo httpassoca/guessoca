@@ -145,6 +145,13 @@ export type ClientMessage =
   | { type: 'chat'; text: string }
   | { type: 'ping' };
 
+/**
+ * `GET /api/rooms/CODE?token=T`: uma olhada na sala antes de entrar, para o início avisar na hora (código errado, sala
+ * cheia, jogo já começado). `member`: o token já é da turma (volta ao lugar, mesmo com a sala cheia). Sala que não
+ * existe: 404.
+ */
+export interface RoomPeek { phase: Phase; members: number; maxPlayers: number; member: boolean }
+
 /** Por que um pedido foi recusado: a sala já tem `MAX_MEMBERS`; ou o pedido não vale agora (fora da vez, fase errada, não é moderador…). */
 export type RoomError = 'roomFull' | 'refused';
 
