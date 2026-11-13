@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { ANIMATION_NAMES, layout, type ModelSpec } from '../src/atlas';
+import { ANIMATION_NAMES, cellOf, layout, MAX_SHEET, paginate, type ModelSpec } from '../src/atlas';
 import { CHARACTERS } from '../../../packages/rules/src';
 import { characters } from '../src/characters';
 import { PACKS } from '../src/packs';
@@ -52,6 +52,75 @@ describe('a montagem do atlas', () => {
   });
 });
 
+describe('as páginas', () => {
+  /** uma folha de `layout` em que cada quadro é um bloco de cor própria (a animação e o índice), para seguir cada um */
+  const colorOf = (row: number, i: number): [number, number, number, number] => [row * 30 + 10, i * 9 + 5, 200, 255];
+  function sheetOf(spec: ModelSpec, w: number, h: number) {
+    const rows = ANIMATION_NAMES.map((name, row) => Array.from({ length: spec.animations[name].frames }, (_, i) => {
+      const img = blank(w, h);
+      for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) setPixel(img, x, y, colorOf(row, i));
+      return img;
+    }));
+    return layout(rows, spec, { anchorX: w / 2, head: () => ({ x: 0, y: 0, size: 4 }) });
+  }
+  const spec: ModelSpec = {
+    animations: { idle: anim(12), walk: anim(8), run: anim(12), jump: anim(8, 12, false), fall: anim(8, 12, false), fall_loop: anim(8), shove: anim(24, 20, false) },
+    credit: null,
+  };
+
+  test('o limite volta a ser 8192: o que o WebGL por software aceita', () => {
+    expect(MAX_SHEET).toBe(8192);
+  });
+
+  test('o parado sozinho numa linha; o resto numa página quase quadrada, cada animação começando numa linha nova', () => {
+    // o Vault Boy: quadro de 365×150, um ataque de 24 quadros (8760 pixels numa linha só)
+    const { sheet, atlas } = sheetOf(spec, 365, 150);
+    expect(sheet.width).toBe(8760);
+    const { pages, atlas: paged } = paginate(sheet, atlas);
+    for (const p of pages) expect(Math.max(p.width, p.height)).toBeLessThanOrEqual(MAX_SHEET);
+    expect(paged.pages).toEqual(pages.map((p, i) => ({ w: p.width, h: p.height, cols: paged.pages![i].cols })));
+    expect(pages).toHaveLength(2);
+    expect(paged.pages![0]).toEqual({ w: 12 * 365, h: 150, cols: 12 });
+    expect(paged.animations.idle).toMatchObject({ page: 0, row: 0 });
+    expect(paged.animations.walk).toMatchObject({ page: 1, row: 0 });
+    // cada animação começa onde a anterior acabou, em linhas inteiras
+    const cols = paged.pages![1].cols;
+    let row = 0;
+    for (const name of ANIMATION_NAMES.slice(1)) {
+      expect(paged.animations[name].row).toBe(row);
+      row += Math.ceil(spec.animations[name].frames / cols);
+    }
+    expect(pages[1].height).toBe(row * 150);
+    // gasta menos que a folha de uma linha por animação
+    expect(pages.reduce((s, p) => s + p.width * p.height, 0)).toBeLessThan(sheet.width * sheet.height);
+  });
+
+  test('só muda quadros inteiros de lugar: cada quadro sai igual, onde `cellOf` diz', () => {
+    const { sheet, atlas } = sheetOf(spec, 30, 60);
+    const { pages, atlas: paged } = paginate(sheet, atlas, 400);
+    expect(pages.length).toBeGreaterThan(2); // não coube numa página de 200
+    ANIMATION_NAMES.forEach((name, row) => {
+      for (let i = 0; i < spec.animations[name].frames; i++) {
+        const c = cellOf(paged, name, i);
+        expect(getPixel(pages[c.page], c.x, c.y)).toEqual(colorOf(row, i));
+        expect(getPixel(pages[c.page], c.x + 29, c.y + 59)).toEqual(colorOf(row, i));
+      }
+    });
+    for (const p of pages) expect(Math.max(p.width, p.height)).toBeLessThanOrEqual(400);
+    // e nenhum pixel a mais: tudo o que é opaco nas páginas é um quadro
+    const opaque = (img: Image) => { let n = 0; for (let k = 3; k < img.data.length; k += 4) n += img.data[k] ? 1 : 0; return n; };
+    expect(pages.reduce((s, p) => s + opaque(p), 0)).toBe(opaque(sheet));
+  });
+
+  test('um parado que não cabe numa linha, ou uma animação que não cabe numa página, é erro', () => {
+    const { sheet, atlas } = sheetOf(spec, 30, 20);
+    expect(() => paginate(sheet, atlas, 300)).toThrow(/parado.*12 quadros/);
+    expect(() => paginate(sheet, atlas, 100)).toThrow(/parado/);
+    const tall = sheetOf(spec, 30, 250);
+    expect(() => paginate(tall.sheet, tall.atlas, 400)).toThrow(/shove.*não cabe/);
+  });
+});
+
 describe('os personagens', () => {
   const list = characters();
 
@@ -59,7 +128,9 @@ describe('os personagens', () => {
     expect(list).toHaveLength(CHARACTERS);
     expect(list.map((c) => c.model)).toEqual(['hero', 'skeleton', ...PACKS.map((p) => p.model)]);
     // o pixel art pequeno em PNG; a arte grande dos de sete folhas em WebP sem perda
-    expect(list.map((c) => c.sheet)).toEqual(list.map((c, n) => `/sprites/char-${n}.${n < 2 ? 'png' : 'webp'}`));
+    // em duas páginas: o parado e o resto, com nomes que nenhuma troca antiga do `/sistema` usa
+    expect(list.map((c) => c.sheets)).toEqual(list.map((c, n) => ['idle', 'moves'].map((p) => `/sprites/char-${n}-${p}.${n < 2 ? 'png' : 'webp'}`)));
+    expect(characters(() => 3)[5].sheets.at(-1)).toBe('/sprites/char-5-moves-2.webp');
     for (const c of list) expect(c.atlas).toBe(c.model);
   });
 

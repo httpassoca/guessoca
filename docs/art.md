@@ -12,7 +12,8 @@ owner's files ──cp──▶ assets-src/ (gitignored)         text grids in c
                          │   bun run sprites   (tools/sprites/src/index.ts)
                          ▼
    apps/web/public/sprites/*.png        apps/web/src/lib/sprites/*.json      (both committed)
-   char-0/1.png, char-2….webp,          characters, atlases,
+   char-N-idle / char-N-moves           characters, atlases,
+   (.png for 0/1, .webp for the rest),
    rooftop, skyline-*,                  characters, rooftop, emotes
    emotes-<lang>
                          │                        │
@@ -47,7 +48,7 @@ Pipeline, `tools/sprites/src/` (`@guess/sprites`, pure apart from `png.ts` and t
 | `png.ts` | Read and write PNG files; the only disk I/O for images. |
 | `image.ts` | Pure RGBA `Image` operations: crop, blit, colour swap/erase/keep, connected components, solidify, bounds, shear, squash, stretch, rotate, `under`. |
 | `grid.ts` | Pixel art written as text: one character per pixel, `.` is transparent. |
-| `atlas.ts` | What the two models share: `ANIMATION_NAMES` (row order) and `layout()`, which crops all frames to one rectangle and builds the sheet and `Atlas`. |
+| `atlas.ts` | What the models share: `ANIMATION_NAMES` (animation order), `layout()`, which crops all frames to one rectangle and builds a one-row-per-animation sheet and `Atlas`, and `paginate()`, which cuts that sheet into the pages that are written (`MAX_SHEET`, see "Sheet pages"). |
 | `hero.ts` | The hero recipe: slice 128×128 cells, remove the sword from the shove, one sheet per hair ramp in `HAIRS` (only blonde today). |
 | `skeleton.ts` | The skeleton recipe: slice 170×125 cells, remove slash trails, draw run/jump/fall, one sheet per cape ramp in `CAPES` (only red today). |
 | `pack.ts` | The recipe for characters that arrive complete as seven sheets (image-model art). Changes no pixel: grounds every frame, optionally shifts an animation sideways, writes the sheet at the art's size with `scale` in the atlas. |
@@ -62,18 +63,19 @@ Generated data, `apps/web/src/lib/sprites/`:
 
 | File | Job |
 |---|---|
-| `atlases.json` | One `Atlas` per model: frame size, anchor, head box, stand box, animation rows with frames/fps/loop, credit. |
-| `characters.json` | Slot `n` → model, colour name, UI colour, sheet URL, atlas name. |
+| `atlases.json` | One `Atlas` per model: frame size, anchor, head box, stand box, `pages` (size and frames per line of each sheet), each animation's page, first line, frames/fps/loop, credit. |
+| `characters.json` | Slot `n` → model, colour name, UI colour, sheet URLs (one per page), atlas name. |
 | `rooftop.json` | Every rooftop frame (position, anchor, `tile`, `face`) plus the skyline strips. |
 | `emotes.json` | Each balloon's rectangle and tail tip (shared by both languages). |
-| `characters.ts` | Typed access for the client: `CHARACTER_ART`, `character(n)`, `frameAt`, `frameIndex`, `sheetSize`, `fitScale`, `attackMs`. |
+| `characters.ts` | Typed access for the client: `CHARACTER_ART`, `character(n)`, `frameAt` (page and corner of a frame), `frameIndex`, `sheetSize(atlas, page)`, `largestSheet`, `fitScale`, `attackMs`. |
 | `rooftop.ts` | Typed access to `rooftop.json`; the sheet URLs. |
 
 Client rendering, `apps/web/src/lib/world/` (Pixi files have no automated tests; the pure ones do):
 
 | File | Job |
 |---|---|
-| `scene.ts` | The Pixi `Application`, layer order, depth sorting, character sprites, shadows, emote balloons. |
+| `scene.ts` | The Pixi `Application`, layer order, depth sorting, character sprites, shadows, emote balloons; loads character sheets only for who is in the room. |
+| `sheet-cache.ts` | Pure: which character sheets are loaded, when to free them, how much to shrink a sheet larger than the GPU's texture limit. |
 | `platforms.ts` | Draws the dressed roofs: top, back ledge, facade, front parapet, box props, decor. |
 | `dressing.ts` | Pure: which frame dresses each `MAP` box, roof rectangles on screen, `DECOR` placement, neon flicker and beacon timing. |
 | `backdrop.ts` | Sky bands, stars, moon, two parallax skyline strips, the drop to the street and the street fog. |
@@ -91,7 +93,7 @@ Client rendering, `apps/web/src/lib/world/` (Pixi files have no automated tests;
 | `crowd.ts` | Pure: the other bodies (interpolated presence, fake players' fixed spots). |
 | `runtime.ts` | The rAF loop: steps physics, sends presence, calls `Scene.render`, positions HTML post-its. |
 
-HTML art, `apps/web/src/lib/panels/`: `Hero.svelte` (a character's idle in a CSS background, the same window for both models), `Swatch.svelte` (the head box as a coloured square), `Stage.svelte` (the chosen character at 4× on a strip of roof in the pre-lobby), `Ledge.svelte` (that strip, drawn from `rooftop.png` on a canvas), `CharacterPicker.svelte` (the eight buttons).
+HTML art, `apps/web/src/lib/panels/`: `Hero.svelte` (a character's idle in a CSS background from its `-idle` sheet, the same window for every model), `Swatch.svelte` (the head box as a coloured square), `Stage.svelte` (the chosen character at 4× on a strip of roof in the pre-lobby), `Ledge.svelte` (that strip, drawn from `rooftop.png` on a canvas), `CharacterPicker.svelte` (the eight buttons).
 
 World geometry the art must match: `packages/world/src/index.ts` (`MAP`, `DEPTH`, `DEPTH_K`, `BODY_*`, `project`, `depthKey`, `Anim`, `SHOVE_COOLDOWN_MS`).
 
@@ -115,7 +117,7 @@ There are four spaces. Comments say which one a value is in.
 
 ### Animations
 
-Every model's sheet has one row per animation, in this exact order (`ANIMATION_NAMES` in `tools/sprites/src/atlas.ts`, `Anim` in `@guess/world`):
+Every model has the same seven animations, in this exact order (`ANIMATION_NAMES` in `tools/sprites/src/atlas.ts`, `Anim` in `@guess/world`):
 
 | Row | Name | When the world plays it | Loop | Hero (frames @ fps) | Skeleton (frames @ fps) |
 |---|---|---|---|---|---|
@@ -148,9 +150,23 @@ Every model's sheet has one row per animation, in this exact order (`ANIMATION_N
 { "model": "skeleton", "name": "vermelho", "color": "#982b2b", "sheet": "/sprites/char-1.png", "atlas": "skeleton" }
 ```
 
-- `index.ts` writes the `i`-th sheet a model's `build()` returns to the `i`-th slot of that model, so variant order = slot order.
+- `index.ts` paginates the `i`-th sheet a model's `build()` returns and writes its pages to the `i`-th slot of that model, so variant order = slot order.
 - `color` is the ramp's base colour. It's used for borders and marks in the UI, and **must also be `--gs-char-N` in `apps/web/src/app.css`** (`apps/web/test/characters.test.ts` checks this). Colours must be unique.
 - The UI names characters "Personagem N" (`pre.characterN` in `apps/web/src/lib/i18n.ts`), not by colour, so a new variant needs no i18n. The `name` field (Portuguese colour name) isn't shown.
+
+### Sheet pages
+
+A recipe's `build()` still returns one sheet per variant with one row per animation (`layout()`), as wide as the longest animation. `index.ts` then cuts it with `paginate()` (`tools/sprites/src/atlas.ts`) into the files that are committed, moving whole frames only:
+
+- **Page 0, `char-N-idle`**: the idle, in one line. The picker, the pre-lobby stage and the face square (`Hero.svelte`, `Swatch.svelte`) only ever download this one, and the roof loads it first.
+- **Page 1, `char-N-moves`**: walk, run, jump, fall, fall_loop and shove, each starting on a new line and wrapping at `cols` frames per line. `cols` is chosen so the page is as close to square as it can be (smallest longest side, then smallest area). If they don't fit in one page, more pages follow (`char-N-moves-2`…); none does today.
+- **`MAX_SHEET = 8192`**: no page has a side longer than this. It is what software WebGL (SwiftShader) and many GPUs accept. A larger texture fails to upload, and because Pixi batches the roof, the failure blacks out everything drawn in the same batch (the middle roof, its boxes, the HOTEL sign and every character there), not just that character. `paginate()` throws if an idle doesn't fit one line or an animation doesn't fit one page.
+- The atlas says where each frame is: `pages[p] = { w, h, cols }`, and each animation has `page` and `row` (its first line). `frameAt(atlas, name, i)` in the client returns `{ page, x, y }`; never compute frame positions by hand.
+- The file names changed from `char-N.<ext>` when pages came in (issue #75), so an old `/sistema` override of a one-sheet layout can't mask a page. Replacing a sheet from `/sistema` still works per page: same format, same pixel size.
+
+How the roof loads them (`scene.ts`, `sheet-cache.ts`): only the characters of who is in the room (the members with a character and the bots, the boss among them), as soon as they appear in the snapshot. The idle page arrives first; until the moves page arrives the body plays its idle, and before the idle arrives the body isn't drawn. A sheet nobody has used for `SHEET_KEEP_MS` (60 s) is freed. A few seconds after the roof is quiet, the other sheets are downloaded at low priority into the HTTP cache (not decoded). The renderer reads `MAX_TEXTURE_SIZE` and never uploads a bigger texture: a sheet that doesn't fit is shrunk at decode time and drawn larger by the same factor (`?texmax=2048` in the URL fakes a small GPU to see it), and a character whose idle sheet fails to load is drawn as the hero.
+
+Supplied art is never stored at a reduced resolution: the files keep the pixels as delivered, and shrinking only ever happens in GPU memory, on a GPU that couldn't hold the file otherwise.
 
 ### Palette-ramp recolouring
 
@@ -287,7 +303,7 @@ When a guess is confirmed, every client draws confetti around that character for
 
 This reads only the committed output (no pack needed) and writes to `.preview/` (gitignored), printing every path:
 
-- `<model>-<animation>.png`: that animation's frames side by side (wrapping at 2400 px) at 4×, on a checker background (transparent pixels show), each frame bordered. Red ticks below and to the left of each frame mark the anchor column and row; the feet should sit on them in every frame.
+- `<model>-<animation>.png`: that animation's frames side by side (read from the pages through the atlas) (wrapping at 2400 px) at 4×, on a checker background (transparent pixels show), each frame bordered. Red ticks below and to the left of each frame mark the anchor column and row; the feet should sit on them in every frame.
 - `characters-idle.png`: the first idle frame of every slot, in slot order. Check the colours and that the feet line up.
 - `rooftop.png`: every rooftop frame with its anchor; `emotes-pt-BR.png` and `emotes-en-US.png` with the tail tip as anchor; `skyline-far.png` and `skyline-near.png` each tiled twice side by side, so you can see the seam.
 
@@ -350,7 +366,8 @@ Things the client already handles: an atlas with `scale < 1` is drawn smaller ev
 - **CI has no `assets-src/`.** Tests that read real art must not touch the disk when it's absent. `describe.skipIf(!existsSync(pack))` is not enough on its own: bun runs a skipped `describe` body while registering its tests, so guard every read inside the body as well (see the end of `tools/sprites/test/skeleton.test.ts`). The recipe tests use fake images built in code.
 - **Semi-transparent pixels get solidified.** `solidify` makes any alpha above 0 fully opaque, so soft edges become hard halos and drop shadows become solid blobs. Clean the source.
 - **White slash trails versus white bones or shirts.** Trails are erased as white components that are too big: on the hero, white blobs over `SHIRT_WHITE_MAX = 24` px (the shirt's blobs are at most 17 px; trails are 325+); on the skeleton, white blobs over `SLASH_MIN = 100` (the largest bone blob is 55; the smallest trail 180), plus loose mostly-white pieces of at least `SLASH_TIP_MIN = 40`. New art with large white areas (a white cape, a big skull) needs new thresholds, or a different trail colour in the source. The tests compare bone and eye counts before and after.
-- **The frame grows with the widest pose.** Trim wind-ups, or choose compact frames for the shove; check `<model>-*.png` in the preview for empty space.
+- **The frame grows with the widest pose.** Trim wind-ups, or choose compact frames for the shove; check `<model>-*.png` in the preview for empty space. A wide frame no longer breaks the 8192 limit (the pages wrap), but it still costs memory in every frame of the moves page.
+- **Never upload a texture over the GPU's `MAX_TEXTURE_SIZE`.** It doesn't fail alone: Pixi batches the scene and the whole batch goes black. Keep generated pages at `MAX_SHEET` (8192) or less; the client checks the limit and shrinks in GPU memory if a GPU is smaller still.
 - **Keep head boxes, and so post-it heights, per model.** `headY` comes from each atlas's `head`. A wrong head box puts the post-it inside the sprite or floating far above it.
 - **`--gs-char-N` must match `characters.json`**, and a test checks it.
 - **Animations must stay within the shove cooldown** (450 ms), and remember the fall→fall_loop switch is the hero's `FALL_MS` for every model.

@@ -25,6 +25,7 @@ import { fixedSteps, STEP_MS } from './loop';
 import { PresenceSender, presenceOfBody, type Emote } from './presence';
 import type { Scene, SceneBody } from './scene';
 import { snapShift } from './bubbles';
+import { presentCharacters } from './sheet-cache';
 import { declutter, type Tag } from './declutter';
 import { rememberedZoom, rememberZoom } from '../identity';
 import { headAnchor, makeView, renderView, stepZoom } from './view';
@@ -252,6 +253,8 @@ export class WorldRuntime {
       this.scene.setLobby(room.phase === 'lobby', !this.moodSet);
       this.moodSet = true;
     }
+    // as folhas de quem está na sala (a turma e os bots, o chefão entre eles) carregam antes de o corpo aparecer
+    this.scene?.want(presentCharacters(room), now);
     this.scene?.render(list, cam, view, now, this.lang);
     this.placeHeads(list, cam, view);
   }

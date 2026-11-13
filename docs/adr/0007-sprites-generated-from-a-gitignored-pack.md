@@ -128,14 +128,14 @@ The picker's name tooltip now opens above the cell. dssoca only puts a tooltip o
 
 A pack from the owner (`assets-src/daftpunk/`, slot 25, generated for this game): two helmeted figures, one silver and one gold, who move together as **one character** in three-quarter view, dancing in every animation. Size 1, 160×160 cells, a 224×160 attack cell where the duo stands 12 pixels further right (`dx: -12`), ground at row 144. The attack is a 24-frame, 1.1 s dance kick that starts and ends on the idle frame. Common recipe, no pixel changed. The cast is now twenty-six.
 
-## Amendment: the Vault Boy, and a bigger sheet limit
+## Amendment: the Vault Boy
 
 A pack from the owner (`assets-src/vaultboy/`, slot 26, generated for this game): the blond mascot in a blue jumpsuit, thumbs up. Size 1, 512×224 cells in every sheet (the attack, a "Fat Man" launcher shot with its explosion, reaches far to the right), feet at x 62, ground at row 208. Common recipe, no pixel changed. The cast is now twenty-seven.
 
 Two limits had to give way:
 
 - **Attack length.** The art was made for 1.6 s (24 frames at 15 fps), but the game cuts an attack at `SHOVE_MAX_MS` (1.2 s), which the art prompt also states. It plays at 20 fps instead: the same frames, faster. Raising the cap would also mean changing the prompt's range for every future character, so that is left to the owner.
-- **Sheet size.** The explosion widens the shared frame to 365 px, so 24 frames make an 8760 px sheet, over the old `MAX_SHEET` of 8192. The limit is now 16384, which every desktop GPU we know of accepts. Software WebGL (SwiftShader, used by headless checks) caps textures at 8192 and draws such a sheet as a black box; check this character with a GPU-backed GL (`--use-angle=gl`).
+- **Sheet size.** The explosion widens the shared frame to 365 px, so 24 frames make an 8760 px row, over `MAX_SHEET` (8192). The limit was first raised for him, which turned out wrong: GPUs capped at 8192 (software WebGL among them) failed the upload and blacked out the whole middle roof, not just him. Sheets are now split into pages under 8192; see "Amendment: sheet pages and lazy loading" below.
 
 ## Amendment: Sekiro
 
@@ -152,3 +152,12 @@ Three folders from the owner, all generated for this game, imported with the com
 - **Sanji** (`assets-src/sanji/`, slot 28): size 1.10 (141 pixels), 192×208 cells and 256×256 attack cells where he stands 11 pixels further right (`dx: -11`); ground at row 192. The attack is 24 frames in 1.2 s, exactly `SHOVE_MAX_MS`.
 - **Blade Runner** (`assets-src/bladerunner/`, slot 29): size 1, 160×160 cells and 192×160 attack cells with the feet at the same x; ground at row 144. The attack is a braced two-handed pistol shot, 22 frames in 0.95 s.
 - **Eve, redrawn** (slot 9 kept): the first art (192×192, 140 pixels, fixed frames) is replaced by one from the current prompt: size 1, 160×176 cells and 240×208 attack cells where she stands 32 pixels further right (`dx: -32`); ground at row 160. The attack is 24 frames in 1 s. The old folder stays locally as `assets-src/eve-v1/`.
+
+## Amendment: sheet pages and lazy loading
+
+Two problems with one-sheet-per-character: the Vault Boy's 8760 px sheet failed to upload on GPUs capped at 8192 (software WebGL included), and Pixi's batching turned that into a black rectangle over the middle roof; and every visit decoded all thirty sheets, about 250 MB as RGBA in the page and more in the GPU process, to draw the few characters in the room.
+
+- **`MAX_SHEET` is back to 8192, and a character's sheet is split into pages** (`paginate` in `tools/sprites/src/atlas.ts`): `char-N-idle` (the idle, one line) and `char-N-moves` (the other six animations, each starting on a new line and wrapping at `cols` frames, with `cols` chosen for a near-square page). Only whole frames move; a check over all 1813 frames confirmed every one is byte-identical to the old sheet's. The atlas gains `pages` and a `page` per animation. The tightest packing would also wrap animations into each other, but a page where each animation starts on its own line is easier for the owner to read and edit when replacing a file from `/sistema`.
+- **New file names**: an override of the old `char-N.webp` (ADR 0009) can't mask a page, because no page has that name. `/sistema` previews, downloads and replaces each page on its own.
+- **Lazy loading**: the roof loads only the characters of the room's members and bots, idle page first; it frees a sheet unused for a minute and, once quiet, downloads the rest into the HTTP cache without decoding. The picker, the stage and the face square only use the idle page. Measured with the audit's script on a desktop GL: the page process went from 377 to 168 MB on the home screen and from 771 to 208 MB with the roof showing; after switching through all thirty characters, 964 to 384 MB, and the GPU process 1040 to 354 MB.
+- **A defensive check**: the client reads `MAX_TEXTURE_SIZE` and never uploads a larger texture; a sheet that doesn't fit is shrunk in GPU memory only, and drawn larger by the same factor. Stored art keeps its full resolution (`docs/art.md`: supplied pixels never change).

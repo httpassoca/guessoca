@@ -3,6 +3,8 @@ import { agoText, ApiError, sizeText, systemApi } from '../src/lib/system/api';
 import { wav } from '../src/lib/system/wav';
 import { crc32, zip } from '../src/lib/system/zip';
 import { parseRoute } from '../src/lib/route';
+import { CHARACTER_ART, frameAt } from '../src/lib/sprites/characters';
+import { frameAtTime, lengthOf, pageName, sheetOfPath } from '../src/lib/system/anim';
 
 const text = (b: Uint8Array) => new TextDecoder().decode(b);
 
@@ -90,5 +92,30 @@ describe('sistema: a API', () => {
   test('tamanhos e tempos em texto curto', () => {
     expect([sizeText(812), sizeText(436_882), sizeText(1_320_936)]).toEqual(['812 B', '427 KB', '1,3 MB']);
     expect([agoText(42_000), agoText(17 * 60_000), agoText(3 * 3_600_000 + 5 * 60_000), agoText(52 * 3_600_000)]).toEqual(['42 s', '17 min', '3 h 05 min', '2 d 4 h']);
+  });
+});
+
+describe('sistema: as folhas dos personagens', () => {
+  test('cada arquivo de personagem é de um personagem e de uma página do atlas; o resto não é', () => {
+    CHARACTER_ART.forEach((c, n) => c.sheets.forEach((s, page) => expect(sheetOfPath(s.slice(1))).toEqual({ n, page })));
+    expect(sheetOfPath('sprites/char-26-idle.webp')).toEqual({ n: 26, page: 0 });
+    expect(sheetOfPath('sprites/char-26-moves.webp')).toEqual({ n: 26, page: 1 });
+    expect(sheetOfPath('sprites/char-26.webp')).toBeNull(); // a folha única de antes das páginas
+    expect(sheetOfPath('sprites/rooftop.png')).toBeNull();
+  });
+
+  test('o nome de cada folha diz o que tem nela', () => {
+    const { atlas } = CHARACTER_ART[26];
+    expect(pageName(atlas, 0)).toBe('parado');
+    expect(pageName(atlas, 1)).toBe('walk, run, jump, fall, fall_loop, shove');
+  });
+
+  test('a prévia acha cada quadro de cada animação na folha certa, também quando a animação quebra de linha', () => {
+    const { atlas } = CHARACTER_ART[26];
+    const shove = atlas.animations.shove, cols = atlas.pages[shove.page].cols;
+    expect(cols).toBeLessThan(shove.frames); // o ataque do Vault Boy ocupa mais de uma linha
+    expect(frameAt(atlas, 'shove', cols)).toEqual({ page: 1, x: 0, y: (shove.row + 1) * atlas.frame.h });
+    // e o quadro mostrado numa hora é um índice da animação, que `frameAt` põe na folha
+    expect(frameAtTime(atlas, 'shove', lengthOf(atlas, 'shove') - 1)).toBe(shove.frames - 1);
   });
 });
