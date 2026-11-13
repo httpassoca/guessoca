@@ -38,6 +38,7 @@
   const SFX_ABOUT: Record<SfxName, string> = {
     jump: 'pulo: um blip curto que sobe', shove: 'empurrão: um baque de ruído grave', vote: 'voto: um sininho de duas notas',
     gotIt: 'acertei: um power-up feliz', turnEnd: 'fim da vez: uma cigarra grave e curta',
+    yourTurn: 'sua vez: dois toques agudos que sobem',
   };
   const PASS_KEY = 'guess.system.pass';
 

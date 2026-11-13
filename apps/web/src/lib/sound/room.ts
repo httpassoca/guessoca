@@ -1,6 +1,6 @@
 /**
  * Os sons que a sala faz, tirados da diferença entre dois snapshots seguidos (puro e testado): abriu uma votação,
- * alguém acertou, uma vez acabou sem ninguém acertar. O servidor só manda o estado; o que "aconteceu" sai daqui.
+ * alguém acertou, uma vez acabou sem ninguém acertar, a minha vez começou. O servidor só manda o estado; o que "aconteceu" sai daqui.
  */
 import type { RoomSnapshot } from '@guess/protocol';
 import type { RemoteStatus } from '../room/remote';
@@ -8,7 +8,8 @@ import type { SfxName } from './sfx';
 
 /**
  * Os sons de passar de `prev` para `next`, vistos por `me`. Nada no primeiro snapshot (`prev` null) nem quando o
- * anterior não era meu (acabei de entrar). Acertar ganha de fim de vez: a vez passa junto, mas só toca `gotIt`.
+ * anterior não era meu (acabei de entrar). Acertar ganha de fim de vez: a vez passa junto, mas só toca `gotIt`. A vez
+ * que começa sendo minha (a primeira do jogo também) toca `yourTurn` no lugar de `turnEnd`, para não passar batido.
  */
 export function roomSounds(prev: RoomSnapshot | null, next: RoomSnapshot, me: string | null): SfxName[] {
   if (!prev || !me || prev.you !== me || next.you !== me) return [];
@@ -16,8 +17,12 @@ export function roomSounds(prev: RoomSnapshot | null, next: RoomSnapshot, me: st
   if (next.vote && next.vote.claimer !== prev.vote?.claimer) out.push('vote');
   const got = new Set(prev.got);
   const someoneGot = next.got.some((id) => !got.has(id));
+  const ended = turnEnded(prev, next);
+  const mineNow = next.phase === 'playing' && next.turn?.owner === me;
+  const myTurnStarted = mineNow && (ended || (prev.turn?.owner !== me && !next.vote));
   if (someoneGot) out.push('gotIt');
-  else if (turnEnded(prev, next)) out.push('turnEnd');
+  else if (ended && !myTurnStarted) out.push('turnEnd');
+  if (myTurnStarted) out.push('yourTurn');
   return out;
 }
 

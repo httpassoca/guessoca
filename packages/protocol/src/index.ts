@@ -31,13 +31,15 @@ export const CHAT_INTERVAL = 1000;
 
 /**
  * O texto de uma fala como vai para a tela: só texto, numa linha. Tira os caracteres de controle e de formatação
- * (inclusive os que invertem a direção do texto), junta os espaços (quebras de linha viram espaço), apara as pontas e
+ * (inclusive os que invertem a direção do texto; o junta-emoji U+200D fica, um só em fila), junta os espaços (quebras de linha viram espaço), apara as pontas e
  * corta em `CHAT_MAX` caracteres (pontos de código, para não partir um emoji no meio). Vazio = não há o que falar.
  */
 export function cleanChat(raw: string): string {
   const s = raw.normalize('NFC')
     .replace(/[\p{Cc}\p{Zl}\p{Zp}]+/gu, ' ')
-    .replace(/[\p{Cf}\p{Co}\p{Cs}\p{Cn}]+/gu, '')
+    // o junta-emoji (U+200D) fica, senão 👨‍👩‍👧 e 🏳️‍🌈 se desmancham; o resto da formatação (inversão de direção, zero-width…) sai
+    .replace(/(?:(?!\u200d)[\p{Cf}\p{Co}\p{Cs}\p{Cn}])+/gu, '')
+    .replace(/\u200d{2,}/gu, '\u200d')
     .replace(/\s+/gu, ' ')
     .trim();
   return [...s].slice(0, CHAT_MAX).join('').trimEnd();

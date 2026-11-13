@@ -17,6 +17,9 @@
     pencil: '<path d="M4 20l1-5L15 5l4 4L9 19z"/><path d="M13 7l4 4"/>',
     image: '<rect x="3" y="4" width="18" height="16"/><path d="M3 17l5-5 4 4 3-3 6 6"/><path d="M15 8h1"/>',
     replace: '<path d="M4 12a8 8 0 0 1 14-5.3M20 4v4h-4"/><path d="M20 12a8 8 0 0 1-14 5.3M4 20v-4h4"/>',
+    wrong: '<path d="M7 7l10 10M17 7L7 17"/>',
+    pause: '<path d="M8 5v14M16 5v14"/>',
+    more: '<path d="M5 12h1M11.5 12h1M18 12h1"/>',
     trash: '<path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/><path d="M10 11v5M14 11v5"/>',
   } as const;
   export type IconName = keyof typeof PATHS;

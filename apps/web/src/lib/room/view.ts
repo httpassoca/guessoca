@@ -57,13 +57,15 @@ export interface TurnInfo {
   /** ms que sobravam quando o snapshot chegou (ver `countdown`) */
   left: number;
   running: boolean;
+  /** quem vem depois: a próxima da ordem que ainda joga, está conectada e não é falsa; null = só sobrou a da vez */
+  next: MemberView | null;
 }
 
 export interface VoteInfo {
   claimer: MemberView;
   /** fui eu que pedi */
   mine: boolean;
-  /** posso votar agora (sou eleitor e ainda não votei) */
+  /** posso votar agora (sou eleitor; depois de votar, ainda posso mudar até a votação fechar) */
   canVote: boolean;
   /** já votei, e como */
   voted: boolean;
@@ -72,9 +74,12 @@ export interface VoteInfo {
   waiting: boolean;
   voters: { member: MemberView; voted: boolean }[];
   left: number;
+  /** o post-it de quem pediu, o que está sendo julgado; null para quem pediu (não pode ver o próprio) */
+  card: PostitCard | null;
 }
 
-export interface RankingRow { place: number; member: MemberView; gaveUp: boolean }
+/** Uma linha do ranking: quem acertou tem lugar; quem desistiu não (`place` null) e vem depois. */
+export interface RankingRow { place: number | null; member: MemberView; gaveUp: boolean }
 
 export interface RoomView {
   me: MemberView | null;
@@ -165,7 +170,14 @@ export function roomView(s: RoomSnapshot): RoomView {
   }
 
   const turnOwner = s.turn ? byId.get(s.turn.owner) : undefined;
-  const turn: TurnInfo | null = s.turn && turnOwner ? { owner: turnOwner, mine: turnOwner.id === me?.id, left: s.turn.left, running: s.turn.running } : null;
+  let turn: TurnInfo | null = null;
+  if (s.turn && turnOwner) {
+    // como o servidor escolhe a próxima vez (`startTurn`): dá a volta na ordem a partir de quem está na vez
+    const i = s.order.indexOf(turnOwner.id);
+    const rotation = [...s.order.slice(i + 1), ...s.order.slice(0, Math.max(0, i))];
+    const nextId = rotation.find((id) => { const m = byId.get(id); return !!m && m.connected && !m.fake && !got.has(id) && !gaveUp.has(id); });
+    turn = { owner: turnOwner, mine: turnOwner.id === me?.id, left: s.turn.left, running: s.turn.running, next: (nextId && byId.get(nextId)) || null };
+  }
 
   let vote: VoteInfo | null = null;
   const claimer = s.vote ? byId.get(s.vote.claimer) : undefined;
@@ -174,14 +186,17 @@ export function roomView(s: RoomSnapshot): RoomView {
     const amVoter = !!me && s.vote.voters.includes(me.id);
     const iVoted = !!me && (voted.has(me.id) || s.vote.yours !== null);
     vote = {
-      claimer, mine: claimer.id === me?.id, canVote: amVoter && !iVoted, voted: iVoted, yours: s.vote.yours, waiting: !amVoter,
+      claimer, mine: claimer.id === me?.id, canVote: amVoter, voted: iVoted, yours: s.vote.yours, waiting: !amVoter,
       voters: pick(s.vote.voters).map((member) => ({ member, voted: voted.has(member.id) })), left: s.vote.left,
+      card: postits.find((c) => c.owner.id === claimer.id && !c.hidden) ?? null,
     };
   }
 
 
-  const ranking: RankingRow[] = [...pick(s.got).map((member) => ({ member, gaveUp: false })), ...pick(s.gaveUp).map((member) => ({ member, gaveUp: true }))]
-    .map((r, i) => ({ place: i + 1, ...r }));
+  const ranking: RankingRow[] = [
+    ...pick(s.got).map((member, i) => ({ place: i + 1, member, gaveUp: false })),
+    ...pick(s.gaveUp).map((member) => ({ place: null, member, gaveUp: true })),
+  ];
 
   const place = new Map(ranking.map((r) => [r.member.id, r.place]));
   const cardOf = new Map(postits.map((c) => [c.owner.id, c]));

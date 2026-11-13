@@ -364,7 +364,8 @@ function apply(g: GameState, actor: string, moderator: boolean, action: GameActi
     case 'vote': {
       if (g.phase !== 'playing') return 'wrongPhase';
       const vote = g.vote;
-      if (!vote || !vote.voters.includes(actor) || actor in vote.ballots) return 'invalid';
+      // dá para mudar o voto enquanto a votação está aberta (ADR 0008, emenda); o mesmo voto de novo não muda nada
+      if (!vote || !vote.voters.includes(actor)) return 'invalid';
       vote.ballots[actor] = action.yes;
       return null;
     }

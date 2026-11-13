@@ -3,7 +3,7 @@ import { renderSfx, SFX, SFX_NAMES } from '../src/lib/sound/sfx';
 
 describe('os efeitos sonoros, gerados de parâmetros', () => {
   test('os cinco existem', () => {
-    expect([...SFX_NAMES].sort()).toEqual(['gotIt', 'jump', 'shove', 'turnEnd', 'vote']);
+    expect([...SFX_NAMES].sort()).toEqual(['gotIt', 'jump', 'shove', 'turnEnd', 'vote', 'yourTurn']);
     for (const name of SFX_NAMES) expect(SFX[name]).toBeDefined();
   });
 

@@ -190,7 +190,19 @@ describe('acertei e votação', () => {
     s.refuse('f', { type: 'vote', yes: true }, 'invalid');
     s.refuse('a', { type: 'vote', yes: true }, 'invalid');
     s.do('b', { type: 'vote', yes: false });
-    s.refuse('b', { type: 'vote', yes: true }, 'invalid');
+  });
+
+  test('o voto muda até a votação fechar; o mesmo voto de novo não faz nada', () => {
+    const s = new Sim('a', 'b', 'c', 'd');
+    s.start();
+    s.do('a', { type: 'claim' });
+    s.do('b', { type: 'vote', yes: false });
+    expect(s.do('b', { type: 'vote', yes: true })).toEqual([]);
+    expect(s.game.vote!.ballots).toEqual({ b: true });
+    expect(s.do('b', { type: 'vote', yes: true })).toEqual([]);
+    s.do('c', { type: 'vote', yes: false });
+    expect(s.do('d', { type: 'vote', yes: false })).toContainEqual({ type: 'voted', owner: 'a', yes: false, yesVotes: 1, noVotes: 2 });
+    s.refuse('b', { type: 'vote', yes: false }, 'invalid'); // fechou
   });
 
   test('votar sem votação aberta é recusado', () => {

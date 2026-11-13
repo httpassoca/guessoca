@@ -11,7 +11,14 @@ describe('teclado', () => {
     expect(keyAction(press('Enter'), myTurn)).toBeNull();
     expect(keyAction(press('Tab'), myTurn)).toBe('skip');
     expect(keyAction(press('Enter'), notMine)).toBeNull();
-    expect(keyAction(press('Tab'), notMine)).toBeNull(); // o Tab de sempre: anda entre os botões
+    expect(keyAction(press('Tab'), notMine)).toBeNull(); // com um botão focado, o Tab de sempre: anda entre os botões
+  });
+
+  test('fora da vez, com o foco solto, o Tab não faz nada (não vai parar no botão do menu)', () => {
+    expect(keyAction(press('Tab'), { ...notMine, focusFree: true })).toBe('stay');
+    expect(keyAction(press('Tab'), { ...myTurn, focusFree: true })).toBe('skip');
+    expect(keyAction(press('Tab', { shiftKey: true }), { ...notMine, focusFree: true })).toBe('stay');
+    expect(keyAction(press('Tab'), { ...typing, focusFree: true })).toBeNull();
   });
 
   test('N abre o bloco e Esc o menu, a qualquer momento', () => {
