@@ -85,14 +85,17 @@ export const PACKS: readonly Pack[] = [
     },
   },
   /**
-   * O Joker (de Persona): o ladrão de máscara branca e sobretudo preto comprido, com uma faca. Tamanho 1,06 (136
-   * pixels), células de 144×160, o chão na linha 152.
+   * O Joker (de Persona): o ladrão de máscara branca e sobretudo preto comprido, com uma faca. É a segunda arte dele, do
+   * pedido que fixa a densidade: tamanho 1 (128 pixels), células de 128×160 e, só no ataque, de 256×208, em que ele fica
+   * 56 pixels mais à direita (pés no x 128 em vez de 72): os quadros do ataque andam 56 para trás, e a tela de trabalho
+   * tem essa folga. O chão na linha 148. O ataque são 24 quadros em 1,1 s. A primeira arte (144×160, 136 pixels) ficou
+   * em `assets-src/joker-v1/`.
    */
   {
     model: 'joker', name: 'joker', color: 'd8243c', dir: 'joker',
     config: {
-      ...NEW, name: 'o Joker', cellW: 144, cellH: 160, headRows: 30,
-      spec: packSpec({ idle: [8, 8 / 1.2], walk: [10, 10 / 0.9], run: [10, 10 / 0.65], jump: [6, 15], fall: [5, 5 / 0.33], fall_loop: [4, 10], shove: [8, 20] }),
+      ...NEW, name: 'o Joker', cellW: 128, cellH: 160, padX: 56, headRows: 30, cells: { shove: { cellW: 256, cellH: 208, dx: -56 } },
+      spec: packSpec({ idle: [8, 8 / 1.2], walk: [8, 10], run: [8, 8 / 0.6], jump: [8, 20], fall: [8, 8 / 0.33], fall_loop: [8, 20], shove: [24, 24 / 1.1] }),
     },
   },
   /**
