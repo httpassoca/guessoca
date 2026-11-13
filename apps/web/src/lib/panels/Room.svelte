@@ -17,6 +17,7 @@
   import { roomSoundsTracker } from '../sound/room';
   import Icon from '../hud/Icon.svelte';
   import World from '../world/World.svelte';
+  import Chat from './Chat.svelte';
   import Corner from './Corner.svelte';
   import Game from './Game.svelte';
   import Lobby from './Lobby.svelte';
@@ -29,7 +30,8 @@
    * A sala depois de entrar na turma: o telhado sempre ligado atrás de tudo (`World`) e, por cima, sem barra: os botões
    * do canto de cima à esquerda (menu, coluna, link), a coluna da sala à esquerda (o lobby, ou a turma e a moderação no
    * jogo; recolhível), a vez e a votação em cima no meio, o ranking no canto de cima à direita e o bloco preso embaixo
-   * ao lado da coluna (só no jogo e no fim). Tudo o que é decidido vem de `roomView`; aqui só se desenha e se pede.
+   * ao lado da coluna (só no jogo e no fim) e o campo da fala no canto de baixo à direita (Enter foca; o que se fala vira
+   * um balão sobre o personagem, no `World`). Tudo o que é decidido vem de `roomView`; aqui só se desenha e se pede.
    */
   let { remote, st, room, token, status }: { remote: RemoteRoom; st: RemoteState; room: RoomSnapshot; token: string; status: string } = $props();
 
@@ -42,6 +44,9 @@
   const voteLeft = $derived(v.vote ? countdown(v.vote.left, st.receivedAt, now) : 0);
 
   let menuOpen = $state(false);
+  let chat = $state<{ focus: () => void }>();
+  /** quem tem personagem fala (no lobby, no jogo e no fim); o balão precisa de uma cabeça */
+  const canTalk = $derived(v.me !== null && v.me.character !== null);
   let notepadMin = $state(notepadMinimized());
   let sideOpen = $state(!sideCollapsed());
   let sideWidth = $state(0);
@@ -90,7 +95,9 @@
 
   function onKey(e: KeyboardEvent) {
     const el = document.activeElement as HTMLElement | null;
-    const hidden = secretKey(secret, e, isTextField(el) || menuOpen);
+    // a tecla é do campo em que foi apertada, mesmo que ele tenha largado o foco ao tratá-la (o Enter que manda a fala)
+    const typing = isTextField(el) || isTextField(e.target as HTMLElement | null);
+    const hidden = secretKey(secret, e, typing || menuOpen);
     secret = hidden.secret;
     if (hidden.step !== null && v.me && v.me.character !== null) {
       // dois apertos seguidos: o segundo parte do que o primeiro pediu, não do que a sala ainda mostra
@@ -101,7 +108,9 @@
       send({ type: 'character', character: next });
       rememberCharacter(next);
     }
-    const action = keyAction(e, { inTextField: isTextField(el), canSkip: v.canSkip && !menuOpen, canNotepad: game && !menuOpen, canPanel: !menuOpen });
+    // com um botão focado o Enter é dele: a fala só abre com o foco solto
+    const canChat = canTalk && !menuOpen && (el === null || el === document.body);
+    const action = keyAction(e, { inTextField: typing, canSkip: v.canSkip && !menuOpen, canNotepad: game && !menuOpen, canPanel: !menuOpen, canChat });
     if (!action) return;
     e.preventDefault();
     switch (action) {
@@ -110,6 +119,7 @@
       case 'panel': setSide(!sideOpen); break;
       case 'menu': menuOpen = !menuOpen; break;
       case 'blur': el?.blur(); break;
+      case 'chat': chat?.focus(); break;
     }
   }
 
@@ -183,6 +193,8 @@
     <div class="gs-rank"><Ranking rows={v.ranking} {room} /></div>
     <Notepad code={room.code} minimized={notepadMin} left={pad.left} width={pad.width} onminimize={setNotepadMin} />
   {/if}
+
+  {#if canTalk}<Chat bind:this={chat} onsend={(text) => remote.chat(text)} />{/if}
 
   {#if menuOpen}<Menu code={room.code} onclose={() => (menuOpen = false)} />{/if}
   {#if refused}<div class="gs-toast" role="status">{t('error.refused')}</div>{/if}

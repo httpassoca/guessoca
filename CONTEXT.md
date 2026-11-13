@@ -92,6 +92,10 @@ _Evitar_: ataque, soco, golpe, hit
 Um balão de pixel sobre a cabeça por uns 2 s: `?`, `!`, `haha` e "eu?".
 _Evitar_: reação, emoji, fala
 
+**Fala** (`chat`):
+Uma mensagem curta, de até 60 caracteres, escrita no campo do canto de baixo à direita (Enter foca, Enter manda). Não fica guardada nem em lista: vira um balão de pixel perto do personagem de quem falou, da família dos balões dos emotes, que todo mundo vê por 3 a 6 s conforme o tamanho; uma fala nova da mesma pessoa troca a anterior. Uma por segundo por pessoa. Fala quem tem personagem, no lobby, no jogo e no fim; bot não fala. Passa por fora do estado da sala e não conta como atividade.
+_Evitar_: mensagem, chat (em português), histórico, log
+
 **Presença** (`presence`):
 Onde o personagem de uma pessoa está, como se move e o que anima. Sai de cada aba umas quinze vezes por segundo e chega às outras por fora do estado da sala; não conta como atividade.
 _Evitar_: posição, tracking, telemetria, sync

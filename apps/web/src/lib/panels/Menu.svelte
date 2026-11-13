@@ -54,6 +54,7 @@
           <li><span>{t('keys.jump')}</span><Kbd keys={[t('keys.space')]} /></li>
           <li><span>{t('keys.shove')}</span><Kbd keys={['J']} /></li>
           <li><span>{t('keys.emotes')}</span><Kbd keys={['1', '2', '3', '4']} /></li>
+          <li><span>{t('keys.chat')}</span><Kbd keys={['Enter']} /></li>
         </ul>
       </div>
       <p class="gs-credit">{t('credit.character')}</p>

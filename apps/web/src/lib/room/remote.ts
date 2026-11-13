@@ -1,4 +1,4 @@
-import { CLOSE_KICKED, CLOSE_REPLACED, CLOSE_ROOM_ENDED, CLOSE_ROOM_NOT_FOUND, parsePresence, PING_INTERVAL, type ClientMessage, type Presence, type RoomError, type RoomSnapshot, type ServerMessage } from '@guess/protocol';
+import { cleanChat, CLOSE_KICKED, CLOSE_REPLACED, CLOSE_ROOM_ENDED, CLOSE_ROOM_NOT_FOUND, parsePresence, PING_INTERVAL, type ClientMessage, type Presence, type RoomError, type RoomSnapshot, type ServerMessage } from '@guess/protocol';
 import { pushPresence, type PresenceTrack } from '../world/presence';
 
 export type RemoteStatus = 'idle' | 'connecting' | 'open' | 'reconnecting' | 'closed';
@@ -45,12 +45,15 @@ export const realClock: Clock = { setTimeout: (fn, ms) => setTimeout(fn, ms), cl
 
 /**
  * Os pedidos que a tela faz por `send`: tudo menos entrar/apelido (que têm método próprio), o ping (da conexão) e o
- * telhado (presença e empurrão, com método próprio e fora do estado).
+ * telhado (presença, empurrão e fala, com método próprio e fora do estado).
  */
-export type GameRequest = Exclude<ClientMessage, { type: 'join' | 'nickname' | 'ping' | 'presence' | 'shove' }>;
+export type GameRequest = Exclude<ClientMessage, { type: 'join' | 'nickname' | 'ping' | 'presence' | 'shove' | 'chat' }>;
 
 /** Alguém (`by`) me empurrou para o lado `dir`. */
 export interface ShovedEvent { by: string; dir: 1 | -1 }
+
+/** Alguém da sala (`member`, eu inclusive) falou `text` (já limpo: só texto, numa linha). */
+export interface ChatEvent { member: string; text: string }
 
 export const BACKOFF_START = 500;
 export const BACKOFF_MAX = 10_000;
@@ -65,7 +68,8 @@ const finalReason = (code: number): ClosedReason => CLOSE_REASONS[code] ?? (code
  * (a recusa fica em `state.error`, o snapshot que temos continua valendo).
  *
  * O telhado passa por fora do estado (ADR 0005): a presença de cada pessoa (as duas últimas, com a hora em que chegaram)
- * se lê com `presenceOf`, e os empurrões que recebo com `onShoved`; nenhum dos dois avisa quem observa o estado.
+ * se lê com `presenceOf`, os empurrões que recebo com `onShoved` e as falas de todo mundo (a minha também, de volta do
+ * servidor) com `onChat`; nenhum deles avisa quem observa o estado. Um servidor que ainda não conhece a fala só a ignora.
  */
 export class RemoteRoom {
   private st: RemoteState = { status: 'idle', room: null, reason: null, error: null, errorSeq: 0, receivedAt: 0, attempt: 0 };
@@ -81,6 +85,7 @@ export class RemoteRoom {
   /** a presença de cada membro e de cada bot, por id; some com quem sai da turma ou do telhado */
   private readonly presences = new Map<string, PresenceTrack>();
   private readonly shovedListeners = new Set<(e: ShovedEvent) => void>();
+  private readonly chatListeners = new Set<(e: ChatEvent) => void>();
   private readonly makeSocket: SocketFactory;
   private readonly clock: Clock;
   private readonly now: () => number;
@@ -146,9 +151,18 @@ export class RemoteRoom {
     return () => { this.shovedListeners.delete(listener); };
   }
 
+  /** Falo `text`: o servidor limpa, limita e repassa a todo mundo (a mim também); não é um pedido. */
+  chat(text: string) { this.raw({ type: 'chat', text }); }
+  /** Avisa a cada fala que chega (a minha inclusive). Devolve como parar de ouvir. */
+  onChat(listener: (e: ChatEvent) => void) {
+    this.chatListeners.add(listener);
+    return () => { this.chatListeners.delete(listener); };
+  }
+
   dispose() {
     this.disposed = true;
     this.shovedListeners.clear();
+    this.chatListeners.clear();
     this.clearTimer();
     const ws = this.socket; this.socket = null;
     ws?.close(1000, 'saiu');
@@ -170,6 +184,14 @@ export class RemoteRoom {
       if (msg.dir !== 1 && msg.dir !== -1) return;
       const e: ShovedEvent = { by: msg.by, dir: msg.dir };
       for (const l of this.shovedListeners) l(e);
+      return;
+    }
+    if (msg.type === 'chat') {
+      if (typeof msg.member !== 'string' || typeof msg.text !== 'string') return;
+      const text = cleanChat(msg.text); // o servidor já limpou; de novo, para a tela nunca depender disso
+      if (!text) return;
+      const e: ChatEvent = { member: msg.member, text };
+      for (const l of this.chatListeners) l(e);
       return;
     }
     if (msg.type !== 'snapshot') return; // pong: só conta como resposta

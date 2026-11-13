@@ -22,6 +22,27 @@ export const EMOTES = ['question', 'exclaim', 'haha', 'me'] as const;
 export type EmoteName = (typeof EMOTES)[number];
 export const EMOTE_MS = 2000;
 
+/**
+ * Fala: uma mensagem curta que vira um balão perto do personagem de quem falou e some; não fica guardada em lugar nenhum.
+ * No máximo `CHAT_MAX` caracteres, e uma por `CHAT_INTERVAL` ms por pessoa (o servidor descarta as a mais).
+ */
+export const CHAT_MAX = 60;
+export const CHAT_INTERVAL = 1000;
+
+/**
+ * O texto de uma fala como vai para a tela: só texto, numa linha. Tira os caracteres de controle e de formatação
+ * (inclusive os que invertem a direção do texto), junta os espaços (quebras de linha viram espaço), apara as pontas e
+ * corta em `CHAT_MAX` caracteres (pontos de código, para não partir um emoji no meio). Vazio = não há o que falar.
+ */
+export function cleanChat(raw: string): string {
+  const s = raw.normalize('NFC')
+    .replace(/[\p{Cc}\p{Zl}\p{Zp}]+/gu, ' ')
+    .replace(/[\p{Cf}\p{Co}\p{Cs}\p{Cn}]+/gu, '')
+    .replace(/\s+/gu, ' ')
+    .trim();
+  return [...s].slice(0, CHAT_MAX).join('').trimEnd();
+}
+
 export const ANIMS: readonly Anim[] = ['idle', 'walk', 'run', 'jump', 'fall', 'fall_loop', 'shove'];
 
 /** Onde o personagem de alguém está e o que faz, como a aba dele manda. */
@@ -118,6 +139,8 @@ export type ClientMessage =
   | { type: 'presence'; presence: Presence }
   /** empurrei `target` (uma pessoa ou um bot) para o lado `dir`; a aba dela aplica em si mesma (o bot, o servidor) */
   | { type: 'shove'; target: string; dir: 1 | -1 }
+  /** uma fala; passa por fora da sala, repassada a todo mundo (não é atividade). O texto já sai limpo do parser (`cleanChat`) */
+  | { type: 'chat'; text: string }
   | { type: 'ping' };
 
 /** Por que um pedido foi recusado: a sala já tem `MAX_MEMBERS`; ou o pedido não vale agora (fora da vez, fase errada, não é moderador…). */
@@ -132,6 +155,8 @@ export type ServerMessage =
   | { type: 'presence'; member: string; presence: Presence }
   /** alguém (`by`) me empurrou para o lado `dir` */
   | { type: 'shoved'; by: string; dir: 1 | -1 }
+  /** `member` falou `text`; chega a todo mundo, inclusive a quem falou */
+  | { type: 'chat'; member: string; text: string }
   | { type: 'pong' };
 
 /** Um bot engraçado no telhado agora: quem é. Onde está chega por `presence`, como a de uma pessoa. */
@@ -313,6 +338,11 @@ export function parseClientMessage(raw: unknown): ClientMessage | null {
     }
     case 'shove':
       return (isId(m.target) || (typeof m.target === 'string' && BOT_ID_RE.test(m.target))) && (m.dir === 1 || m.dir === -1) ? { type: 'shove', target: m.target, dir: m.dir } : null;
+    case 'chat': {
+      if (typeof m.text !== 'string' || m.text.length > CHAT_MAX * 4) return null;
+      const text = cleanChat(m.text);
+      return text ? { type: 'chat', text } : null;
+    }
     case 'kick':
     case 'handOver':
       return isId(m.member) ? { type: m.type, member: m.member } : null;

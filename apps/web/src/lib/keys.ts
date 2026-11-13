@@ -2,13 +2,14 @@
  * O teclado do jogo, puro: que ação uma tecla vira. O mouse cuida dos painéis; o teclado só tem atalhos. Num campo de
  * texto as teclas são do texto (Esc só sai do campo). Tab = passar a vez, só na própria vez; fora dela o Tab anda
  * entre os botões como sempre. Acertei não tem atalho (abre uma votação: só no botão, para não sair sem querer). N abre e minimiza o bloco (só com o jogo correndo ou no fim, quando
- * ele existe); P recolhe e mostra o painel da sala; Esc abre e fecha o menu.
+ * ele existe); P recolhe e mostra o painel da sala; Esc abre e fecha o menu; Enter foca o campo da fala (nele, Enter manda
+ * e Esc sai: isso é com o `Chat.svelte`).
  *
  * O telhado (`worldKey`) tem as suas: A/D ou ←/→ andam, W/S ou ↑/↓ mudam a profundidade, Shift corre, Espaço pula,
  * J empurra e 1–4 são os emotes. Vão pela posição da tecla (`code`), não pela letra, para correr com Shift continuar
  * andando. Não se cruzam com as do jogo.
  */
-export type KeyAction = 'skip' | 'notepad' | 'panel' | 'menu' | 'blur';
+export type KeyAction = 'skip' | 'notepad' | 'panel' | 'menu' | 'blur' | 'chat';
 
 export interface KeyPress { key: string; code?: string; ctrlKey?: boolean; altKey?: boolean; metaKey?: boolean; shiftKey?: boolean; repeat?: boolean }
 export interface KeyContext {
@@ -19,6 +20,8 @@ export interface KeyContext {
   canNotepad: boolean;
   /** o painel da sala pode ser recolhido ou mostrado agora (não com o menu aberto) */
   canPanel: boolean;
+  /** dá para falar agora: tenho personagem, não há menu aberto nem botão focado (o Enter seria dele) */
+  canChat?: boolean;
 }
 
 export function keyAction(e: KeyPress, ctx: KeyContext): KeyAction | null {
@@ -29,6 +32,7 @@ export function keyAction(e: KeyPress, ctx: KeyContext): KeyAction | null {
     case 'Tab': return ctx.canSkip ? 'skip' : null;
     case 'n': case 'N': return ctx.canNotepad ? 'notepad' : null;
     case 'p': case 'P': return ctx.canPanel ? 'panel' : null;
+    case 'Enter': return ctx.canChat ? 'chat' : null;
     default: return null;
   }
 }
