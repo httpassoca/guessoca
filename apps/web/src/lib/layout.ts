@@ -10,6 +10,14 @@ export const EDGE = 12;
 export const GAP = 12;
 /** largura do bloco aberto */
 export const NOTEPAD_W = 340;
+/** o bloco minimizado vira uma aba presa embaixo: no máximo esta largura */
+export const NOTEPAD_TAB_W = 160;
+/** o campo da fala, no canto de baixo à direita: a largura dele aberto (o mais largo) e a altura */
+export const CHAT_W = 320;
+export const CHAT_H = 36;
+/** a barra de vida do chefão: a largura cheia e a menor que ainda se lê */
+export const BOSS_BAR_W = 480;
+export const BOSS_BAR_MIN = 280;
 
 /** A coluna da sala: aberta ou recolhida, e a largura medida (0 enquanto não mediu). */
 export interface Side { open: boolean; width: number }
@@ -46,4 +54,24 @@ export function sideCollapsedAfter(prev: Phase | null, next: Phase, collapsed: b
 /** Quanto da esquerda da tela a coluna cobre: a câmera do telhado centra no resto. */
 export function sideInset(side: Side): number {
   return side.open && side.width > 0 ? EDGE + side.width : 0;
+}
+
+/**
+ * Onde vai a barra de vida do chefão (`left`, `width` e `bottom`, px): embaixo, no meio da tela, entre o bloco (aberto,
+ * ou a aba dele) e o campo da fala. Sem lugar ali para `BOSS_BAR_MIN`, sobe para cima do campo da fala, encostada à
+ * direita (e ainda fora do bloco, se der).
+ */
+export function bossBarBox(side: Side, viewportW: number, notepadMinimized: boolean): { left: number; width: number; bottom: number } {
+  const pad = notepadBox(side, viewportW);
+  const from = pad.left + (notepadMinimized ? NOTEPAD_TAB_W : pad.width) + GAP;
+  const to = viewportW - EDGE - CHAT_W - GAP;
+  if (to - from >= BOSS_BAR_MIN) {
+    const width = Math.min(BOSS_BAR_W, to - from);
+    const left = Math.max(from, Math.min(to - width, Math.round(viewportW / 2 - width / 2)));
+    return { left, width, bottom: EDGE };
+  }
+  const right = viewportW - EDGE;
+  const room = right - from >= BOSS_BAR_MIN ? right - from : right - EDGE;
+  const width = Math.min(BOSS_BAR_W, room);
+  return { left: right - width, width, bottom: EDGE + CHAT_H + GAP };
 }

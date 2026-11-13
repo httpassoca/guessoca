@@ -8,7 +8,7 @@
   import { notepadMinimized, rememberCharacter, rememberedCharacter, rememberNotepadMinimized, rememberSideCollapsed, sideCollapsed } from '../identity';
   import { isTextField, keyAction } from '../keys';
   import { NO_SECRET, secretKey, stepCharacter } from '../secret';
-  import { besideSide, EDGE, GAP, notepadBox, sideCollapsedAfter, sideInset, type Phase } from '../layout';
+  import { besideSide, bossBarBox, EDGE, GAP, notepadBox, sideCollapsedAfter, sideInset, type Phase } from '../layout';
   import type { GameRequest, RemoteRoom, RemoteState } from '../room/remote';
   import { moderatorTracker } from '../room/handover';
   import { characterToClaim, countdown, devTools, roomView } from '../room/view';
@@ -18,6 +18,7 @@
   import { roomSoundsTracker } from '../sound/room';
   import Icon from '../hud/Icon.svelte';
   import World from '../world/World.svelte';
+  import BossBar from './BossBar.svelte';
   import Chat from './Chat.svelte';
   import Corner from './Corner.svelte';
   import EndCard from './EndCard.svelte';
@@ -36,7 +37,8 @@
    * jogo; recolhível), a vez e a votação em cima no meio, o ranking no canto de cima à direita e o bloco preso embaixo
    * ao lado da coluna (só no jogo e no fim) e o campo da fala no canto de baixo à direita (Enter foca; o que se fala vira
    * um balão sobre o personagem, no `World`). No fim, o cartão do fim no meio (`EndCard`), que fecha para a coluna. Na
-   * minha vez, o título da aba avisa. Tudo o que é decidido vem de `roomView`; aqui só se desenha e se pede.
+   * minha vez, o título da aba avisa. Com o chefão no telhado, a barra de vida dele embaixo, entre o bloco e a fala
+   * (`BossBar`). Tudo o que é decidido vem de `roomView`; aqui só se desenha e se pede.
    * No lobby, uma linha discreta em cima explica o telhado cinza (a cor vem com o jogo) e, na primeira vez neste
    * navegador, o cartão das teclas fica embaixo no meio até a pessoa fechá-lo.
    */
@@ -66,6 +68,7 @@
   const dev = $derived(devTools(location, room.dev));
   const link = $derived(location.origin + roomPath(room.code));
   const pad = $derived(notepadBox(side, viewportW));
+  const bossBox = $derived(bossBarBox(side, viewportW, notepadMin));
   /** a vez e a votação centram no que sobra entre a coluna (ou os botões do canto) e o ranking */
   const topLeft = $derived(sideOpen ? besideSide(side) : EDGE + cornerWidth + GAP);
   const PHASE: Record<RoomSnapshot['phase'], MsgKey> = { lobby: 'phase.lobby', playing: 'phase.playing', ended: 'phase.ended' };
@@ -246,6 +249,8 @@
     <div class="gs-rank"><Ranking rows={v.ranking} {room} /></div>
     <Notepad code={room.code} minimized={notepadMin} left={pad.left} width={pad.width} onminimize={setNotepadMin} />
   {/if}
+
+  {#if room.phase === 'playing'}<BossBar {room} left={bossBox.left} width={bossBox.width} bottom={bossBox.bottom} />{/if}
 
   {#if room.phase === 'ended' && endOpen}
     <EndCard {v} {room} left={topLeft} onclose={() => (endOpen = false)} onplayagain={() => send({ type: 'playAgain' })} />

@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 import { project } from '@guess/world';
-import { besideSide, EDGE, GAP, NOTEPAD_W, notepadBox, sideCollapsedAfter, sideInset } from '../src/lib/layout';
+import { besideSide, BOSS_BAR_MIN, BOSS_BAR_W, bossBarBox, CHAT_H, CHAT_W, EDGE, GAP, NOTEPAD_W, notepadBox, sideCollapsedAfter, sideInset } from '../src/lib/layout';
 import { makeView, renderView } from '../src/lib/world/view';
 
 describe('o que fica ao lado da coluna', () => {
@@ -76,5 +76,41 @@ describe('o telhado com a coluna à esquerda', () => {
   test('sem coluna, nada muda', () => {
     const visible = makeView(1280, 720);
     expect(renderView(visible, 0)).toEqual(visible);
+  });
+});
+
+describe('a barra de vida do chefão, embaixo', () => {
+  const W = 480;
+  /** não encosta no bloco (aberto ou a aba dele) nem no campo da fala (aberto, o mais largo) */
+  const clear = (box: { left: number; width: number; bottom: number }, side: { open: boolean; width: number }, vw: number, minimized: boolean) => {
+    const pad = notepadBox(side, vw);
+    const padRight = pad.left + (minimized ? 160 : pad.width);
+    const chatLeft = vw - EDGE - CHAT_W;
+    expect(box.left).toBeGreaterThanOrEqual(padRight + GAP);
+    expect(box.left + box.width).toBeLessThanOrEqual(vw - EDGE);
+    if (box.bottom === EDGE) expect(box.left + box.width).toBeLessThanOrEqual(chatLeft - GAP);
+    else expect(box.bottom).toBeGreaterThanOrEqual(EDGE + CHAT_H + GAP);
+    expect(box.width).toBeGreaterThanOrEqual(BOSS_BAR_MIN);
+    expect(box.width).toBeLessThanOrEqual(BOSS_BAR_W);
+  };
+
+  test('numa tela larga: no meio da tela, na linha de baixo, do tamanho cheio', () => {
+    const box = bossBarBox({ open: false, width: W }, 1920, false);
+    expect(box.bottom).toBe(EDGE);
+    expect(box.width).toBe(BOSS_BAR_W);
+    expect(box.left + box.width / 2).toBe(960);
+    clear(box, { open: false, width: W }, 1920, false);
+  });
+
+  test('nas telas comuns, com a coluna aberta ou não e o bloco aberto ou não, nunca encosta em nada', () => {
+    for (const vw of [1280, 1366, 1440, 1536, 1600, 1920, 2560]) for (const open of [true, false]) for (const minimized of [true, false]) {
+      clear(bossBarBox({ open, width: W }, vw, minimized), { open, width: W }, vw, minimized);
+    }
+  });
+
+  test('sem lugar na linha de baixo (1280 com a coluna aberta), sobe para cima do campo da fala', () => {
+    const box = bossBarBox({ open: true, width: W }, 1280, false);
+    expect(box.bottom).toBe(EDGE + CHAT_H + GAP);
+    expect(box.left + box.width).toBe(1280 - EDGE);
   });
 });

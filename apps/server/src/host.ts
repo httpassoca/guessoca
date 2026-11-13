@@ -516,6 +516,11 @@ export class RoomHost {
       this.count(...hit);
       if (this.botWorld !== world) return;
     }
+    // o chefão derrubado: o raio cai na cidade em toda aba ao mesmo tempo
+    for (const d of r.downs) {
+      const raw = JSON.stringify({ type: 'bossDown', bot: d.id, x: Math.round(d.x * 10) / 10 });
+      for (const ws of this.sockets.values()) ws.send(raw);
+    }
     if (this.talk) {
       if (r.rosterChanged) this.talk.roster(world.bots.map((b) => ({ id: b.id, character: b.character, boss: b.boss })), now);
       for (const s of r.shoves) this.hear({ type: 'shovedPlayer', bot: s.by, target: s.target });

@@ -432,9 +432,9 @@ describe('sala: bots engraçados', () => {
   test('a lista de bots que o adaptador informa vai no snapshot, não é atividade, e some quando o jogo acaba', () => {
     const s = playing(2);
     const activity = s.state.lastActivity;
-    // o chefão vai com a escala dele
-    s.feed({ kind: 'bots', bots: [{ id: 'b1', character: 7 }, { id: 'b2', character: 9, scale: 2 }] }, s.now + 5000);
-    expect(s.snapshotFor('t2')!.bots).toEqual([{ id: 'b1', character: 7 }, { id: 'b2', character: 9, scale: 2 }]);
+    // o chefão vai com a escala dele e os pontos que ainda aguenta
+    s.feed({ kind: 'bots', bots: [{ id: 'b1', character: 7 }, { id: 'b2', character: 9, scale: 2, hp: 4, hpMax: 6 }] }, s.now + 5000);
+    expect(s.snapshotFor('t2')!.bots).toEqual([{ id: 'b1', character: 7 }, { id: 'b2', character: 9, scale: 2, hp: 4, hpMax: 6 }]);
     expect(s.state.lastActivity).toBe(activity);
     s.say('t1', { type: 'endGame' });
     expect(s.game.phase).toBe('ended');

@@ -491,7 +491,7 @@ describe('host: estatísticas do jogo (issue #59)', () => {
       // b1 e b2 ao alcance de Zé (em x = 100, virado para a direita); b3 do outro lado do telhado
       bots: [{ id: 'b1', body: { x: 115, y: 0, z: 40 } }, { id: 'b2', body: { x: 115, y: 0, z: 40 } }, { id: 'b3', body: { x: 700, y: 0, z: 40 } }],
       roster: () => [], presence: () => pres(false),
-      tick: () => { const r = { shoves, rosterChanged: false }; shoves = []; return r; },
+      tick: () => { const r = { shoves, rosterChanged: false, downs: [] }; shoves = []; return r; },
       shoved: (id: string) => id === 'b1' || id === 'b3',
     };
     (host as unknown as { botWorld: unknown }).botWorld = fake;
@@ -501,6 +501,35 @@ describe('host: estatísticas do jogo (issue #59)', () => {
     say(host, a, { type: 'shove', target: 'b3', dir: 1 }); // longe demais: nem chega ao bot
     expect(host.stats).toEqual({ m1: { ...zero, shoves: 1 }, m2: { ...zero, shovedByBots: 1 } });
     expect(received(b).filter((m) => m.type === 'shoved')).toEqual([{ type: 'shoved', by: 'b1', dir: 1 }]);
+    host.dispose();
+  });
+});
+
+describe('host: o chefão derrubado', () => {
+  test('o raio: quando os pontos do chefão acabam, todo mundo da sala recebe `bossDown` com onde ele estava, uma vez', async () => {
+    const host = new RoomHost('ABCD', silentLog, () => {}, { botTick: 5, rng: lcg(3) });
+    const a = fakeSocket('token-a'), b = fakeSocket('token-b');
+    host.connect(a); say(host, a, { type: 'join', nickname: 'Zé' });
+    host.connect(b); say(host, b, { type: 'join', nickname: 'Dita' });
+    say(host, a, { type: 'shuffleAuthors' });
+    for (const [ws, me] of [[a, 'm1'], [b, 'm2']] as const) {
+      const owner = Object.keys(host.state.game.authors).find((o) => host.state.game.authors[o] === me)!;
+      say(host, ws, { type: 'write', owner, text: 'Batman', image: null });
+    }
+    say(host, a, { type: 'funnyBots', on: true });
+    say(host, a, { type: 'start' });
+    let downs = [{ id: 'b1', x: 321.5, y: 0, z: 40 }];
+    const fake = {
+      bots: [], roster: () => [], presence: () => null,
+      tick: () => { const r = { shoves: [], rosterChanged: false, downs }; downs = []; return r; },
+      shoved: () => false,
+    };
+    (host as unknown as { botWorld: unknown }).botWorld = fake;
+    const strikes = (ws: { sent: string[] }) => received(ws).filter((m) => m.type === 'bossDown');
+    for (let i = 0; i < 200 && strikes(b).length === 0; i++) await sleep(5);
+    await sleep(30);
+    expect(strikes(a)).toEqual([{ type: 'bossDown', bot: 'b1', x: 321.5 }]);
+    expect(strikes(b)).toEqual([{ type: 'bossDown', bot: 'b1', x: 321.5 }]);
     host.dispose();
   });
 });

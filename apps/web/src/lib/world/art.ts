@@ -9,6 +9,7 @@
  */
 import { Assets, CanvasSource, Rectangle, Texture } from 'pixi.js';
 import { ROOFTOP, rooftopSheet, skylineUrl } from '../sprites/rooftop';
+import { roofline } from './ambient';
 
 /** As texturas do telhado, por nome do quadro em `rooftop.json` (e por camada, nas faixas da cidade). */
 export interface RooftopArt {
@@ -18,6 +19,8 @@ export interface RooftopArt {
   tile(name: string): Texture;
   /** a faixa da cidade da camada `far` ou `near`, que repete */
   skyline(layer: string): Texture;
+  /** o contorno da faixa da cidade da camada `layer`: a primeira linha com tinta de cada coluna (onde o raio encosta) */
+  roofline(layer: string): readonly number[];
 }
 
 /** O retângulo `x, y, w, h` (pixels da imagem) copiado para um canvas próprio, que repete e amplia sem borrar. */
@@ -46,10 +49,17 @@ export async function loadRooftopArt(): Promise<RooftopArt> {
     const t = strips[i];
     return [s.layer, ownTexture(t.source.resource as CanvasImageSource, 0, 0, s.w, s.h)] as const;
   }));
+  // o contorno de cada faixa, lido uma vez dos pixels dela (o canvas da textura que repete)
+  const tops = new Map(ROOFTOP.skylines.map((s) => {
+    const canvas = (skylines.get(s.layer)!.source.resource as HTMLCanvasElement);
+    const data = canvas.getContext('2d')!.getImageData(0, 0, s.w, s.h).data;
+    return [s.layer, roofline(data, s.w, s.h)] as const;
+  }));
   const get = <T>(m: Map<string, T>, k: string, what: string) => { const v = m.get(k); if (!v) throw new Error(`${what} faltando na folha do telhado: ${k}`); return v; };
   return {
     frame: (name) => get(frames, name, 'quadro'),
     tile: (name) => get(tiles, name, 'ladrilho'),
     skyline: (layer) => get(skylines, layer, 'cidade'),
+    roofline: (layer) => get(tops, layer, 'contorno da cidade'),
   };
 }

@@ -22,6 +22,7 @@
  *     balloons                                balões dos emotes, sempre por cima dos corpos
  *     celebration                             o confete de quem acertou (`celebration.ts`)
  *     weather                                 neblina da frente e chuva
+ *     thunderclap                             o clarão da tela toda do raio do chefão derrubado
  *   world inteiro                             ← aberração RGB + CRT (`film.world`)
  *   (HTML por cima do canvas: post-its e painéis, fora dos filtros)
  *
@@ -54,6 +55,7 @@ import { seedOf } from './critters';
 import { Fauna } from './fauna';
 import { Film } from './film';
 import { lobbyMatrix, moodStep } from './mood';
+import { hash, STRIKE_MS, strikeAt } from './ambient';
 import { Platforms } from './platforms';
 import { RoofLife } from './rooflife';
 import { fitFactor, SheetCache } from './sheet-cache';
@@ -196,6 +198,9 @@ export class Scene {
   private readonly bodies = new Container({ sortableChildren: true });
   private readonly balloons = new Container();
   private readonly celebration = new Celebration();
+  /** o clarão da tela toda quando o raio do chefão cai, e quando caiu (o mundo treme um instante) */
+  private readonly thunderclap = new Graphics();
+  private struckAt: number | null = null;
   /** os gatos e os pássaros (issue #71); null até as folhas carregarem, ou se não carregarem */
   private fauna: Fauna | null = null;
   private roomCode = '';
@@ -282,7 +287,8 @@ export class Scene {
     this.weather = new Weather(art);
     this.roofLife = new RoofLife(art);
     this.scenery.addChild(this.backdrop, this.platforms.back, this.roofLife);
-    this.world.addChild(this.scenery, this.shadows, this.bodies, this.platforms.front, this.balloons, this.celebration, this.weather);
+    this.thunderclap.blendMode = 'add';
+    this.world.addChild(this.scenery, this.shadows, this.bodies, this.platforms.front, this.balloons, this.celebration, this.weather, this.thunderclap);
     this.applyEffects();
     // os bichos não seguram a cena: sem as folhas deles, o telhado abre sem bichos
     try {
@@ -349,6 +355,27 @@ export class Scene {
   /** `id` acertou agora: confete em volta dele por uns 2 s, seguindo de onde ele estiver. */
   celebrate(id: string, now: number) { this.celebration.start(id, now); this.fauna?.cheer(id); }
 
+  /**
+   * O chefão foi derrubado (o servidor avisou todo mundo): um raio cai num prédio da cidade atrás de onde ele estava
+   * (`x`, unidades do mundo; `seed` dá o desenho), a tela toda clareia e o mundo treme um instante.
+   */
+  strike(seed: number, x: number, now: number) { this.backdrop?.life.strike(seed, x, now); this.struckAt = now; }
+
+  /** O clarão da tela toda e o tremor do raio do chefão, se há um caindo agora. */
+  private stepStrike(view: View, now: number) {
+    if (this.struckAt === null) return;
+    const t = now - this.struckAt;
+    const { flash } = strikeAt(t);
+    this.thunderclap.clear();
+    this.thunderclap.visible = flash > 0;
+    if (flash > 0) this.thunderclap.rect(0, 0, view.width, view.height).fill({ color: 0xd9d2ff, alpha: 0.42 * flash });
+    // treme uns pixels do mundo nos primeiros 400 ms, cada vez menos; depois volta ao lugar
+    const shake = t >= 0 && t < 400 ? (1 - t / 400) * 3 : 0;
+    const step = Math.floor(t / 40);
+    this.world.position.set(Math.round((hash(step, 91) - 0.5) * 2 * shake) * view.scale, Math.round((hash(step, 92) - 0.5) * 2 * shake) * view.scale);
+    if (t >= STRIKE_MS) { this.struckAt = null; this.thunderclap.clear(); this.thunderclap.visible = false; this.world.position.set(0, 0); }
+  }
+
   /** A sala (o código): os bichos tiram dela a semente da rotina, a mesma em toda aba. */
   setRoom(code: string) {
     if (code === this.roomCode) return;
@@ -371,6 +398,7 @@ export class Scene {
     if (this.effects) this.film.tick(now);
     this.stepMood(now);
     this.celebration.update((id) => list.find((b) => b.id === id), cam, view, now);
+    this.stepStrike(view, now);
 
     const seen = new Set<string>();
     // quem está mais ao fundo primeiro; empate pelo id, para não piscar a ordem

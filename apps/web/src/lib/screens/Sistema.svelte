@@ -40,6 +40,7 @@
     gotIt: 'acertei: um power-up feliz', turnEnd: 'fim da vez: uma cigarra grave e curta',
     yourTurn: 'sua vez: dois toques agudos que sobem',
     thunder: 'trovão: ruído grave e abafado, longe', siren: 'sirene: um ui-ó lento e baixinho lá na rua',
+    strike: 'raio: o estalo seco e o trovão perto, quando o chefão cai',
   };
   const PASS_KEY = 'guess.system.pass';
 

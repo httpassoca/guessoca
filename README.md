@@ -92,6 +92,7 @@ apps/web           Vite + Svelte 5 + PixiJS v8 + dssoca
   src/lib/room/view.ts     o snapshot visto por mim: quem sou, para quem escrevo, de quem é a vez, se posso acertar, passar,
                            desistir ou votar, os post-its como posso vê-los, o ranking, a contagem regressiva
   src/lib/room/stats.ts    as estatísticas do fim do jogo: do snapshot para as linhas da tabela (uma por pessoa) e os destaques
+  src/lib/room/boss.ts     a barra de vida do chefão: quem é o chefão no snapshot (`hp` de `hpMax`), os gomos e quando um golpe contou
   src/lib/image.ts         a imagem do post-it: reduz a 512 px, WebP baixando a qualidade até caber, sobe por POST
   src/lib/hints.ts         as dicas de primeira vez (o cartão das teclas no telhado), lembradas por navegador (localStorage)
   src/lib/effects.ts       "efeitos de tela" (os filtros de filme) ligados ou não, por navegador (localStorage)
@@ -120,12 +121,13 @@ apps/web           Vite + Svelte 5 + PixiJS v8 + dssoca
                            corpos, tingidos para a noite), World.svelte (que também desenha
                            os balões de fala, na fonte VT323 de `public/fonts/`), e a vida no telhado (issue #70): ambient
                            (puro: quando cada coisa acontece, por hash do relógio: janelas, letreiros, avião, relâmpago,
-                           carros, sirene, respingos, gotas, vapor), windows (Pixi: as janelas que acendem e apagam por cima
+                           carros, sirene, respingos, gotas, vapor; e o raio do chefão derrubado: o tempo, o caminho e o
+                           prédio que ele atinge), windows (Pixi: as janelas que acendem e apagam por cima
                            das fachadas, a luz da sirene), skylife (Pixi: relâmpago, holofote, avião, estrela cadente,
-                           janelas da cidade piscando, carros na rua) e rooflife (Pixi: respingos, anéis e reflexo do neon
+                           janelas da cidade piscando, carros na rua, o raio do chefão derrubado) e rooflife (Pixi: respingos, anéis e reflexo do neon
                            nas poças, gotas, a hélice do ar-condicionado, o vapor da chaminé, o espirro de quem pisa na poça)
-  src/lib/sound/           os efeitos sonoros: sfx (oito sons como parâmetros do sfxr, gerados com o jsfxr; nenhum arquivo de
-                           áudio; o trovão e a sirene são do telhado em volta), room (os sons da sala tirados da diferença entre snapshots: votação, acertou, fim de vez),
+  src/lib/sound/           os efeitos sonoros: sfx (nove sons como parâmetros do sfxr, gerados com o jsfxr; nenhum arquivo de
+                           áudio; o trovão, a sirene e o raio do chefão são do telhado em volta), room (os sons da sala tirados da diferença entre snapshots: votação, acertou, fim de vez),
                            settings (volume e mudo por navegador) e player (um AudioContext, ligado na primeira interação)
   src/lib/keys.ts          Tab = passar (fora da vez, com o foco solto, nada), N = bloco, Esc = menu, Enter = falar (fora de campo de texto)
   src/lib/panels/          Room (o telhado atrás de tudo, a barra, a coluna da fase que recolhe, teclado), TurnBar (vez, quem vem
@@ -133,7 +135,7 @@ apps/web           Vite + Svelte 5 + PixiJS v8 + dssoca
                            e PostitEditor (ao vivo, imagem, Pronto, moderador escreve os vazios), Playing (vez, votação, ranking),
                            ModPanel, Ended, Stats (as estatísticas do jogo, na coluna do fim), EndCard
                            (o cartão do fim, no meio), RowMenu (o ⋯ do moderador numa linha da turma), Notepad, Menu, Chat (o campo da
-                           fala, no canto de baixo à direita)
+                           fala, no canto de baixo à direita), BossBar (a barra de vida do chefão, embaixo, entre o bloco e a fala)
   src/lib/screens/         Home (abrir sala, entrar com código, crédito) e Sala (apelido, depois o jogo; sala inexistente,
                            encerrada ou expulso)
   test/                    tradução, rotas, identidade, teclas, imagem, `RemoteRoom` com socket falso e contra o servidor de
