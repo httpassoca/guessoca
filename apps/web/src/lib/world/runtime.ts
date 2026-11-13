@@ -8,7 +8,9 @@
  *
  * O que toca na arte: monta a lista de `SceneBody` (unidades do mundo) para `scene.ts`, com `animSince` dos outros
  * medido aqui (a presença não leva quando a animação começou), e põe cada post-it em HTML em `headAnchor` (pixels da
- * tela), separado por `declutter`, com `z-index` 1000 − `z` (quem está mais à frente cobre).
+ * tela), separado por `declutter`, com `z-index` 1000 − `z` (quem está mais à frente cobre). O balão de fala mora nessa
+ * mesma etiqueta (`World.svelte`); daqui sai só o tamanho do pixel dele (`--gs-chat-px`), que é a escala do
+ * telhado: um pixel do balão é um pixel do mundo.
  */
 import { EMOTE_MS, EMOTES, type RoomSnapshot } from '@guess/protocol';
 import { attackMs, character } from '../sprites/characters';
@@ -22,6 +24,7 @@ import { crowd, othersOf, type CrowdBody } from './crowd';
 import { fixedSteps, STEP_MS } from './loop';
 import { PresenceSender, presenceOfBody, type Emote } from './presence';
 import type { Scene, SceneBody } from './scene';
+import { snapShift } from './bubbles';
 import { declutter, type Tag } from './declutter';
 import { rememberedZoom, rememberZoom } from '../identity';
 import { headAnchor, makeView, renderView, stepZoom } from './view';
@@ -64,6 +67,8 @@ export class WorldRuntime {
   private zoom = rememberedZoom();
   private lastWheel = 0;
   private moodSet = false;
+  /** o pixel do balão de fala que está no CSS agora (px da tela); 0 = ainda não posto */
+  private chatPx = 0;
   private lang: Lang;
   private body: Body | null = null;
   private cam: Camera | null = null;
@@ -226,6 +231,9 @@ export class WorldRuntime {
     // a câmera segue dentro do que se vê (à direita da coluna); desenha-se na vista larga, que põe o meio no meio dele
     const visible = makeView(window.innerWidth, window.innerHeight, this.insetLeft, this.zoom);
     const view = renderView(visible, this.insetLeft);
+    // um pixel do balão de fala = um pixel do mundo, como nos balões dos emotes
+    const chatPx = visible.scale;
+    if (chatPx !== this.chatPx) { this.chatPx = chatPx; this.opts.heads.style.setProperty('--gs-chat-px', `${chatPx}px`); }
     const body = this.body;
     // a primeira vez, já em cima do corpo (dt 0 só aplica os limites do mundo)
     try { this.cam = followCamera(this.cam ?? { x: body.x }, body, visible, this.cam ? elapsed / 1000 : 0); }
@@ -260,17 +268,21 @@ export class WorldRuntime {
   private placeHeads(list: readonly SceneBody[], cam: Camera, view: ReturnType<typeof makeView>) {
     const at = new Map(list.map((b) => [b.id, b]));
     // primeiro lê onde cada um quer ficar e o tamanho, depois escreve (sem intercalar leitura e escrita de layout)
-    const shown: { el: HTMLElement; tag: Tag }[] = [];
+    const shown: { el: HTMLElement; tag: Tag; bubble: HTMLElement | null; shift: number }[] = [];
     for (const el of this.opts.heads.children as HTMLCollectionOf<HTMLElement>) {
       const b = el.dataset.member ? at.get(el.dataset.member) : undefined;
       if (!b) { if (el.style.visibility !== 'hidden') el.style.visibility = 'hidden'; continue; }
       const p = headAnchor(b, cam, view);
       // o `.gs-head` não tem tamanho (o conteúdo é absoluto, ancorado embaixo no meio): mede-se o de dentro
       const box = (el.firstElementChild as HTMLElement | null) ?? el;
-      shown.push({ el, tag: { id: b.id, x: p.x, y: p.y, w: box.offsetWidth, h: box.offsetHeight, z: b.z } });
+      // o balão de fala fica centrado na cabeça: com largura ímpar cairia em meio pixel e a fonte de pixel borraria
+      const bubble = el.querySelector<HTMLElement>('.gs-bubble');
+      const shift = bubble ? snapShift(bubble.getBoundingClientRect().width) : 0;
+      shown.push({ el, bubble, shift, tag: { id: b.id, x: p.x, y: p.y, w: box.offsetWidth, h: box.offsetHeight, z: b.z } });
     }
     const lift = declutter(shown.map((s) => s.tag));
-    for (const { el, tag } of shown) {
+    for (const { el, tag, bubble, shift } of shown) {
+      if (bubble) { const t = shift ? `${shift}px` : ''; if (bubble.style.translate !== t) bubble.style.translate = t; }
       el.style.transform = `translate3d(${Math.round(tag.x)}px, ${Math.round(tag.y - (lift.get(tag.id) ?? 0))}px, 0)`;
       // quem está mais à frente (z menor) por cima; 1000 passa de qualquer z do mapa (0–`DEPTH`)
       el.style.zIndex = String(Math.round(1000 - tag.z));

@@ -6,6 +6,7 @@
   import type { RoomView } from '../room/view';
   import { playSfx } from '../sound/player';
   import { character, properName } from '../sprites/characters';
+  import { alive, nextExpiry, say, type Bubble } from './bubbles';
   import { heads } from './heads';
   import { WorldRuntime, type SceneStatus } from './runtime';
 
@@ -17,6 +18,10 @@
    * O post-it sobre a cabeça é um tooltip do dssoca (superfície, borda, fonte mono), sem papel amarelo: o meu é "?" até
    * ser revelado, o da vez fica com a cor de destaque, e cresce com o mouse em cima (só ele recebe o mouse; a camada não).
    * No lobby, só o apelido. Um bot engraçado leva só o nome do personagem dele.
+   *
+   * A fala de alguém vira um balão na mesma etiqueta, logo acima da cabeça (debaixo do apelido, que sobe enquanto ele
+   * está lá): papel branco, contorno escuro e rabicho como os balões dos emotes, na fonte de pixel Tiny5 (`app.css`,
+   * `.gs-bubble`). Sempre como texto, nunca HTML. Quanto dura e a troca pela fala seguinte é com `bubbles.ts`.
    */
   let { remote, room, v, blocked, insetLeft }: { remote: RemoteRoom; room: RoomSnapshot; v: RoomView; blocked: boolean; insetLeft: number } = $props();
 
@@ -25,6 +30,16 @@
   let status = $state<SceneStatus>('loading');
   let runtime: WorldRuntime | null = null;
   const list = $derived(heads(room, v));
+  /** os balões de fala que estão na tela, e o timer do próximo a vencer */
+  let bubbles = $state.raw<readonly Bubble[]>([]);
+  let bubbleTimer: ReturnType<typeof setTimeout> | undefined;
+  const bubbleOf = $derived(new Map(bubbles.map((b) => [b.id, b])));
+  function scheduleBubbles() {
+    clearTimeout(bubbleTimer);
+    const at = nextExpiry(bubbles);
+    if (at === null) return;
+    bubbleTimer = setTimeout(() => { bubbles = alive(bubbles, performance.now()); scheduleBubbles(); }, Math.max(0, at - performance.now()) + 1);
+  }
   /** o nome de um personagem, para a etiqueta de um bot: o herói e o esqueleto pelo que são (traduzido); os outros pelo nome próprio */
   const nameOf = (n: number) => {
     const c = character(n);
@@ -38,9 +53,12 @@
       onEvent: (ev) => { if (ev.type === 'jump' || ev.type === 'shove') playSfx(ev.type); },
     });
     const offShoved = remote.onShoved(() => playSfx('shove')); // levei um empurrão
+    const offChat = remote.onChat((e) => { bubbles = say(bubbles, e.member, e.text, performance.now()); scheduleBubbles(); });
+    // a fonte dos balões já carregada quando a primeira fala chegar
+    document.fonts?.load("8px 'Tiny5'").catch(() => {});
     runtime.setRoom(untrack(() => room));
     runtime.start();
-    return () => { offShoved(); runtime?.dispose(); runtime = null; };
+    return () => { offShoved(); offChat(); clearTimeout(bubbleTimer); runtime?.dispose(); runtime = null; };
   });
   $effect(() => { runtime?.setRoom(room); });
   $effect(() => { runtime?.setBlocked(blocked); });
@@ -51,6 +69,7 @@
 <div class="gs-world" bind:this={host} aria-hidden="true"></div>
 <div class="gs-heads" bind:this={layer} aria-hidden="true">
   {#each list as h (h.id)}
+    {@const said = bubbleOf.get(h.id)}
     <div class="gs-head" data-member={h.id}>
       <div class="inner" class:mine={h.mine} class:turn={h.card?.turn} class:done={h.card && h.card.status !== 'playing'}>
         {#if h.card}
@@ -64,6 +83,7 @@
           </div>
         {/if}
         <span class="tag">{h.bot !== null ? nameOf(h.bot) : h.mine ? t('postit.mine') : h.nickname}</span>
+        {#if said}{#key said.seq}<div class="gs-bubble"><span class="say">{said.text}</span></div>{/key}{/if}
       </div>
     </div>
   {/each}
