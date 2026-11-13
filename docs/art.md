@@ -341,7 +341,7 @@ Importing one, start to finish:
 7. Update the README, `CONTEXT.md` if the cast changed, and add an amendment to ADR 0007. Commit on a branch, open a PR, and merge when the owner says so.
 8. Tell the owner about every flaw you saw in the art (a smaller frame, a duplicate, a weak fall) and leave it as it is.
 
-Things the client already handles: an atlas with `scale < 1` is drawn smaller everywhere (`artScale`), with smooth filtering and no mipmaps (with mipmaps the sprite disappeared under software WebGL).
+Things the client already handles: an atlas with `scale < 1` is drawn smaller everywhere (`artScale`), with smooth filtering and no mipmaps (with mipmaps the sprite disappeared under software WebGL). The funny bots' boss is any character drawn twice as big (`SceneBody.scale`, from `scale` in the snapshot's `bots`): the sprite, the shadow and the emote balloon are multiplied by it from the feet, and `headY`/`emoteY` in `view.ts` take the same factor for the name tag and the balloon. The factor is an integer so pixel art keeps square pixels; art drawn smaller keeps its smooth filtering. No new sheet is needed.
 
 ## Pitfalls
 

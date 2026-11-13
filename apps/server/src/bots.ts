@@ -13,10 +13,20 @@
  *
  * O corpo é o mesmo das pessoas (`stepBody` do `@guess/world`): o cérebro só "aperta teclas" (`Input`). Por isso são
  * desajeitados de propósito: calculam mal um pulo, caem do telhado, empacam numa caixa.
+ *
+ * O **chefão** (issue #60) é um acontecimento raro do diretor (mais raro que a invasão, um por vez, conta para o máximo):
+ * a versão gigante de um personagem (`BOSS_SCALE` na lista; o desenho é do cliente), que cai do céu no telhado com mais
+ * gente e aguenta `BOSS_HP` empurrões, de pessoas ou de bots (os de bot contam pouco e nunca são o último:
+ * `BOSS_BOT_HIT_MS`). Os primeiros só o fazem cambalear (um tranco curto que nunca o tira do telhado) e ele costuma ir
+ * atrás de quem bateu; o último o joga longe e ele some de vez. Só anda, não sai do telhado em que caiu, não é
+ * desajeitado (se cair mesmo assim, volta) e só faz o que está em `BOSS_ACTIONS`: passeia, segue, encara, empurra. O
+ * sossego e a limpa do diretor não o levam: sai na hora dele (um ou dois minutos), no último empurrão, ou fugindo com
+ * os outros quando a opção é desligada. O corpo dele é mais alto e mais largo para os outros (`Other.h`, `Other.wide`),
+ * não mais fundo. Numa sala de desenvolvimento o primeiro acontecimento é um chefão (`bossFirst`).
  */
-import { BOTS_MAX, EMOTE_MS, type BotView, type EmoteName, type Presence } from '@guess/protocol';
+import { BOSS_SCALE, BOTS_MAX, EMOTE_MS, type BotView, type EmoteName, type Presence } from '@guess/protocol';
 import {
-  applyShove, blinking, BODY_RX, createBody, DEPTH, groundAt, MAP, NO_INPUT, SHOVE_DZ, SHOVE_REACH, STEP, stepBody, WORLD_X0, WORLD_X1,
+  applyShove, blinking, BODY_H, BODY_RX, createBody, DEPTH, groundAt, MAP, NO_INPUT, SHOVE_DZ, SHOVE_REACH, STEP, stepBody, WORLD_X0, WORLD_X1,
   type Body, type Input, type Other, type Platform,
 } from '@guess/world';
 
@@ -25,6 +35,30 @@ export const BOT_SHOVE_PLAYER_MS = 20_000;
 /** Desligada a opção, cada bot foge do telhado em até isto, ms; quem ainda estiver aí some. */
 export const BOTS_FLEE_MS = 6000;
 
+/** Quantos empurrões o chefão aguenta: o último o joga para fora. */
+export const BOSS_HP = 6;
+/** a que distância em x o chefão e outro corpo se encostam, em vezes a de dois corpos comuns: a média das duas larguras */
+const BOSS_WIDE = (1 + BOSS_SCALE) / 2;
+/** onde o chefão para ao lado de quem segue, encara ou vai empurrar: logo além de onde encosta (ainda ao alcance do empurrão) */
+const BOSS_NEAR = 2 * BODY_RX * BOSS_WIDE + 3;
+/**
+ * O empurrão de outro bot no chefão conta no máximo uma vez a cada isto, ms (os outros ele nem sente), e nunca é o
+ * último: quem o derruba é sempre uma pessoa. Sem isto, dois bots brigando com ele o tiram do telhado em segundos.
+ */
+export const BOSS_BOT_HIT_MS = 5000;
+/**
+ * o tranco de um empurrão que ainda não o derruba: para o lado e para cima (unidades por segundo) e sem controle por
+ * isto, ms. Anda uns 18 no ar (o empurrão comum leva uns 95); a menos de `BOSS_FLINCH_ROOM` da beirada, só o pulinho
+ */
+const BOSS_FLINCH_VX = 60;
+const BOSS_FLINCH_VY = 130;
+const BOSS_FLINCH_MS = 300;
+const BOSS_FLINCH_ROOM = 26;
+/** o último empurrão: voa longe (uns 250 de lado, 70 de altura) piscando e some depois disto, ms */
+const BOSS_OUT_VX = 320;
+const BOSS_OUT_VY = 360;
+const BOSS_OUT_MS = 1300;
+
 /** Uma pessoa no telhado como o servidor a conhece: a última presença dela. */
 export interface Seen { id: string; x: number; y: number; z: number; vx: number; vy: number; vz: number; solid: boolean }
 
@@ -32,6 +66,9 @@ export interface Seen { id: string; x: number; y: number; z: number; vx: number;
 export const ACTIONS = ['wander', 'follow', 'headsit', 'stare', 'fight', 'panic', 'copycat', 'lemming', 'crowd', 'stagedive', 'statue', 'bully'] as const;
 export type ActionName = (typeof ACTIONS)[number];
 /** O que ele faz sem escolher: chegando, indo embora, fugindo de quem o empurrou, indo se vingar. */
+/** O que o chefão escolhe fazer (o resto não se lê no tamanho dele), e quanto gosta de cada coisa além da nota de todos. */
+const BOSS_LIKES: Partial<Record<ActionName, number>> = { wander: 1, follow: 2.5, stare: 1.5, bully: 2, fight: 1 };
+export const BOSS_ACTIONS: readonly ActionName[] = ACTIONS.filter((a) => a in BOSS_LIKES);
 type Doing = ActionName | 'arrive' | 'leave' | 'flee' | 'revenge';
 
 /** A nota de partida de cada ação, antes da personalidade, do que há em volta e do dado. */
@@ -70,9 +107,17 @@ export interface Bot {
   comebacks: number;
   /** quem o empurrou por último */
   grudge: string | null;
+  /** o chefão: gigante, lento, aguenta `hp` empurrões */
+  boss: boolean;
+  /** quantos empurrões o chefão ainda aguenta (0 em quem não é) */
+  hp: number;
+  /** a última vez que o empurrão de um bot contou no chefão */
+  botHitAt: number;
   /** de onde não sai: para notar que empacou */
   stuckX: number;
   stuckSince: number;
+  /** o mesmo em profundidade, só para o chefão (largo, fica entalado entre dois corpos com mais facilidade) */
+  stuckZ: number;
   /** o que quem ele imita fazia, com a hora */
   trail: { at: number; vx: number; vz: number; up: boolean }[];
 }
@@ -88,6 +133,10 @@ export interface BotWorldOptions {
   platforms?: readonly Platform[];
   /** o primeiro acontecimento vem em até isto, ms (o padrão é de 8 a 68 s; uma sala de desenvolvimento apressa) */
   firstWithin?: number;
+  /** o primeiro acontecimento é um chefão (uma sala de desenvolvimento, para dar para ver sem esperar a sorte) */
+  bossFirst?: boolean;
+  /** o personagem do chefão, em vez de sorteado (para testar um personagem) */
+  bossCharacter?: number;
 }
 
 const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
@@ -101,6 +150,8 @@ export class BotWorld {
   private mood: number;
   private startedAt: number | null = null;
   private nextEventAt = 0;
+  /** quantos acontecimentos já houve */
+  private events = 0;
   /** desde quando a opção está desligada (os bots fogem) */
   private offSince: number | null = null;
   /** por pessoa: a última vez que um bot a empurrou */
@@ -114,7 +165,7 @@ export class BotWorld {
   }
 
   /** Quem está no telhado, para o snapshot. */
-  roster(): BotView[] { return this.bots.map((b) => ({ id: b.id, character: b.character })); }
+  roster(): BotView[] { return this.bots.map((b) => ({ id: b.id, character: b.character, ...(b.boss ? { scale: BOSS_SCALE } : {}) })); }
 
   /** A presença de um bot agora, como a de uma pessoa. */
   presence(bot: Bot, now: number): Presence {
@@ -131,6 +182,7 @@ export class BotWorld {
   shoved(id: string, dir: 1 | -1, by: string, now: number): boolean {
     const bot = this.bots.find((b) => b.id === id);
     if (!bot || blinking(bot.body, now) || bot.doing === 'arrive') return false;
+    if (bot.boss) return this.bossShoved(bot, dir, by, now);
     bot.body = applyShove(bot.body, dir, now);
     bot.grudge = by;
     bot.emote = { name: 'exclaim', since: now };
@@ -145,6 +197,38 @@ export class BotWorld {
     if (bot.temper === 'revenge') { bot.comebacks = Math.max(bot.comebacks, 1); this.start(bot, 'revenge', now, by, 9000 + this.rng() * 6000); }
     else if (bot.temper === 'leave') this.leave(bot, now);
     else this.start(bot, 'flee', now, by, 2000 + this.rng() * 3000);
+    return true;
+  }
+
+  /**
+   * O chefão levou um empurrão: perde um ponto; ainda de pé, cambaleia e reage; no último, voa para fora e some.
+   * Devolve se o empurrão pegou (o de um bot, cedo demais ou no último ponto, ele nem sente).
+   */
+  private bossShoved(bot: Bot, dir: 1 | -1, by: string, now: number): boolean {
+    const byBot = this.bots.some((o) => o.id === by);
+    if (byBot) {
+      if (bot.hp <= 1 || now - bot.botHitAt < BOSS_BOT_HIT_MS) return false;
+      bot.botHitAt = now;
+    }
+    bot.grudge = by;
+    bot.emote = { name: 'exclaim', since: now };
+    bot.hp--;
+    if (bot.hp <= 0) {
+      // voa piscando e some no ar: não volta
+      bot.exit = 'blink';
+      this.start(bot, 'leave', now, null, BOSS_OUT_MS);
+      bot.body = { ...applyShove(bot.body, dir, now), vx: dir * BOSS_OUT_VX, vy: BOSS_OUT_VY, stunnedUntil: now + BOSS_OUT_MS, blinkUntil: now + BOSS_OUT_MS };
+      return true;
+    }
+    // um tranco curto; na beirada, só o pulinho (não cai por isso)
+    const b = bot.body;
+    const edge = groundAt(this.platforms, b.x + dir * BOSS_FLINCH_ROOM, b.z) === null;
+    bot.body = { ...b, vx: edge ? 0 : dir * BOSS_FLINCH_VX, vy: BOSS_FLINCH_VY, vz: 0, grounded: false, riding: null, stunnedUntil: now + BOSS_FLINCH_MS };
+    if (bot.doing === 'leave') return true;
+    // vai atrás de quem bateu (andando), ou só encara
+    if (byBot) this.start(bot, 'fight', now, by, 4000 + this.rng() * 5000);
+    else if (this.rng() < 0.7) this.start(bot, 'revenge', now, by, 9000 + this.rng() * 6000);
+    else this.start(bot, 'stare', now, by, 4000 + this.rng() * 5000);
     return true;
   }
 
@@ -168,11 +252,24 @@ export class BotWorld {
 
     for (const bot of [...this.bots]) {
       if (bot.doing === 'leave' && bot.exit === 'blink' && now >= bot.until) { this.remove(bot); continue; }
+      // o chefão é mais alto e mais largo: os outros o veem assim, e ele vê todo mundo à mesma distância maior
+      const size = (o: Bot | null) => ({ ...(o?.boss ? { h: BODY_H * BOSS_SCALE } : {}), ...(o?.boss || bot.boss ? { wide: BOSS_WIDE } : {}) });
       const others: Other[] = [
-        ...this.players.map((p) => ({ id: p.id, x: p.x, y: p.y, z: p.z, vx: p.vx, vy: p.vy, vz: p.vz, solid: p.solid })),
-        ...this.bots.filter((o) => o !== bot).map((o) => ({ id: o.id, x: o.body.x, y: o.body.y, z: o.body.z, vx: o.body.vx, vy: o.body.vy, vz: o.body.vz, solid: !blinking(o.body, now) })),
+        ...this.players.map((p) => ({ id: p.id, x: p.x, y: p.y, z: p.z, vx: p.vx, vy: p.vy, vz: p.vz, solid: p.solid, ...size(null) })),
+        ...this.bots.filter((o) => o !== bot).map((o) => ({ id: o.id, x: o.body.x, y: o.body.y, z: o.body.z, vx: o.body.vx, vy: o.body.vy, vz: o.body.vz, solid: !blinking(o.body, now), ...size(o) })),
       ];
-      const input = bot.body.respawnAt === null ? this.think(bot, now) : NO_INPUT;
+      let input = bot.body.respawnAt === null ? this.think(bot, now) : NO_INPUT;
+      // o chefão nunca corre nem dá um passo para o vão (nem o toque de virar o rosto), a não ser indo embora
+      if (bot.boss && bot.doing !== 'leave' && bot.doing !== 'arrive') {
+        const dir = input.right ? 1 : input.left ? -1 : 0;
+        const gap = dir !== 0 && bot.body.grounded && groundAt(this.platforms, bot.body.x + dir * 8, bot.body.z) === null;
+        input = { ...input, run: false, ...(gap ? { left: false, right: false } : {}) };
+        // largo, entala entre dois corpos com facilidade: se quer andar e não sai do lugar, escolhe outra coisa em vez de
+        // andar parado (`think` zera a conta quando ele se mexe)
+        const wants = input.left || input.right || input.up || input.down;
+        if (!wants || !bot.body.grounded || now < bot.body.stunnedUntil) bot.stuckSince = now;
+        else if (now - bot.stuckSince > 1200) { this.choose(bot, now); input = NO_INPUT; }
+      }
       const r = stepBody(bot.body, input, dt, { now, platforms: this.platforms, others, shoveMs: bot.shoveMs });
       bot.body = r.body;
       for (const ev of r.events) {
@@ -185,8 +282,9 @@ export class BotWorld {
           }
         } else if (ev.type === 'fell') {
           // caiu: em geral some; quem ainda tem volta, volta no ponto de volta (o `stepBody` cuida)
-          if (bot.doing === 'leave' || bot.comebacks <= 0 || !ctx.enabled) this.remove(bot);
-          else { bot.comebacks--; this.start(bot, bot.grudge && bot.temper === 'revenge' ? 'revenge' : 'wander', now, bot.grudge, 8000); }
+          // o chefão não vai embora por ter caído: volta sempre
+          if (bot.doing === 'leave' || !ctx.enabled || (!bot.boss && bot.comebacks <= 0)) this.remove(bot);
+          else { if (!bot.boss) bot.comebacks--; this.start(bot, bot.grudge && bot.temper === 'revenge' ? 'revenge' : 'wander', now, bot.grudge, 8000); }
         }
       }
     }
@@ -220,17 +318,22 @@ export class BotWorld {
       ['invasion', 1.5 * m * m],
       ['clones', 0.3 + 0.5 * m],
       ['purge', this.bots.length > 4 ? 0.25 : 0],
+      // o chefão: sempre mais raro que a invasão, um por vez, e só se cabe
+      ['boss', room > 0 && !this.bots.some((b) => b.boss) ? 0.9 * m * m : 0],
     ];
-    const kind = this.pick(events);
+    const kind = this.events++ === 0 && this.opts.bossFirst ? 'boss' : this.pick(events);
     const life = () => now + 40_000 + this.rng() ** 1.5 * 200_000;
-    if (kind === 'quiet') { for (const bot of this.bots) if (this.rng() < 0.5 && bot.doing !== 'leave') this.leave(bot, now); }
-    else if (kind === 'purge') { for (const bot of this.bots) if (bot.doing !== 'leave') this.leave(bot, now); }
+    // o chefão não entra no sossego nem na limpa: fica pouco, e sai na hora dele ou no empurrão
+    if (kind === 'quiet') { for (const bot of this.bots) if (!bot.boss && this.rng() < 0.5 && bot.doing !== 'leave') this.leave(bot, now); }
+    else if (kind === 'purge') { for (const bot of this.bots) if (!bot.boss && bot.doing !== 'leave') this.leave(bot, now); }
     else if (kind === 'one') this.spawn(now, 1, taken, life);
     else if (kind === 'few') this.spawn(now, Math.min(room, int(2, 3)), taken, life);
     else if (kind === 'group') this.spawn(now, Math.min(room, int(4, 6)), taken, life);
     // a invasão é curta: chegam muitos e vão embora logo
     else if (kind === 'invasion') this.spawn(now, Math.min(room, int(7, BOTS_MAX)), taken, () => now + 20_000 + this.rng() * 20_000);
-    else if (kind === 'clones') this.spawn(now, Math.min(room, int(3, 6)), taken, life, this.character(taken));
+    else if (kind === 'clones') this.spawn(now, Math.min(room, int(3, 6)), taken, life, { same: this.character(taken) });
+    // o chefão fica pouco: de 50 a 110 s
+    else if (kind === 'boss') this.spawn(now, 1, taken, () => now + 50_000 + this.rng() * 60_000, { same: this.opts.bossCharacter, boss: true });
 
     // calmo, demora mais; caótico, vem logo; sempre com muita folga para os dois lados
     this.nextEventAt = now + (48_000 - 34_000 * m) * (0.4 + this.rng() * 1.4);
@@ -246,14 +349,16 @@ export class BotWorld {
     return from[Math.floor(this.rng() * from.length)];
   }
 
-  private spawn(now: number, count: number, taken: ReadonlySet<number>, life: () => number, same?: number) {
+  private spawn(now: number, count: number, taken: ReadonlySet<number>, life: () => number, { same, boss = false }: { same?: number; boss?: boolean } = {}) {
     // um grupo costuma chegar do mesmo jeito, com um atraso entre um e outro
     const how = this.rng();
     for (let i = 0; i < count; i++) {
       const character = same ?? this.character(taken);
       const body = createBody(this.platforms, now);
-      const way = this.rng() < 0.7 ? how : this.rng();
-      const spot = this.spot();
+      // o chefão sempre cai do céu
+      const way = boss ? 0 : this.rng() < 0.7 ? how : this.rng();
+      // o chefão cai no telhado em que há mais gente (não sai dele depois)
+      const spot = this.spot(boss ? this.busiestRoof() : undefined);
       let landing: Bot['goal'] = null;
       if (way < 0.4) {
         // cai do céu
@@ -274,10 +379,10 @@ export class BotWorld {
       const bot: Bot = {
         id: `b${this.nextId++}`, character, body, shoveMs: this.opts.attackMs?.[character] ?? 450, weights,
         temper: this.pick([['flee', 1], ['revenge', 1], ['leave', 0.6]]) as Temper,
-        clumsy: this.rng() < 0.18,
+        clumsy: !boss && this.rng() < 0.18,
         doing: 'arrive', since: now, until: now + 4000, target: null, goal: landing, phase: 0, nextBeat: 0, emote: null,
         leaveAt: life(), exit: this.pick([['walk', 1], ['jump', 1], ['blink', 0.6]]) as Exit,
-        comebacks: this.rng() < 0.25 ? 1 : 0, grudge: null, stuckX: body.x, stuckSince: now, trail: [],
+        comebacks: this.rng() < 0.25 ? 1 : 0, grudge: null, boss, hp: boss ? BOSS_HP : 0, botHitAt: -Infinity, stuckX: body.x, stuckSince: now, stuckZ: body.z, trail: [],
       };
       this.bots.push(bot);
     }
@@ -296,6 +401,14 @@ export class BotWorld {
   }
 
   private roofAt(x: number): Platform | undefined { return this.roofs.find((r) => x >= r.x0 && x <= r.x1); }
+
+  /** O telhado com mais pessoas em cima (no empate, ou sem ninguém, qualquer um): onde o chefão cai. */
+  private busiestRoof(): Platform | undefined {
+    const count = (r: Platform) => this.players.filter((p) => p.solid && this.roofAt(p.x) === r).length;
+    const most = Math.max(...this.roofs.map(count));
+    const best = this.roofs.filter((r) => count(r) === most);
+    return best[Math.floor(this.rng() * best.length)];
+  }
 
   /** O meio de cada vão: entre dois telhados, e por fora dos dois das pontas. */
   private gaps(): number[] {
@@ -336,7 +449,7 @@ export class BotWorld {
   }
 
   private start(bot: Bot, doing: Doing, now: number, target: string | null, ms: number, goal: Bot['goal'] = null) {
-    Object.assign(bot, { doing, since: now, until: now + ms, target, goal, phase: 0, nextBeat: now + 400 + this.rng() * 1200, stuckX: bot.body.x, stuckSince: now, trail: [] });
+    Object.assign(bot, { doing, since: now, until: now + ms, target, goal, phase: 0, nextBeat: now + 400 + this.rng() * 1200, stuckX: bot.body.x, stuckSince: now, stuckZ: bot.body.z, trail: [] });
   }
 
   private leave(bot: Bot, now: number) {
@@ -351,7 +464,11 @@ export class BotWorld {
 
   /** Escolhe o que fazer agora: nota de cada ação = base × personalidade × o que há em volta × dado; sorteia pelas notas ao quadrado. */
   private choose(bot: Bot, now: number) {
-    const around = this.around(bot, now);
+    // o chefão só liga para quem está no telhado dele (não pula vão)
+    const roofHere = this.roofAt(bot.body.x);
+    const around = this.around(bot, now).filter((a) => !bot.boss || this.roofAt(a.x) === roofHere);
+    // na cabeça do chefão ninguém sobe pulando do chão
+    const low = around.filter((a) => !this.bots.some((o) => o.boss && o.id === a.id));
     const people = around.filter((a) => !a.bot);
     const robots = around.filter((a) => a.bot);
     const near = (a: Seen) => Math.abs(a.x - bot.body.x) < 160;
@@ -361,7 +478,7 @@ export class BotWorld {
     const context: Record<ActionName, number> = {
       wander: 1,
       follow: around.length ? 1 : 0,
-      headsit: around.length ? 1 : 0,
+      headsit: low.length ? 1 : 0,
       stare: around.length ? 1 : 0,
       fight: robots.length ? 1 : 0,
       panic: 1,
@@ -372,6 +489,7 @@ export class BotWorld {
       statue: 1,
       bully: shovable.length ? 1 : 0,
     };
+    if (bot.boss) for (const a of ACTIONS) context[a] *= BOSS_LIKES[a] ?? 0;
     const scores = ACTIONS.map((a) => {
       const s = BASE[a] * bot.weights[a] * context[a] * (0.4 + this.rng() * 1.2) * (a === bot.doing ? 0.3 : 1);
       return [a, s * s] as const;
@@ -384,7 +502,7 @@ export class BotWorld {
       case 'wander': {
         // quase sempre no telhado em que está; às vezes atravessa para outro
         const here = this.roofAt(bot.body.x);
-        const s = this.spot(here && this.rng() < 0.7 ? here : undefined);
+        const s = this.spot(here && (bot.boss || this.rng() < 0.7) ? here : undefined);
         return this.start(bot, 'wander', now, null, secs(4, 14), { x: s.x, z: s.z });
       }
       case 'follow': {
@@ -397,7 +515,7 @@ export class BotWorld {
         }
         return this.start(bot, 'follow', now, t, secs(6, 20));
       }
-      case 'headsit': return this.start(bot, 'headsit', now, any().id, secs(6, 22));
+      case 'headsit': return this.start(bot, 'headsit', now, low[Math.floor(this.rng() * low.length)].id, secs(6, 22));
       case 'stare': return this.start(bot, 'stare', now, any().id, secs(4, 9));
       case 'fight': return this.start(bot, 'fight', now, robots[Math.floor(this.rng() * robots.length)].id, secs(5, 12));
       case 'panic': return this.start(bot, 'panic', now, null, secs(4, 9), this.farEnd(bot));
@@ -437,6 +555,9 @@ export class BotWorld {
    */
   private steer(bot: Bot, tx: number, tz: number, run: boolean, reckless = false): Input {
     const b = bot.body;
+    // o chefão só anda e fica no telhado dele; indo embora, corre e pula como os outros
+    const heavy = bot.boss && bot.doing !== 'leave';
+    if (heavy) run = false;
     const input: Input = { ...NO_INPUT, run };
     const dx = tx - b.x, dz = tz - b.z;
     const dir = Math.abs(dx) > 3 ? Math.sign(dx) : 0;
@@ -446,7 +567,7 @@ export class BotWorld {
     if (dz < -3) input.down = true;
     // no ar, sempre na velocidade de corrida: um pulo sobre o vão dado andando não chega do outro lado
     if (!b.grounded) {
-      if (dir !== 0) input.run = true;
+      if (dir !== 0 && !heavy) input.run = true;
       // já em cima de chão e o destino é no vão (quem ele segue caiu, ou está pendurado na beirada): pousa primeiro
       if (!reckless && groundAt(this.platforms, b.x, b.z) !== null && groundAt(this.platforms, tx, clamp(tz, 0, DEPTH)) === null) input.left = input.right = false;
       return input;
@@ -458,7 +579,7 @@ export class BotWorld {
       // há chão do outro lado, e o destino está para lá do vão?
       let land: number | null = null;
       for (let d = 14; d <= 80; d += 6) if (groundAt(this.platforms, b.x + dir * d, b.z) !== null) { land = d; break; }
-      if (land !== null && Math.abs(dx) >= land) { input.run = true; input.jump = true; }
+      if (land !== null && Math.abs(dx) >= land && !heavy) { input.run = true; input.jump = true; }
       else { input.left = input.right = false; }
     } else if (ahead > b.y + STEP) {
       if (ahead - b.y <= 46) input.jump = true;
@@ -482,12 +603,15 @@ export class BotWorld {
 
     if (bot.doing === 'arrive') {
       // caindo do céu não faz nada; subindo da rua, vai para o telhado mais perto; no chão, começa a viver
-      if (b.grounded) { this.choose(bot, now); return NO_INPUT; }
+      if (b.grounded) { this.choose(bot, now); if (bot.boss) this.say(bot, 'me', now); return NO_INPUT; }
       if (now >= bot.until) bot.until = now + 4000;
       return bot.goal && b.vy !== 0 && groundAt(this.platforms, b.x, b.z) === null ? this.steer(bot, bot.goal.x, bot.goal.z, true) : NO_INPUT;
     }
     if (bot.doing === 'leave') {
       if (bot.exit === 'blink' || !bot.goal) return NO_INPUT;
+      // empacou a caminho do vão (alguém parado na frente, uma caixa alta): some piscando em vez de ficar ali para sempre
+      if (Math.abs(b.x - bot.stuckX) > 1.5 || !b.grounded) { bot.stuckX = b.x; bot.stuckSince = now; }
+      else if (now - bot.stuckSince > 1500) { bot.exit = 'blink'; this.leave(bot, now); return NO_INPUT; }
       const input = this.steer(bot, bot.goal.x, bot.goal.z, true, true);
       // quem sai pulando salta na beirada
       if (bot.exit === 'jump' && b.grounded && groundAt(this.platforms, b.x + Math.sign(bot.goal.x - b.x) * 12, b.z) === null) input.jump = true;
@@ -500,7 +624,7 @@ export class BotWorld {
     }
 
     // empacou andando (uma parede, uma caixa alta, uma multidão): desiste e escolhe outra coisa
-    if (Math.abs(b.x - bot.stuckX) > 1.5 || !b.grounded) { bot.stuckX = b.x; bot.stuckSince = now; }
+    if (Math.abs(b.x - bot.stuckX) > 1.5 || (bot.boss && Math.abs(b.z - bot.stuckZ) > 1.5) || !b.grounded) { bot.stuckX = b.x; bot.stuckZ = b.z; bot.stuckSince = now; }
     const target = this.see(bot.target, now);
     const done = () => { this.choose(bot, now); return NO_INPUT; };
     if (now >= bot.until) return done();
@@ -523,7 +647,7 @@ export class BotWorld {
         if (!target) return done();
         // um pouco atrás de quem segue, do lado de onde ele vem
         const side = target.vx !== 0 ? -Math.sign(target.vx) : Math.sign(b.x - target.x) || 1;
-        const tx = target.x + side * 22;
+        const tx = target.x + side * (bot.boss ? BOSS_NEAR : 22);
         if (Math.abs(tx - b.x) < 6 && Math.abs(target.z - b.z) < 6) return this.face(bot, target.x);
         return this.steer(bot, tx, target.z, Math.abs(tx - b.x) > 60);
       }
@@ -538,7 +662,7 @@ export class BotWorld {
       }
       case 'stare': {
         if (!target) return done();
-        const tx = target.x + (b.x >= target.x ? 1 : -1) * 22;
+        const tx = target.x + (b.x >= target.x ? 1 : -1) * (bot.boss ? BOSS_NEAR : 22);
         if (Math.abs(tx - b.x) > 5 || Math.abs(target.z - b.z) > 5) return stuck(this.steer(bot, tx, target.z, false));
         if (beat(2400)) this.say(bot, 'question', now);
         return this.face(bot, target.x);
@@ -548,7 +672,7 @@ export class BotWorld {
       case 'revenge': {
         if (!target || !target.solid) return bot.doing === 'revenge' && target ? NO_INPUT : done();
         const side = b.x >= target.x ? 1 : -1;
-        const tx = target.x + side * (BODY_RX * 2 + 4);
+        const tx = target.x + side * (bot.boss ? BOSS_NEAR : BODY_RX * 2 + 4);
         const ahead = (target.x - b.x) * b.facing;
         const reach = ahead > 0 && ahead <= SHOVE_REACH + BODY_RX - 2 && Math.abs(target.z - b.z) <= SHOVE_DZ - 2 && Math.abs(target.y - b.y) < 24;
         if (reach) {
@@ -559,7 +683,7 @@ export class BotWorld {
             if (bot.doing !== 'fight') {
               // empurrou: ri e sai correndo, ou fica por ali
               this.say(bot, 'haha', now);
-              const after = this.rng() < 0.6 ? 'flee' : 'wander';
+              const after = !bot.boss && this.rng() < 0.6 ? 'flee' : 'wander';
               const spot = this.spot(this.roofAt(b.x));
               this.start(bot, after, now + 1, target.id, 1500 + this.rng() * 2500, { x: spot.x, z: spot.z });
               bot.grudge = null;
