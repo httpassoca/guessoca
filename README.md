@@ -97,10 +97,15 @@ apps/web           Vite + Svelte 5 + PixiJS v8 + dssoca
                            (chuva e neblina da frente), film (os filtros só no mundo: brilho no cenário, aberração e VHS em
                            tudo), scene (Pixi: as camadas, corpos por profundidade, sombras, balões, câmera), runtime (o laço,
                            o empurrão de ida e de volta, o salto de quem acertou, os post-its em HTML sobre as cabeças), bubbles
-                           (puro: os balões de fala, quanto duram e a troca pelo seguinte) e World.svelte (que também desenha
-                           os balões de fala, na fonte Tiny5 de `public/fonts/`)
-  src/lib/sound/           os efeitos sonoros: sfx (cinco sons como parâmetros do sfxr, gerados com o jsfxr; nenhum arquivo de
-                           áudio), room (os sons da sala tirados da diferença entre snapshots: votação, acertou, fim de vez),
+                           (puro: os balões de fala, quanto duram e a troca pelo seguinte), World.svelte (que também desenha
+                           os balões de fala, na fonte Tiny5 de `public/fonts/`), e a vida no telhado (issue #70): ambient
+                           (puro: quando cada coisa acontece, por hash do relógio: janelas, letreiros, avião, relâmpago,
+                           carros, sirene, respingos, gotas, vapor), windows (Pixi: as janelas que acendem e apagam por cima
+                           das fachadas, a luz da sirene), skylife (Pixi: relâmpago, holofote, avião, estrela cadente,
+                           janelas da cidade piscando, carros na rua) e rooflife (Pixi: respingos, anéis e reflexo do neon
+                           nas poças, gotas, a hélice do ar-condicionado, o vapor da chaminé, o espirro de quem pisa na poça)
+  src/lib/sound/           os efeitos sonoros: sfx (sete sons como parâmetros do sfxr, gerados com o jsfxr; nenhum arquivo de
+                           áudio; o trovão e a sirene são do telhado em volta), room (os sons da sala tirados da diferença entre snapshots: votação, acertou, fim de vez),
                            settings (volume e mudo por navegador) e player (um AudioContext, ligado na primeira interação)
   src/lib/keys.ts          Tab = passar, N = bloco, Esc = menu, Enter = falar (fora de campo de texto)
   src/lib/panels/          Room (o telhado atrás de tudo, a barra, a coluna da fase que recolhe, teclado), TurnBar (vez e votação
@@ -128,7 +133,11 @@ tools/sprites      `bun run sprites` (@guess/sprites): as receitas que geram as 
   src/rooftop.ts     o telhado em grades de texto: a paleta, a prancheta (`Sketch`) que carimba grades, tampo, muretas,
                      fachadas, as três caixas do mapa (ar-condicionado, chaminé, caixa-d'água), antenas, letreiros de neon,
                      poças, lua e neblina; a folha `rooftop.png` e o atlas
-  src/skyline.ts     a cidade ao fundo: faixas que repetem, geradas por um sorteio semeado (longe e perto)
+  src/life.ts        a vida no telhado em grades: janelas soltas (acesa, apagada, persiana, televisão, alguém passando),
+                     hélice, vapor, respingos, anéis, gotas, reflexo do neon nas poças, letreiros falhando, avião, carro
+                     e a tralha dos telhados dos lados; `ROOFTOP_RECIPES` junta tudo na mesma folha
+  src/skyline.ts     a cidade ao fundo: faixas que repetem, geradas por um sorteio semeado (longe e perto), e as janelas
+                     de cada faixa que piscam no cliente
   src/preview.ts     `bun run sprites:preview`: folhas de contato ampliadas (4×) da saída, em `.preview/`
   test/              as receitas com imagens de mentira (o pacote não é preciso para testar)
 
@@ -208,11 +217,15 @@ O que sai:
   iguais, uma junta ou um pilar dividido ao meio. Cada caixa do mapa tem o objeto do tamanho dela (ar-condicionado,
   chaminé, caixa-d'água): a largura da caixa, a frente com a altura dela e o tampo com o fundo dela achatado pela
   perspectiva, então o topo visível cai no `top` da caixa (os testes conferem contra o `MAP`). Mais antenas, a luz da
-  torre, os letreiros "BAR", "HOTEL" (com uma letra que falha) e "24H", poças e a lua. Não precisam do pacote: saem mesmo
-  sem ele.
+  torre, os letreiros "BAR", "HOTEL" (com uma letra que falha) e "24H", poças e a lua. E a vida no telhado
+  (`tools/sprites/src/life.ts`, issue #70): as janelas soltas que o cliente acende e apaga por cima das fachadas (o atlas
+  de cada fachada diz onde estão as janelas), a hélice, o vapor, os respingos, as gotas, os letreiros BAR e 24H apagados,
+  o avião, o carro e a tralha dos telhados dos lados (cadeira, vaso, caixa, canos, claraboia, parabólica, tigela,
+  varal). Não precisam do pacote: saem mesmo sem ele.
 - `skyline-far.png` e `skyline-near.png`: a cidade ao fundo, gerada por `tools/sprites/src/skyline.ts` com uma semente
   fixa (a mesma semente dá sempre a mesma cidade): prédios, janelas acesas, antenas, caixas-d'água e um pouco de neon, em
-  faixas que repetem. O cliente as rola a frações diferentes da câmera.
+  faixas que repetem. O cliente as rola a frações diferentes da câmera, e umas poucas janelas de cada faixa (`twinkle` no
+  atlas) acendem e apagam.
 
 ### Pedir um personagem ou objeto novo
 
