@@ -2,7 +2,7 @@ import { describe, expect, test } from 'bun:test';
 import { CHAT_INTERVAL, CHAT_MAX } from '@guess/protocol';
 import { keyAction, type KeyContext } from '../src/lib/keys';
 import { RemoteRoom, type SocketLike } from '../src/lib/room/remote';
-import { alive, bubbleMs, BUBBLE_MAX, BUBBLE_MIN, canSend, nextExpiry, say, SEND_GAP, snapShift, type Bubble } from '../src/lib/world/bubbles';
+import { alive, bubbleMs, BUBBLE_MAX, BUBBLE_MIN, canSend, chatFontPx, CHAT_FONT_EM, nextExpiry, say, SEND_GAP, snapShift, type Bubble } from '../src/lib/world/bubbles';
 
 describe('balões de fala: quanto duram', () => {
   test('de 3 a 6 s, crescendo com o tamanho', () => {
@@ -66,6 +66,17 @@ describe('balões de fala: na grade de pixels', () => {
     expect(snapShift(98)).toBe(0);
     expect(snapShift(99)).toBe(0.5);
     for (const w of [66, 99, 105, 312]) expect(Number.isInteger(1000 - w / 2 + snapShift(w))).toBe(true);
+  });
+
+  test('a VT323 sai sempre num múltiplo inteiro do tamanho nativo (25 px), crescendo com a escala do telhado', () => {
+    expect(CHAT_FONT_EM).toBe(25);
+    for (let scale = 2; scale <= 6; scale++) {
+      const px = chatFontPx(scale);
+      expect(px % CHAT_FONT_EM).toBe(0);
+      expect(px).toBeGreaterThanOrEqual(CHAT_FONT_EM);
+      expect(px).toBeGreaterThanOrEqual(chatFontPx(scale - 1));
+    }
+    expect([2, 3, 4, 5, 6].map(chatFontPx)).toEqual([25, 25, 25, 50, 50]);
   });
 });
 
