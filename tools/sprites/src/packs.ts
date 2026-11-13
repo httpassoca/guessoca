@@ -226,4 +226,17 @@ export const PACKS: readonly Pack[] = [
       spec: packSpec({ idle: [12, 10], walk: [8, 8 / 0.9], run: [12, 12 / 0.72], jump: [8, 20], fall: [8, 8 / 0.33], fall_loop: [8, 16], shove: [24, 20] }),
     },
   },
+  /**
+   * O Sekiro: o shinobi de cabelo preso, cachecol e sobretudo escuros, com a katana. Tamanho 1 (128 pixels), células de
+   * 192×192 e, só no ataque, de 256×224, em que ele fica 16 pixels mais à direita (pés no x 104 em vez de 88): os quadros
+   * do ataque andam 16 para trás. O chão na linha 172. O ataque são 24 quadros em 1,1 s: um golpe de katana de cima para
+   * baixo, que começa e termina na pose do parado.
+   */
+  {
+    model: 'sekiro', name: 'sekiro', color: '8c4a2f', dir: 'sekiro',
+    config: {
+      ...NEW, name: 'o Sekiro', cellW: 192, cellH: 192, padX: 16, headRows: 30, cells: { shove: { cellW: 256, cellH: 224, dx: -16 } },
+      spec: packSpec({ idle: [8, 8 / 1.2], walk: [12, 12 / 0.9], run: [12, 12 / 0.65], jump: [8, 20], fall: [8, 8 / 0.33], fall_loop: [8, 8 / 0.45], shove: [24, 24 / 1.1] }),
+    },
+  },
 ];

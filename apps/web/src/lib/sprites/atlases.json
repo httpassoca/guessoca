@@ -1810,5 +1810,72 @@
     },
     "credit": null,
     "scale": 0.390625
+  },
+  "sekiro": {
+    "frame": {
+      "w": 120,
+      "h": 142
+    },
+    "anchor": {
+      "x": 62,
+      "y": 142
+    },
+    "head": {
+      "x": 41,
+      "y": 12,
+      "size": 34
+    },
+    "stand": {
+      "x": 31,
+      "y": 14,
+      "w": 59,
+      "h": 128
+    },
+    "animations": {
+      "idle": {
+        "row": 0,
+        "frames": 8,
+        "fps": 6.666666666666667,
+        "loop": true
+      },
+      "walk": {
+        "row": 1,
+        "frames": 12,
+        "fps": 13.333333333333332,
+        "loop": true
+      },
+      "run": {
+        "row": 2,
+        "frames": 12,
+        "fps": 18.46153846153846,
+        "loop": true
+      },
+      "jump": {
+        "row": 3,
+        "frames": 8,
+        "fps": 20,
+        "loop": false
+      },
+      "fall": {
+        "row": 4,
+        "frames": 8,
+        "fps": 24.242424242424242,
+        "loop": false
+      },
+      "fall_loop": {
+        "row": 5,
+        "frames": 8,
+        "fps": 17.77777777777778,
+        "loop": true
+      },
+      "shove": {
+        "row": 6,
+        "frames": 24,
+        "fps": 21.818181818181817,
+        "loop": false
+      }
+    },
+    "credit": null,
+    "scale": 0.390625
   }
 }
