@@ -7,7 +7,7 @@ import { Sim, T0 } from './sim';
 /** a sala vazia como um visitante a vê */
 const EMPTY: RoomSnapshot = {
   code: 'ABCD', phase: 'lobby', you: null, moderator: null, dev: false, maxPlayers: MAX_MEMBERS, funnyBots: false, bots: [], stats: {}, members: [], order: [], authors: {}, turnMs: TURN_DEFAULT,
-  postits: {}, turn: null, paused: false, vote: null, got: [], gaveUp: [],
+  postits: {}, turn: null, paused: false, vote: null, got: [], gaveUp: [], turns: {},
 };
 const view = (id: string, nickname: string, character: number, connected = true) => ({ id, nickname, connected, character, ghost: false, fake: false });
 

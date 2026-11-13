@@ -445,6 +445,7 @@ export function snapshotFor(s: RoomState, token: string, now: number): RoomSnaps
       : null,
     got: [...g.got],
     gaveUp: [...g.gaveUp],
+    turns: { ...g.turns },
   };
 }
 

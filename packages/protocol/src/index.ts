@@ -228,6 +228,8 @@ export interface RoomSnapshot {
   /** quem acertou, em ordem; depois quem desistiu, em ordem */
   got: string[];
   gaveUp: string[];
+  /** quantas vezes cada pessoa teve a vez neste jogo (id → vezes); quem ainda não teve não aparece */
+  turns: Record<string, number>;
 }
 
 /** Até onde uma presença pode ir em cada eixo, e o máximo de uma velocidade: o que passa disso é lixo e é descartado. */

@@ -31,7 +31,7 @@ const ZERO: PlayerStats = { falls: 0, shoves: 0, shovedByPlayers: 0, shovedByBot
 export function endStats(s: RoomSnapshot): EndStats | null {
   const stats = (s as Partial<RoomSnapshot>).stats;
   if (s.phase !== 'ended' || !stats) return null;
-  const turns = (s as { turns?: Record<string, number> }).turns;
+  const turns = (s as Partial<RoomSnapshot>).turns;
   const byId = new Map(s.members.map((m) => [m.id, m]));
   const players = s.order.flatMap((id) => byId.get(id) ?? []);
   const ghosts = s.members.filter((m) => !s.order.includes(m.id));
