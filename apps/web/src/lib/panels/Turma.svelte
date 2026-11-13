@@ -12,7 +12,8 @@
   /**
    * O painel único da turma, na ordem das vezes. Cada linha: a vez, o rosto, o apelido e as marcas; no lobby, para quem a
    * pessoa escreve (o alvo, o rosto e o nome; o moderador troca o alvo numa lista, com três ou mais na turma) e em que pé está (o lápis escrevendo, o lápis parado, o pronto), e o
-   * post-it dela ao vivo (o meu "?"); no jogo, o post-it e o estado (na vez, acertou, desistiu). O moderador tem, por
+   * post-it dela ao vivo (o meu "?"); no jogo, o post-it, o estado (na vez, acertou, desistiu) e
+   * quantas vezes já teve a vez (`N×`, pequeno). O moderador tem, por
    * linha, ↑ ↓, passar a moderação e expulsar; no jogo, também marcar acertou ou não. Todo ícone se explica no tooltip
    * do dssoca. Os fantasmas vêm à parte, embaixo.
    */
@@ -74,6 +75,9 @@
       <div class="main">
         <div class="top">
           <Who m={r.member} {room} />
+          {#if !lobby}
+            <Tooltip text={r.turns === 1 ? t('turma.turnsOne') : t('turma.turns', { n: r.turns })}><span class="turns">{r.turns}×</span></Tooltip>
+          {/if}
           {#if v.isModerator}
             <span class="act">
               {#if !lobby && !ended}

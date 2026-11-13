@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'bun:test';
 import { CHARACTERS, TURN_MAX, TURN_MIN, TURN_STEP } from '@guess/rules';
 import { characterToClaim, clockText, countdown, devTools, moveBy, roomView, turnFraction, turnOptions, turnTone } from '../src/lib/room/view';
+import type { RoomSnapshot } from '@guess/protocol';
 import { member, postit, snapshot } from './snapshots';
 
 /** O círculo Zé → Ana → Bia → Zé (dono → autor: Ana é escrita por Zé, e assim por diante). */
@@ -299,6 +300,13 @@ describe('jogo', () => {
   test('a turma no jogo: a vez, quem acertou (com o lugar) e quem desistiu', () => {
     const v = roomView(playing({ turn: { owner: 'm2', left: 1000, running: true }, got: ['m3'], gaveUp: ['m1'] }));
     expect(v.turma.map((r) => [r.member.id, r.card?.turn, r.status, r.place])).toEqual([['m1', false, 'gaveUp', 2], ['m2', true, 'playing', null], ['m3', false, 'got', 1]]);
+  });
+
+  test('a turma no jogo: quantas vezes cada um já teve a vez (zero para quem ainda não teve, ou com um servidor antigo)', () => {
+    const v = roomView(playing({ turns: { m1: 2, m2: 1 } }));
+    expect(v.turma.map((r) => r.turns)).toEqual([2, 1, 0]);
+    const old = roomView({ ...playing(), turns: undefined } as unknown as RoomSnapshot);
+    expect(old.turma.map((r) => r.turns)).toEqual([0, 0, 0]);
   });
 
   test('no fim todo post-it chega revelado', () => {
