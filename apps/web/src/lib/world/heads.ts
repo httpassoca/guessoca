@@ -15,12 +15,18 @@ export interface Head {
   mine: boolean;
   /** null = sem post-it (lobby, ou fantasma) */
   card: PostitCard | null;
+  /** um bot engraçado: o personagem dele, cujo nome é a etiqueta (`nickname` fica vazio); null = uma pessoa */
+  bot: number | null;
 }
 
 /** As etiquetas de quem tem personagem, na ordem da turma. */
 export function heads(room: RoomSnapshot, v: RoomView): Head[] {
   const cards = room.phase === 'lobby' ? new Map<string, PostitCard>() : new Map(v.postits.map((c) => [c.owner.id, c]));
-  return room.members
-    .filter((m) => m.character !== null)
-    .map((m) => ({ id: m.id, nickname: m.nickname, mine: m.id === room.you, card: cards.get(m.id) ?? null }));
+  return [
+    ...room.members
+      .filter((m) => m.character !== null)
+      .map((m) => ({ id: m.id, nickname: m.nickname, mine: m.id === room.you, card: cards.get(m.id) ?? null, bot: null })),
+    // os bots engraçados: só o nome do personagem, sem post-it
+    ...(room.bots ?? []).map((b) => ({ id: b.id, nickname: '', mine: false, card: null, bot: b.character })),
+  ];
 }

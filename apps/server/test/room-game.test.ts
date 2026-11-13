@@ -414,3 +414,29 @@ describe('sala: jogadores falsos', () => {
     expect(s.state.members).toHaveLength(1);
   });
 });
+
+describe('sala: bots engraçados', () => {
+  test('só o moderador liga e desliga, em qualquer fase; todo mundo vê no snapshot', () => {
+    const s = playing(2);
+    expect(s.snapshotFor('t1')!.funnyBots).toBe(false);
+    expectRefused(s, 't2', { type: 'funnyBots', on: true });
+    s.say('t1', { type: 'funnyBots', on: true });
+    expect(s.snapshotFor('t2')!.funnyBots).toBe(true);
+    s.say('t1', { type: 'funnyBots', on: false });
+    expect(s.snapshotFor('t2')!.funnyBots).toBe(false);
+    const l = lobby(2);
+    l.say('t1', { type: 'funnyBots', on: true });
+    expect(l.state.funnyBots).toBe(true);
+  });
+
+  test('a lista de bots que o adaptador informa vai no snapshot, não é atividade, e some quando o jogo acaba', () => {
+    const s = playing(2);
+    const activity = s.state.lastActivity;
+    s.feed({ kind: 'bots', bots: [{ id: 'b1', character: 7 }, { id: 'b2', character: 9 }] }, s.now + 5000);
+    expect(s.snapshotFor('t2')!.bots).toEqual([{ id: 'b1', character: 7 }, { id: 'b2', character: 9 }]);
+    expect(s.state.lastActivity).toBe(activity);
+    s.say('t1', { type: 'endGame' });
+    expect(s.game.phase).toBe('ended');
+    expect(s.snapshotFor('t2')!.bots).toEqual([]);
+  });
+});

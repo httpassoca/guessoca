@@ -1,4 +1,4 @@
-import { CLOSE_KICKED, imageUrl, type ClientMessage, type PostitView, type RoomError, type RoomInit, type RoomSnapshot, type ServerMessage } from '@guess/protocol';
+import { CLOSE_KICKED, imageUrl, type BotView, type ClientMessage, type PostitView, type RoomError, type RoomInit, type RoomSnapshot, type ServerMessage } from '@guess/protocol';
 import {
   act, addMember, createGame, MAX_MEMBERS, nextDeadline, removeMember, revealed, settle, turnLeft, uniqueNickname,
   type Ctx, type GameAction, type GameEvent, type GameState,
@@ -58,6 +58,10 @@ export interface RoomState {
   maxPlayers: number;
   /** o criador escolheu só moderar no pré-lobby: vale quando ele entra (a primeira pessoa), e então volta a false */
   creatorOnlyModerate: boolean;
+  /** o moderador ligou os bots engraçados (`bots.ts`); eles só aparecem com o jogo rodando */
+  funnyBots: boolean;
+  /** os bots no telhado agora, como o adaptador informou (`bots`); vazio fora do jogo */
+  bots: BotView[];
   game: GameState;
 }
 
@@ -66,7 +70,9 @@ export type RoomInput =
   /** `since`: quando a pessoa deu o último sinal de vida, se a queda só foi notada pelo silêncio. Hoje a sala não usa: cair não é atividade */
   | { kind: 'disconnect'; token: string; since?: number }
   | { kind: 'message'; token: string; message: ClientMessage }
-  | { kind: 'timer'; timer: RoomTimer };
+  | { kind: 'timer'; timer: RoomTimer }
+  /** o adaptador simula os bots (ADR 0005) e avisa quando a lista de quem está no telhado muda; não é atividade */
+  | { kind: 'bots'; bots: BotView[] };
 
 /** Uma mensagem para um token, ou a ordem de fechar o socket dele com este código. */
 export type Outgoing = { to: string; message: ServerMessage } | { to: string; close: number };
@@ -100,7 +106,7 @@ export function createRoom(code: string, now: number, opts: { ttl?: number; dev?
   return {
     code, phase: 'open', createdAt: now, lastActivity: now, members: [], visitors: [], kicked: [], nextId: 1,
     timers: [{ kind: 'death', at: now + ttl }], moderator: null, moderatorAway: null, ttl, dev: opts.dev ?? false,
-    maxPlayers: init.maxPlayers ?? MAX_MEMBERS, creatorOnlyModerate: init.onlyModerate ?? false,
+    maxPlayers: init.maxPlayers ?? MAX_MEMBERS, creatorOnlyModerate: init.onlyModerate ?? false, funnyBots: false, bots: [],
     game: createGame({ turnMs: init.turnMs }),
   };
 }
@@ -234,6 +240,11 @@ export function step(state: RoomState, input: RoomInput, now: number, opts: Step
           s.maxPlayers = msg.n;
           break;
         }
+        case 'funnyBots': {
+          if (!isModerator) { refuse(token, msg.type); break; }
+          s.funnyBots = msg.on;
+          break;
+        }
         case 'handOver': {
           const target = byId(msg.member);
           if (!isModerator || !target || target === m || target.fake) { refuse(token, msg.type); break; }
@@ -264,6 +275,10 @@ export function step(state: RoomState, input: RoomInput, now: number, opts: Step
       // `moderator` e `game`: o que vale é o que vem abaixo, posto em dia com a hora de agora
       break;
     }
+    case 'bots': {
+      s.bots = input.bots.map((b) => ({ id: b.id, character: b.character }));
+      break;
+    }
   }
 
   // o jogo em dia com a hora e com quem está conectado: vezes puladas, votação fechada, fim de jogo
@@ -272,6 +287,8 @@ export function step(state: RoomState, input: RoomInput, now: number, opts: Step
   events.push(...settled.events);
   writeForFakes(s, ctx(), rng, events);
   succeedModerator(s, now, events, ctx());
+  // os bots só existem com o jogo rodando: quando ele acaba (ou volta ao lobby), somem na hora
+  if (s.game.phase !== 'playing' && s.bots.length) s.bots = [];
   s.timers = timersFor(s, now);
 
   if (fingerprint(s) !== before) {
@@ -284,7 +301,7 @@ export function step(state: RoomState, input: RoomInput, now: number, opts: Step
 
 /** O que todo mundo vê da sala; se não mudou, ninguém recebe snapshot novo. */
 function fingerprint(s: RoomState): string {
-  return JSON.stringify([s.members.map((m) => [m.id, m.nickname, m.connected]), s.moderator, s.maxPlayers, s.game]);
+  return JSON.stringify([s.members.map((m) => [m.id, m.nickname, m.connected]), s.moderator, s.maxPlayers, s.funnyBots, s.bots, s.game]);
 }
 
 /** Quem está online para o jogo: membros conectados, falsos inclusive. */
@@ -389,6 +406,8 @@ export function snapshotFor(s: RoomState, token: string, now: number): RoomSnaps
     moderator: s.moderator,
     dev: s.dev,
     maxPlayers: s.maxPlayers,
+    funnyBots: s.funnyBots,
+    bots: s.bots.map((b) => ({ ...b })),
     members: s.members.map((m) => ({
       id: m.id, nickname: m.nickname, connected: m.connected, character: g.characters[m.id] ?? null, ghost: !g.order.includes(m.id), fake: m.fake,
     })),

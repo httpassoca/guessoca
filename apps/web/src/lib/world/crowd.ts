@@ -1,6 +1,6 @@
 /**
  * Quem está no telhado além de mim, como este navegador o conhece agora, puro: cada pessoa conectada com personagem e
- * presença, interpolada (`samplePresence`); os jogadores falsos, que não mandam presença, parados num lugar fixo perto
+ * presença, interpolada (`samplePresence`); os bots engraçados, do mesmo jeito (a presença deles vem do servidor); os jogadores falsos, que não mandam presença, parados num lugar fixo perto
  * do ponto de volta. Quem nunca mandou presença ainda não aparece. Tudo em unidades do mundo; `runtime.ts` passa isto
  * a `scene.ts` (desenho) e a `othersOf` (física). Testado em `apps/web/test/world-crowd.test.ts`.
  */
@@ -18,6 +18,8 @@ export interface CrowdBody extends Vec3 {
   emote: EmoteName | null;
   blink: boolean;
   fake: boolean;
+  /** um bot engraçado (o servidor simula e manda a presença dele; dá para empurrar) */
+  bot: boolean;
 }
 
 /**
@@ -46,7 +48,7 @@ export function fakeSpot(index: number, platforms: readonly Platform[] = MAP): V
 
 /** Quem desenhar além de mim, a partir da sala e da última presença de cada um, no instante `now` (ms). */
 export function crowd(
-  room: Pick<RoomSnapshot, 'members' | 'you'>,
+  room: Pick<RoomSnapshot, 'members' | 'you'> & Partial<Pick<RoomSnapshot, 'bots'>>,
   trackOf: (id: string) => PresenceTrack | undefined,
   now: number,
   platforms: readonly Platform[] = MAP,
@@ -57,13 +59,20 @@ export function crowd(
     const fakeIndex = m.fake ? fakes++ : -1;
     if (m.id === room.you || m.character === null || !m.connected) continue;
     if (m.fake) {
-      out.push({ id: m.id, character: m.character, ...fakeSpot(fakeIndex, platforms), vx: 0, vy: 0, vz: 0, facing: fakeIndex % 2 === 0 ? -1 : 1, anim: 'idle', emote: null, blink: false, fake: true });
+      out.push({ id: m.id, character: m.character, ...fakeSpot(fakeIndex, platforms), vx: 0, vy: 0, vz: 0, facing: fakeIndex % 2 === 0 ? -1 : 1, anim: 'idle', emote: null, blink: false, fake: true, bot: false });
       continue;
     }
     const track = trackOf(m.id);
     if (!track) continue;
     const p = samplePresence(track, now);
-    out.push({ id: m.id, character: m.character, x: p.x, y: p.y, z: p.z, vx: p.vx, vy: p.vy, vz: p.vz, facing: p.facing, anim: p.anim, emote: p.emote, blink: p.blink, fake: false });
+    out.push({ id: m.id, character: m.character, x: p.x, y: p.y, z: p.z, vx: p.vx, vy: p.vy, vz: p.vz, facing: p.facing, anim: p.anim, emote: p.emote, blink: p.blink, fake: false, bot: false });
+  }
+  // os bots engraçados: como uma pessoa, pela presença que o servidor manda
+  for (const b of room.bots ?? []) {
+    const track = trackOf(b.id);
+    if (!track) continue;
+    const p = samplePresence(track, now);
+    out.push({ id: b.id, character: b.character, x: p.x, y: p.y, z: p.z, vx: p.vx, vy: p.vy, vz: p.vz, facing: p.facing, anim: p.anim, emote: p.emote, blink: p.blink, fake: false, bot: true });
   }
   return out;
 }

@@ -14,6 +14,7 @@
       "dependencies": {
         "@guess/protocol": "workspace:*",
         "@guess/rules": "workspace:*",
+        "@guess/world": "workspace:*",
       },
       "devDependencies": {
         "typescript": "^5.9.0",

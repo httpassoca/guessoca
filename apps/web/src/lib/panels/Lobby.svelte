@@ -105,6 +105,12 @@
       <Switch label={t('lobby.onlyModerate')} on={onlyModerating} ontoggle={(on) => send({ type: 'onlyModerate', on })} />
     </div>
   {/if}
+  {#if v.isModerator}
+    <div class="gs-line">
+      <span class="gs-two">{t('lobby.funnyBots')}<span class="gs-hint">{t('lobby.funnyBotsHint')}</span></span>
+      <Switch label={t('lobby.funnyBots')} on={room.funnyBots} ontoggle={(on) => send({ type: 'funnyBots', on })} />
+    </div>
+  {/if}
   </div>
   {#if v.players.length < MIN_PLAYERS}<p class="gs-hint">{t('lobby.needPlayers', { min: MIN_PLAYERS })}</p>{/if}
 </section>

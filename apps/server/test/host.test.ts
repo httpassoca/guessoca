@@ -2,7 +2,7 @@ import { describe, expect, test } from 'bun:test';
 import { CLOSE_KICKED, CLOSE_REPLACED, CLOSE_ROOM_ENDED, IMAGE_BYTES_MAX, IMAGE_ID_RE, type Presence, type ServerMessage } from '@guess/protocol';
 import { IMAGE_GRACE, IMAGES_PER_UPLOADER, RoomHost, type Socket } from '../src/host';
 import { silentLog } from '../src/log';
-import { webp } from './sim';
+import { lcg, webp } from './sim';
 
 /** O mínimo de um socket do Bun que o host usa, com o que ele fez guardado. */
 function fakeSocket(token: string) {
@@ -298,6 +298,63 @@ describe('host: presença e empurrão (por fora da sala, ADR 0005)', () => {
     host.connect(v);
     say(host, v, { type: 'shove', target: 'm2', dir: 1 });
     expect([...received(a), ...received(b)].filter((m) => m.type === 'shoved')).toEqual([]);
+    host.dispose();
+  });
+});
+
+describe('host: bots engraçados (emenda do ADR 0005)', () => {
+  /** duas pessoas com o jogo começado e a opção ligada; o relógio é o de verdade (o laço dos bots usa timers) */
+  function playingWithBots() {
+    const host = new RoomHost('ABCD', silentLog, () => {}, { dev: true, botTick: 5, rng: lcg(3) });
+    const a = fakeSocket('token-a'), b = fakeSocket('token-b');
+    host.connect(a); say(host, a, { type: 'join', nickname: 'Zé' });
+    host.connect(b); say(host, b, { type: 'join', nickname: 'Dita' });
+    say(host, a, { type: 'character', character: 0 }); say(host, b, { type: 'character', character: 1 });
+    say(host, a, { type: 'shuffleAuthors' });
+    for (const [ws, me] of [[a, 'm1'], [b, 'm2']] as const) {
+      const owner = Object.keys(host.state.game.authors).find((o) => host.state.game.authors[o] === me)!;
+      say(host, ws, { type: 'write', owner, text: 'Batman', image: null });
+    }
+    say(host, a, { type: 'funnyBots', on: true });
+    say(host, a, { type: 'start' });
+    expect(host.state.game.phase).toBe('playing');
+    return { host, a, b };
+  }
+  const botPresences = (ws: { sent: string[] }) => received(ws).filter((m) => m.type === 'presence' && m.member.startsWith('b'));
+
+  test('com o jogo rodando e a opção ligada, bots aparecem: a lista vai no snapshot e a presença de cada um a todos', async () => {
+    const { host, a, b } = playingWithBots();
+    for (let i = 0; i < 400 && host.state.bots.length === 0; i++) await sleep(10);
+    expect(host.state.bots.length).toBeGreaterThan(0);
+    await sleep(40);
+    const snap = received(b).filter((m) => m.type === 'snapshot').at(-1)!;
+    expect(snap.type === 'snapshot' && snap.snapshot.bots.length).toBeGreaterThan(0);
+    expect(botPresences(a).length).toBeGreaterThan(0);
+    expect(botPresences(b).length).toBeGreaterThan(0);
+    // quem chega depois vê os bots onde estão
+    const c = fakeSocket('token-c');
+    host.connect(c);
+    expect(botPresences(c).length).toBeGreaterThan(0);
+    host.dispose();
+  });
+
+  test('quando o jogo acaba, os bots somem na hora e o laço para', async () => {
+    const { host, a, b } = playingWithBots();
+    for (let i = 0; i < 400 && host.state.bots.length === 0; i++) await sleep(10);
+    say(host, a, { type: 'endGame' });
+    expect(host.state.bots).toEqual([]);
+    const before = b.sent.length;
+    await sleep(40);
+    expect(botPresences({ sent: b.sent.slice(before) })).toHaveLength(0);
+    host.dispose();
+  });
+
+  test('sem a opção ligada não há bot nem laço', async () => {
+    const { host, a, b } = hostWithTwo();
+    say(host, a, { type: 'shuffleAuthors' });
+    await sleep(30);
+    expect(host.state.bots).toEqual([]);
+    expect(botPresences(b)).toHaveLength(0);
     host.dispose();
   });
 });

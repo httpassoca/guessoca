@@ -139,5 +139,10 @@ describe('pré-lobby: o corpo de criar a sala', () => {
   test('quantas pessoas cabem: de 2 a 8', () => {
     expect(parseClientMessage(JSON.stringify({ type: 'maxPlayers', n: 2 }))).toEqual({ type: 'maxPlayers', n: 2 });
     for (const n of [1, 9, 2.5, '4']) expect(parseClientMessage(JSON.stringify({ type: 'maxPlayers', n }))).toBeNull();
+    // os bots engraçados: o interruptor do moderador, e um bot como alvo de empurrão
+    expect(parseClientMessage(JSON.stringify({ type: 'funnyBots', on: true }))).toEqual({ type: 'funnyBots', on: true });
+    expect(parseClientMessage(JSON.stringify({ type: 'funnyBots', on: 'sim' }))).toBeNull();
+    expect(parseClientMessage(JSON.stringify({ type: 'shove', target: 'b12', dir: -1 }))).toEqual({ type: 'shove', target: 'b12', dir: -1 });
+    expect(parseClientMessage(JSON.stringify({ type: 'shove', target: 'x12', dir: -1 }))).toBeNull();
   });
 });
