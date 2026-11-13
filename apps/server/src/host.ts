@@ -3,6 +3,9 @@ import { FALL_Y, inShoveReach, RESPAWN_MS, SHOVE_COOLDOWN_MS } from '@guess/worl
 import { CHARACTERS } from '@guess/rules';
 import attackMs from './attacks.json';
 import { BotWorld, type Seen } from './bots';
+import type { Talker } from './groq';
+import { persona } from './personas';
+import { redact, TalkBrain, type Figure, type Heard, type Scene, type TalkRequest } from './talk';
 import type { ServerWebSocket } from 'bun';
 import { TokenBucket } from './limits';
 import type { Log } from './log';
@@ -20,7 +23,13 @@ export const IMAGES_PER_UPLOADER = 2;
  * pessoa; `init`: o que o pré-lobby escolheu ao criar a sala; `botTick`: de quanto em quanto tempo os bots engraçados dão
  * um passo, ms; `chatInterval`: o mínimo entre duas falas da mesma pessoa.
  */
-export interface HostOptions { now?: number; ttl?: number; silence?: number; clock?: () => number; dev?: boolean; rng?: () => number; presenceInterval?: number; init?: RoomInit; botTick?: number; chatInterval?: number }
+export interface HostOptions {
+  now?: number; ttl?: number; silence?: number; clock?: () => number; dev?: boolean; rng?: () => number; presenceInterval?: number; init?: RoomInit; botTick?: number; chatInterval?: number;
+  /** o modelo de linguagem dos bots que falam (`groq.ts`), um só para o processo; sem ele, nenhum bot fala */
+  talker?: Talker;
+  /** a chance de um bot falar (`TALKABLE_CHANCE`; os testes põem 1) */
+  talkChance?: number;
+}
 
 /**
  * O limite por socket (issue #72): toda mensagem menos a presença gasta uma ficha; cabem `MESSAGE_BURST` de uma vez e
@@ -58,6 +67,12 @@ function devBossCharacter(): number | undefined {
   return process.env.DEV_BOSS_CHARACTER && Number.isInteger(n) && n >= 0 && n < CHARACTERS ? n : undefined;
 }
 
+/** A chance de um bot falar numa sala de desenvolvimento, se `DEV_TALK_CHANCE` diz um número de 0 a 1 (para ver sem esperar a sorte). */
+function devTalkChance(): number | undefined {
+  const n = Number(process.env.DEV_TALK_CHANCE ?? '');
+  return process.env.DEV_TALK_CHANCE && n >= 0 && n <= 1 ? n : undefined;
+}
+
 interface StoredImage {
   bytes: Uint8Array<ArrayBuffer>;
   /** id do membro que subiu */
@@ -86,6 +101,10 @@ export type Socket = ServerWebSocket<SocketData>;
  * Os bots engraçados (`bots.ts`, emenda do ADR 0005) são simulados aqui: com a opção ligada e o jogo rodando, um laço
  * dá passos neles, manda a presença de cada um como a de uma pessoa, entrega os empurrões deles e avisa a sala quando a
  * lista de quem está no telhado muda. Fora disso não há laço nenhum.
+ * Alguns bots falam (`talk.ts`, emenda "the bots talk" do ADR 0005), se o processo tem um `Talker` (`groq.ts`): o host
+ * conta ao cérebro da fala o que passa por aqui (falas, empurrões, quedas, o jogo andar), pede a ele um pedido a cada
+ * passo dos bots, manda ao modelo sem esperar e repassa a resposta aceita como a fala do bot, a todo mundo. O post-it
+ * nunca vai: o chat que o diz chega ao cérebro tapado, e a resposta que o diz é descartada.
  * As estatísticas do jogo (issue #59) saem do que já passa por aqui, sem mensagem nova: cada empurrão entregue e cada
  * presença que cai abaixo de `FALL_Y` (uma queda) somam num contador daqui, só com o jogo rodando. Contar não passa pela
  * sala (seria um `step()` por empurrão): os números entram no estado dela antes de cada passo com o jogo rodando, então
@@ -128,6 +147,10 @@ export class RoomHost {
   private readonly fallAt = new Map<string, number>();
   /** a última vez que uma presença contou como atividade */
   private aliveAt = -Infinity;
+  /** a fala dos bots (`talk.ts`): o modelo do processo e o cérebro da fala deste jogo (vive e morre com o mundo dos bots) */
+  private readonly talker: Talker | undefined;
+  private readonly talkChance: number | undefined;
+  private talk: TalkBrain | null = null;
 
   constructor(code: string, private readonly log: Log, private readonly onDead: (code: string) => void, opts: HostOptions = {}) {
     this.clock = opts.clock ?? Date.now;
@@ -137,6 +160,8 @@ export class RoomHost {
     this.presenceInterval = opts.presenceInterval ?? PRESENCE_INTERVAL;
     this.botTick = opts.botTick ?? BOT_TICK;
     this.chatInterval = opts.chatInterval ?? CHAT_INTERVAL;
+    this.talker = opts.talker;
+    this.talkChance = opts.talkChance;
     this.state = createRoom(code, now, { ttl: opts.ttl ?? ROOM_TTL, dev: opts.dev ?? false, init: opts.init });
     this.syncTimers(now);
     log('room.created', { room: code });
@@ -247,6 +272,8 @@ export class RoomHost {
     if (before && presence.y < FALL_Y && before.y >= FALL_Y && now - (this.fallAt.get(token) ?? -Infinity) >= RESPAWN_MS) {
       this.fallAt.set(token, now);
       this.count([token, 'falls']);
+      const m = this.memberByToken(token);
+      if (m) this.hear({ type: 'fell', who: m.id });
     }
     // com o jogo rodando, gente no telhado é gente jogando: a sala não morre por inatividade (uma vez por minuto)
     if (this.playing() && now - this.aliveAt >= PRESENCE_ACTIVITY_MS) {
@@ -301,7 +328,7 @@ export class RoomHost {
     if (BOT_ID_RE.test(target)) {
       const bot = this.botWorld?.bots.find((b) => b.id === target);
       if (!bot || !inShoveReach(me, bot.body)) return;
-      if (this.botWorld?.shoved(target, dir, from.id, now)) this.count([token, 'shoves']);
+      if (this.botWorld?.shoved(target, dir, from.id, now)) { this.count([token, 'shoves']); this.hear({ type: 'shoved', bot: target, by: from.id }); }
       return;
     }
     const to = this.state.members.find((m) => m.id === target);
@@ -335,6 +362,69 @@ export class RoomHost {
     this.chats.set(token, now);
     const raw = JSON.stringify({ type: 'chat', member: from.id, text });
     for (const ws of this.sockets.values()) ws.send(raw);
+    // o post-it nunca vai para o modelo: nem quando alguém o diz no chat
+    this.hear({ type: 'chat', from: from.id, text: redact(text, this.secrets()) });
+  }
+
+  // --- a fala dos bots (`talk.ts`) ------------------------------------------------------------------------------------
+
+  /** Conta algo ao cérebro da fala, se os bots estão no telhado e falam. */
+  private hear(e: Heard) {
+    const world = this.botWorld;
+    if (!this.talk || !world) return;
+    this.talk.hear(e, this.clock(), this.scene(world));
+  }
+
+  /** O texto de todo post-it do jogo: só para tapar e comparar (`redact`, `done`), nunca para um pedido. */
+  private secrets(): string[] {
+    return this.state.phase === 'dead' ? [] : Object.values(this.state.game.postits).map((p) => p.text).filter(Boolean);
+  }
+
+  /** A cena para o cérebro da fala: apelido, personagem, onde está e em que pé está cada um. Nada do post-it. */
+  private scene(world: BotWorld): Scene {
+    const g = this.state.game;
+    const figures: Figure[] = [];
+    if (this.state.phase !== 'dead') {
+      for (const m of this.state.members) {
+        if (!(m.id in g.characters)) continue;
+        const p = m.token ? this.presences.get(m.token)?.latest : undefined;
+        const state = g.got.includes(m.id) ? 'guessed' : g.gaveUp.includes(m.id) ? 'gaveUp' : g.order.includes(m.id) ? 'playing' : 'ghost';
+        figures.push({ id: m.id, name: m.nickname, character: g.characters[m.id], x: p?.x ?? NaN, z: p?.z ?? NaN, bot: false, state });
+      }
+    }
+    for (const b of world.bots) figures.push({ id: b.id, name: persona(b.character).name, character: b.character, x: b.body.x, z: b.body.z, bot: true, boss: b.boss });
+    return { playing: this.playing(), turn: g.turn?.owner ?? null, claim: g.vote?.claimer ?? null, paused: g.paused, figures };
+  }
+
+  /** O jogo andou (um passo da sala): a vez, a votação, quem acertou, errou ou desistiu viram assunto. */
+  private heardGame(before: RoomState['game'], after: RoomState['game']) {
+    if (!this.talk || before.phase !== 'playing' || after.phase !== 'playing') return;
+    for (const id of after.got) if (!before.got.includes(id)) this.hear({ type: 'guessed', who: id });
+    for (const id of after.gaveUp) if (!before.gaveUp.includes(id)) this.hear({ type: 'gaveUp', who: id });
+    if (!before.vote && after.vote) this.hear({ type: 'claim', who: after.vote.claimer });
+    if (before.vote && !after.vote && !after.got.includes(before.vote.claimer)) this.hear({ type: 'missed', who: before.vote.claimer });
+    if (after.turn && after.turn.owner !== before.turn?.owner) this.hear({ type: 'turn', who: after.turn.owner });
+  }
+
+  /** Um passo da fala: se o cérebro tem um pedido, vai ao modelo, sem esperar; a resposta volta em `botSays`. */
+  private runTalk(world: BotWorld, now: number) {
+    const talk = this.talk;
+    if (!talk || !this.talker) return;
+    const req = talk.next(now, () => this.scene(world));
+    if (!req) return;
+    const pending = this.talker.ask(req.priority, req.messages);
+    if (!pending) { talk.done(req, null, now, this.scene(world), []); return; }
+    pending.then((text) => this.botSays(world, talk, req, text), () => this.botSays(world, talk, req, null));
+  }
+
+  /** O modelo respondeu: se ainda cabe (mesmo jogo, bot no telhado, a tempo, limpa), vira o balão do bot para todos. */
+  private botSays(world: BotWorld, talk: TalkBrain, req: TalkRequest, text: string | null) {
+    if (this.botWorld !== world || this.talk !== talk || this.state.phase === 'dead') return;
+    const line = talk.done(req, text, this.clock(), this.scene(world), this.secrets());
+    if (!line) return;
+    this.log('room.botSaid', { room: this.code, bot: req.bot, priority: req.priority });
+    const raw = JSON.stringify({ type: 'chat', member: req.bot, text: line });
+    for (const ws of this.sockets.values()) ws.send(raw);
   }
 
   /** Os bytes de uma imagem da sala, se existe. */
@@ -344,8 +434,10 @@ export class RoomHost {
     const now = this.clock();
     // os números do telhado entram na sala antes do passo: se for o que acaba o jogo, o snapshot do fim já os leva
     if (this.playing()) this.state = { ...this.state, stats: structuredClone(this.counters) };
+    const before = this.state.game;
     const { state, out, events } = step(this.state, input, now, { rng: this.rng });
     this.state = state;
+    if (state.phase !== 'dead') this.heardGame(before, state.game);
     // fora do jogo não se conta; quem saiu da turma (expulso) leva os números junto
     if (!this.playing()) this.counters = {};
     else for (const id of Object.keys(this.counters)) if (!state.members.some((m) => m.id === id)) delete this.counters[id];
@@ -384,6 +476,7 @@ export class RoomHost {
     // numa sala de desenvolvimento o primeiro bot chega logo, para dar para ver sem esperar, e é um chefão
     // (`DEV_BOSS_CHARACTER=<lugar>` escolhe o personagem dele); em produção nada disso vale
     this.botWorld ??= new BotWorld(this.rng, { characters: CHARACTERS, attackMs, ...(this.state.dev ? { firstWithin: 3000, bossFirst: true, bossCharacter: devBossCharacter() } : {}) });
+    if (this.talker) this.talk ??= new TalkBrain(this.rng, { chance: this.talkChance ?? (this.state.dev ? devTalkChance() : undefined) });
     this.botLast = this.clock();
     this.botTimer = setInterval(() => this.runBots(), this.botTick);
   }
@@ -392,6 +485,7 @@ export class RoomHost {
     if (this.botTimer) clearInterval(this.botTimer);
     this.botTimer = undefined;
     this.botWorld = null;
+    this.talk = null;
     this.botSent.clear();
   }
 
@@ -422,6 +516,12 @@ export class RoomHost {
       this.count(...hit);
       if (this.botWorld !== world) return;
     }
+    if (this.talk) {
+      if (r.rosterChanged) this.talk.roster(world.bots.map((b) => ({ id: b.id, character: b.character, boss: b.boss })), now);
+      for (const s of r.shoves) this.hear({ type: 'shovedPlayer', bot: s.by, target: s.target });
+      for (const h of r.hits) this.hear({ type: 'shoved', bot: h.bot, by: h.by });
+      for (const id of r.falls) this.hear({ type: 'fell', who: id });
+    }
     if (r.rosterChanged) {
       for (const id of [...this.botSent.keys()]) if (!world.bots.some((b) => b.id === id)) this.botSent.delete(id);
       this.apply({ kind: 'bots', bots: world.roster() }); // a sala manda o snapshot com a lista nova
@@ -437,6 +537,7 @@ export class RoomHost {
         for (const ws of this.sockets.values()) ws.send(raw);
       }
     }
+    this.runTalk(world, now);
     // desligada e já sem ninguém no telhado: o laço para até ligarem de novo
     if (!enabled && world.bots.length === 0) this.stopBots();
   }

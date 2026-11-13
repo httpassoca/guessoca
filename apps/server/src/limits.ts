@@ -19,6 +19,9 @@ export class TokenBucket {
     return true;
   }
 
+  /** Quantas fichas há agora, sem gastar nenhuma. */
+  level(now: number): number { this.refill(now); return this.tokens; }
+
   /** Já recarregou tudo: esquecer este balde é o mesmo que guardá-lo. */
   full(now: number): boolean { this.refill(now); return this.tokens >= this.burst; }
 }

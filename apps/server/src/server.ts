@@ -1,6 +1,7 @@
 import { CLOSE_ROOM_NOT_FOUND, IMAGE_BYTES_MAX, IMAGE_ID_RE, isWebp, parseRoomInit, SOCKET_IDLE_TIMEOUT, SOCKET_MESSAGE_BYTES_MAX, TOKEN_RE, type RoomPeek } from '@guess/protocol';
 import type { SocketData } from './host';
 import type { Log } from './log';
+import type { Talker } from './groq';
 import { Rooms, ROOMS_MAX } from './rooms';
 import { staticHandler } from './static';
 import { createAdmin } from './admin';
@@ -16,6 +17,8 @@ export interface ServerOptions {
   adminHash?: string;
   /** os limites contra abuso (`LIMITS`); os testes apertam */
   limits?: Partial<Limits>;
+  /** o modelo dos bots que falam (`groq.ts`), um só para todas as salas; sem ele (sem `GROQ_API_KEY`), os bots não falam */
+  talker?: Talker;
 }
 
 /**
@@ -63,7 +66,7 @@ function parseJson(bytes: Uint8Array): unknown {
  */
 export function createServer(opts: ServerOptions) {
   const limits: Limits = { ...LIMITS, ...opts.limits };
-  const rooms = new Rooms(opts.log, Math.random, { dev: opts.dev ?? false }, { max: limits.roomsMax });
+  const rooms = new Rooms(opts.log, Math.random, { dev: opts.dev ?? false, ...(opts.talker ? { talker: opts.talker } : {}) }, { max: limits.roomsMax });
   const creations = new KeyedBuckets(limits.createBurst, limits.createPerSecond);
   const connects = new KeyedBuckets(limits.connectBurst, limits.connectPerSecond);
   /** sockets abertos por IP */
