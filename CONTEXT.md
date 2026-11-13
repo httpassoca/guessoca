@@ -88,6 +88,10 @@ _Evitar_: avatar, boneco, skin, sprite (é o desenho), herói
 J empurra quem está na frente, que é jogado para trás e pode cair do telhado. Cair na rua faz o personagem piscar e voltar em 1,5 s na plataforma mais alta do meio. Cair não muda nada no jogo.
 _Evitar_: ataque, soco, golpe, hit
 
+**Comemoração** (`cheer`):
+Quando um acerto é confirmado (pela votação ou pelo moderador), a turma inteira vê confete em volta do personagem de quem acertou por uns 2 s, e ele é lançado para o alto uma vez. Desistir e errar não têm comemoração.
+_Evitar_: festa, animação de vitória, efeito
+
 **Estatísticas** (`stats`):
 O que cada pessoa da turma fez no telhado durante um jogo, contado pelo servidor e mostrado no fim: quedas, empurrões dados (em gente ou em bot) e empurrões levados, da turma e dos bots, ao lado das vezes que jogou. Os destaques apontam quem mais caiu, quem mais empurrou e a vítima preferida dos bots. Só contam com o jogo rodando, zeram quando outro começa, não mudam nada no jogo nem contam como atividade. Bots não têm linha.
 _Evitar_: placar, pontuação, score, conquistas
