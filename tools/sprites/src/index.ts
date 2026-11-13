@@ -21,8 +21,9 @@ import type { Image } from './image';
 import { buildPack, packFiles } from './pack';
 import { PACKS } from './packs';
 import { buildSkeleton, SHEETS as SKELETON_SHEETS } from './skeleton';
+import { ROOFTOP_RECIPES } from './life';
 import { rooftopSheet } from './rooftop';
-import { SKYLINES, skyline } from './skyline';
+import { SKYLINES, skyline, twinkles, type WindowSpot } from './skyline';
 import { readPng, writePng, writeSheet } from './png';
 
 const root = resolve(import.meta.dir, '../../..');
@@ -33,12 +34,15 @@ const out = join(root, 'apps/web/public/sprites');
 const atlasOut = join(root, 'apps/web/src/lib/sprites');
 
 mkdirSync(atlasOut, { recursive: true });
-const rooftop = rooftopSheet();
+const rooftop = rooftopSheet(256, ROOFTOP_RECIPES);
 writePng(join(out, 'rooftop.png'), rooftop.sheet);
 const skylines = SKYLINES.map((s) => {
-  const img = skyline(s);
+  const spots: WindowSpot[] = [];
+  const img = skyline(s, spots);
   writePng(join(out, `${s.name}.png`), img);
-  return { name: s.name, layer: s.layer, file: `${s.name}.png`, w: img.width, h: img.height };
+  // as janelas que piscam no cliente (`world/skylife.ts`): umas poucas por ladrilho
+  const twinkle = twinkles(spots, s.seed, s.layer === 'far' ? 14 : 8).map(({ x, y, w, h, lit, on, off }) => ({ x, y, w, h, lit, on, off }));
+  return { name: s.name, layer: s.layer, file: `${s.name}.png`, w: img.width, h: img.height, twinkle };
 });
 writeFileSync(join(atlasOut, 'rooftop.json'), JSON.stringify({ ...rooftop.atlas, skylines }, null, 2) + '\n');
 console.log(`telhado: ${Object.keys(rooftop.atlas.frames).length} objetos em ${rooftop.sheet.width}×${rooftop.sheet.height}; cidade: ${skylines.map((s) => `${s.w}×${s.h}`).join(', ')}`);

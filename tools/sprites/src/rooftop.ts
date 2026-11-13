@@ -85,6 +85,10 @@ export const PALETTE = {
   i: '8c3f8f',
   // neblina (desenhada com transparência no cliente)
   f: '6a5a9a',
+  // folhas (o vaso dos telhados dos lados) e a luz verde de navegação do avião
+  a: '2c4a3a',
+  A: '46705a',
+  j: '4dff9a',
 } as const satisfies Palette;
 
 /** Uma letra da paleta. */
@@ -212,7 +216,7 @@ export function fog(w = 129, h = 24): string {
 // --- fachadas -----------------------------------------------------------------------------------------------------------
 
 /** As janelas, 8×11 (10 de caixilho e o peitoril), pela letra do plano da fachada. */
-const WINDOWS: Record<string, string> = {
+export const WINDOWS: Record<string, string> = {
   // apagada: vidro escuro com o céu refletido
   d: `
     kkkkkkkk
@@ -301,8 +305,8 @@ const TILE = `
  * um andar da fachada, em linhas: a laje (1 + 1), 3 de parede, o lintel, a janela de 11 e 5 de parede. Uma baia (uma
  * janela) em colunas: 4 de parede, a janela de 8, 4 de parede. Com 8 baias e 3 andares, a fachada tem 130×66.
  */
-const FLOOR = 22;
-const BAY = 16;
+export const FLOOR = 22;
+export const BAY = 16;
 
 /**
  * Uma fachada que repete: `plan` diz a janela de cada baia (uma linha por andar, `d` apagada, `l` acesa, `b` com
@@ -335,10 +339,20 @@ function facade(o: { wall: string; band: string; pillar: string; plan: string; l
   return s.text();
 }
 
+/**
+ * O plano de janelas de cada fachada (como em `facade`): vai também no atlas (`windows` do quadro), para o cliente saber
+ * onde cada janela está e de que jeito foi desenhada (as janelas vivas, `world/windows.ts`, acendem e apagam por cima).
+ */
+export const PLANS = {
+  'facade-a': 'dlddbddl\nddtddldd\nbdddldtd',
+  'facade-b': 'dbddlddd\nlddbdtdl\nddlddddb',
+  'facade-c': 'ddlddtdd\ntddddldb\ndldtdddd',
+} as const;
+
 // --- caixas do mapa ------------------------------------------------------------------------------------------------------
 
 /** A hélice no tampo do ar-condicionado, achatada pela perspectiva. */
-const FAN = `
+export const FAN = `
   .....MMMMMM.....
   ...MMknknknMM...
   .MMknknknknknMM.
@@ -537,20 +551,23 @@ export const BEACON = `
   RRR
   .R.`;
 
-/** Poças deitadas no tampo, achatadas pela perspectiva, refletindo o céu e o neon. */
+/**
+ * Poças deitadas no tampo, achatadas pela perspectiva: borda escura (`d`), o céu refletido (`h`, `H`), um brilho (`W`)
+ * e um fio do neon (`i`, `z`). O reflexo do letreiro mais perto é um quadro à parte (`puddle-*-shine` em `life.ts`).
+ */
 export const PUDDLES = {
   'puddle-a': `
-    ...hhhhhhhh...
-    .hhhHhhhhihhh.
-    hhhhhhhiihhhhh
-    .hhhhhhhhhhhh.
-    ...hhhhhhhh...`,
+    ...dhhhhhhd...
+    .dhhhHWhhhhhd.
+    dhhhhhhhhhihhd
+    .dhhhhhHhhhhd.
+    ...ddhhhhdd...`,
   'puddle-b': `
-    .....hhhhhhhhhh.....
-    ..hhhhhzhhhhhhhhhh..
-    hhhhhhhhhhhhhiihhhhh
-    .hhhHHhhhhhhhhhhhhh.
-    ...hhhhhhhhhhhhh....`,
+    .....ddhhhhhhhhd....
+    ..dhhhhhWHhhzhhhhd..
+    dhhhhhhhhhhhhhhiihhd
+    .dhhhHHhhhhhhhhhhhd.
+    ...dddhhhhhhhhddd...`,
 };
 
 /** A lua, 24×24, cheia e um pouco apagada embaixo à direita, com crateras; âncora no centro (`backdrop.ts` a põe no céu). */
@@ -644,6 +661,8 @@ export interface Recipe {
   tile?: boolean;
   /** o ponto do quadro, em pixels da grade, que vai no lugar do objeto no mundo; sem isto, o meio de baixo */
   anchor?: { x: number; y: number };
+  /** fachada: o plano das janelas, uma linha por andar (letras de `WINDOWS`, `.` parede), como em `facade` */
+  windows?: string;
   /** objeto de uma caixa do mapa: largura (`x1 − x0`), altura da frente (`top` − topo do telhado) e fundo (`z1 − z0`) da caixa, em unidades do mundo */
   fits?: { w: number; h: number; depth: number };
 }
@@ -663,15 +682,15 @@ export const RECIPES: readonly Recipe[] = [
   { name: 'fog', grid: fog(), tile: true, anchor: { x: 0, y: 0 } },
   {
     name: 'facade-a', tile: true, anchor: { x: 0, y: 0 },
-    grid: facade({ wall: BRICK, band: 'c', pillar: 'c', lintel: 'C', plan: 'dlddbddl\nddtddldd\nbdddldtd' }),
+    grid: facade({ wall: BRICK, band: 'c', pillar: 'c', lintel: 'C', plan: PLANS['facade-a'] }), windows: PLANS['facade-a'],
   },
   {
     name: 'facade-b', tile: true, anchor: { x: 0, y: 0 },
-    grid: facade({ wall: PANEL, band: 'd', pillar: 'P', plan: 'dbddlddd\nlddbdtdl\nddlddddb' }),
+    grid: facade({ wall: PANEL, band: 'd', pillar: 'P', plan: PLANS['facade-b'] }), windows: PLANS['facade-b'],
   },
   {
     name: 'facade-c', tile: true, anchor: { x: 0, y: 0 },
-    grid: facade({ wall: TILE, band: 'S', pillar: 'd', lintel: 'k', plan: 'ddlddtdd\ntddddldb\ndldtdddd' }),
+    grid: facade({ wall: TILE, band: 'S', pillar: 'd', lintel: 'k', plan: PLANS['facade-c'] }), windows: PLANS['facade-c'],
   },
   box('ac', airCon(), { w: 40, h: 28, depth: 26 }),
   box('chimney', chimney(), { w: 40, h: 32, depth: 22 }),
@@ -695,6 +714,11 @@ export interface RooftopFrame {
   tile?: true;
   /** caixa: quantas linhas de baixo são a frente (a altura da caixa); as de cima são o tampo */
   face?: number;
+  /**
+   * fachada: onde ficam as janelas, em pixels do quadro: a primeira em `x, y`, cada uma `w`×`h` (sem o peitoril), uma
+   * a cada `bay` colunas e a cada `floor` linhas; `plan` diz o desenho de cada uma (uma linha por andar, como em `facade`)
+   */
+  windows?: { x: number; y: number; w: number; h: number; bay: number; floor: number; plan: string[] };
 }
 
 /** O atlas da folha do telhado (sem as faixas da cidade, que `index.ts` junta). */
@@ -707,8 +731,8 @@ export interface RooftopAtlas {
  * primeiro, em prateleiras da esquerda para a direita; 256 de largura cabe as fachadas (130) duas a duas e dá uma folha
  * quase quadrada. A posição na folha muda quando uma receita muda de tamanho; o cliente sempre lê pelo atlas.
  */
-export function rooftopSheet(width = 256): { sheet: Image; atlas: RooftopAtlas } {
-  const imgs = RECIPES.map((r) => ({ r, img: parseGrid(r.grid, PALETTE) }));
+export function rooftopSheet(width = 256, recipes: readonly Recipe[] = RECIPES): { sheet: Image; atlas: RooftopAtlas } {
+  const imgs = recipes.map((r) => ({ r, img: parseGrid(r.grid, PALETTE) }));
   const order = [...imgs].sort((a, b) => b.img.height - a.img.height || b.img.width - a.img.width);
   const sheetW = Math.max(width, ...imgs.map((i) => i.img.width));
   const placed = new Map<string, { x: number; y: number }>();
@@ -729,6 +753,8 @@ export function rooftopSheet(width = 256): { sheet: Image; atlas: RooftopAtlas }
       anchor: r.anchor ?? { x: Math.floor(img.width / 2), y: img.height },
       ...(r.tile ? { tile: true as const } : {}),
       ...(r.fits ? { face: r.fits.h } : {}),
+      // a janela (`facade`): meio pilar + 4 de parede em x; laje + 3 de parede + lintel em y; 8×10 sem o peitoril
+      ...(r.windows ? { windows: { x: 5, y: 5, w: 8, h: 10, bay: BAY, floor: FLOOR, plan: gridLines(r.windows) } } : {}),
     };
   }
   return { sheet, atlas: { frames } };
