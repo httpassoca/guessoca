@@ -1,28 +1,46 @@
 import { describe, expect, test } from 'bun:test';
 import { TOKEN_RE } from '@guess/protocol';
 import { CHARACTERS } from '@guess/rules';
-import { nicknameIn, rememberNicknameIn, tokenIn } from '../src/lib/identity';
+import { nicknameIn, rememberNicknameIn, SEAT_TTL, tokenIn } from '../src/lib/identity';
 import { fakeStorage } from './fake-storage';
 
 describe('identidade', () => {
-  test('o token é sorteado uma vez por aba, no formato do protocolo, e se repete', () => {
-    const tab = fakeStorage();
-    const t = tokenIn(tab);
+  const H = 60 * 60_000;
+
+  test('o token é sorteado uma vez por sala e por navegador, no formato do protocolo, e se repete', () => {
+    const browser = fakeStorage();
+    const t = tokenIn(browser, 'ABCD', 0);
     expect(t).toMatch(TOKEN_RE);
-    expect(tokenIn(tab)).toBe(t);
-    expect(tokenIn(fakeStorage())).not.toBe(t); // outra aba, outra pessoa
+    expect(tokenIn(browser, 'ABCD', 1000)).toBe(t); // a aba fechou e abriu de novo: mesmo lugar
+    expect(tokenIn(browser, 'abcd', 2000)).toBe(t); // o código não liga para maiúsculas
+    expect(tokenIn(browser, 'WXYZ', 0)).not.toBe(t); // outra sala, outro token
+    expect(tokenIn(fakeStorage(), 'ABCD', 0)).not.toBe(t); // outro navegador, outra pessoa
   });
 
-  test('um token guardado fora do formato é trocado', () => {
-    const tab = fakeStorage();
-    tab.setItem('guess.token', 'x');
-    const t = tokenIn(tab);
+  test('um token sem uso há mais de um dia é esquecido, e os velhos são limpos ao guardar outro', () => {
+    const browser = fakeStorage();
+    const old = tokenIn(browser, 'ABCD', 0);
+    tokenIn(browser, 'WXYZ', 0);
+    expect(tokenIn(browser, 'ABCD', SEAT_TTL - 1)).toBe(old); // usar renova
+    const fresh = tokenIn(browser, 'QQQQ', SEAT_TTL + 1);
+    expect(Object.keys(JSON.parse(browser.getItem('guess.seats')!)).sort()).toEqual(['ABCD', 'QQQQ']); // WXYZ venceu
+    expect(tokenIn(browser, 'ABCD', 3 * SEAT_TTL)).not.toBe(old);
+    expect(fresh).toMatch(TOKEN_RE);
+    expect(SEAT_TTL).toBe(24 * H);
+  });
+
+  test('lixo guardado é trocado sem quebrar', () => {
+    const browser = fakeStorage();
+    browser.setItem('guess.seats', 'x');
+    expect(tokenIn(browser, 'ABCD', 0)).toMatch(TOKEN_RE);
+    browser.setItem('guess.seats', JSON.stringify({ ABCD: { token: 'x', at: 0 }, WXYZ: 5 }));
+    const t = tokenIn(browser, 'ABCD', 0);
     expect(t).toMatch(TOKEN_RE);
     expect(t).not.toBe('x');
   });
 
   test('sem storage (modo privado) ainda há um token válido', () => {
-    expect(tokenIn(null)).toMatch(TOKEN_RE);
+    expect(tokenIn(null, 'ABCD', 0)).toMatch(TOKEN_RE);
   });
 
   test('o apelido é lembrado pelo navegador', () => {

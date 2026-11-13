@@ -16,6 +16,11 @@ import {
   SHOVE_VX,
   SHOVE_VY,
   shoveTargets,
+  canBeShoved,
+  inShoveReach,
+  SHOVE_SLACK,
+  BLINK_MS,
+  RESPAWN_MS,
   type Other,
 } from '../src';
 import { bodyAt, DT, first, kinds, near, once, other, run, T0 } from './sim';
@@ -141,6 +146,33 @@ describe('empurrão', () => {
     ];
     expect(shoveTargets(me, others)).toEqual(['front', 'edge', 'deep', 'up']);
     expect(shoveTargets({ ...me, facing: -1 }, others)).toEqual(['behind']);
+  });
+
+  test('o alcance com folga (o servidor confere pela última presença): perto passa, longe ou atrás demais não', () => {
+    const reach = SHOVE_REACH + BODY_RX;
+    const me = { x: 100, y: 0, z: 10, facing: 1 as const };
+    expect(inShoveReach(me, { x: 120, y: 0, z: 10 })).toBe(true);
+    // a presença está um pouco atrás do que a outra aba via: a folga cobre
+    expect(inShoveReach(me, { x: 100 + reach + SHOVE_SLACK.x, y: 0, z: 10 + SHOVE_DZ + SHOVE_SLACK.z })).toBe(true);
+    expect(inShoveReach(me, { x: 100 - SHOVE_SLACK.x, y: SHOVE_DY + SHOVE_SLACK.y, z: 10 })).toBe(true);
+    // do outro lado do mapa, ou bem atrás, não
+    expect(inShoveReach(me, { x: 100 + reach + SHOVE_SLACK.x + 1, y: 0, z: 10 })).toBe(false);
+    expect(inShoveReach(me, { x: 600, y: 0, z: 10 })).toBe(false);
+    expect(inShoveReach(me, { x: 100 - SHOVE_SLACK.x - 1, y: 0, z: 10 })).toBe(false);
+    expect(inShoveReach({ ...me, facing: -1 }, { x: 160, y: 0, z: 10 })).toBe(false);
+    expect(inShoveReach(me, { x: 120, y: 0, z: 10 + SHOVE_DZ + SHOVE_SLACK.z + 1 })).toBe(false);
+    expect(inShoveReach(me, { x: 120, y: SHOVE_DY + SHOVE_SLACK.y + 1, z: 10 })).toBe(false);
+  });
+
+  test('quem já está atordoado, caído ou voltando não leva outro empurrão', () => {
+    const b = bodyAt(100, 10);
+    expect(canBeShoved(b, T0)).toBe(true);
+    const hit = applyShove(b, 1, T0);
+    expect(canBeShoved(hit, T0 + SHOVE_STUN_MS - 1)).toBe(false);
+    expect(canBeShoved(hit, T0 + SHOVE_STUN_MS)).toBe(true);
+    expect(canBeShoved({ ...b, respawnAt: T0 + RESPAWN_MS }, T0)).toBe(false);
+    expect(canBeShoved({ ...b, blinkUntil: T0 + BLINK_MS }, T0 + BLINK_MS - 1)).toBe(false);
+    expect(canBeShoved({ ...b, blinkUntil: T0 + BLINK_MS }, T0 + BLINK_MS)).toBe(true);
   });
 
   test('quem é empurrado voa para lá e para cima, atordoado e solto da cabeça', () => {

@@ -17,7 +17,8 @@
    *
    * O post-it sobre a cabeça é um tooltip do dssoca (superfície, borda, fonte mono), sem papel amarelo: o meu é "?" até
    * ser revelado, o da vez fica com a cor de destaque, e cresce com o mouse em cima (só ele recebe o mouse; a camada não).
-   * No lobby, só o apelido. Um bot engraçado leva só o nome do personagem dele.
+   * No lobby, só o apelido. Um bot engraçado leva só o nome do personagem dele, numa etiqueta mais leve (tracejada, sem
+ * fundo): não tem post-it, e não é para ninguém procurar um. A etiqueta que o `declutter` subiu tem um fio até a cabeça.
    *
    * A fala de alguém vira um balão na mesma etiqueta, logo acima da cabeça (debaixo do apelido, que sobe enquanto ele
    * está lá): papel branco, contorno escuro e rabicho como os balões dos emotes, na fonte de pixel Tiny5 (`app.css`,
@@ -51,14 +52,14 @@
       remote, host: host!, heads: layer!, lang: untrack(() => i18n.lang),
       onStatus: (s, detail) => { status = s; if (detail) document.documentElement.dataset.renderer = detail; },
       onEvent: (ev) => { if (ev.type === 'jump' || ev.type === 'shove') playSfx(ev.type); },
+      onShoved: () => playSfx('shove'), // levei um empurrão que pegou
     });
-    const offShoved = remote.onShoved(() => playSfx('shove')); // levei um empurrão
     const offChat = remote.onChat((e) => { bubbles = say(bubbles, e.member, e.text, performance.now()); scheduleBubbles(); });
     // a fonte dos balões já carregada quando a primeira fala chegar
     document.fonts?.load("8px 'Tiny5'").catch(() => {});
     runtime.setRoom(untrack(() => room));
     runtime.start();
-    return () => { offShoved(); offChat(); clearTimeout(bubbleTimer); runtime?.dispose(); runtime = null; };
+    return () => { offChat(); clearTimeout(bubbleTimer); runtime?.dispose(); runtime = null; };
   });
   $effect(() => { runtime?.setRoom(room); });
   $effect(() => { runtime?.setBlocked(blocked); });
@@ -71,7 +72,7 @@
   {#each list as h (h.id)}
     {@const said = bubbleOf.get(h.id)}
     <div class="gs-head" data-member={h.id}>
-      <div class="inner" class:mine={h.mine} class:turn={h.card?.turn} class:done={h.card && h.card.status !== 'playing'}>
+      <div class="inner" class:bot={h.bot !== null} class:mine={h.mine} class:turn={h.card?.turn} class:done={h.card && h.card.status !== 'playing'}>
         {#if h.card}
           <div class="tip" class:hidden={h.card.hidden}>
             {#if h.card.hidden}
@@ -85,6 +86,7 @@
         <span class="tag">{h.bot !== null ? nameOf(h.bot) : h.mine ? t('postit.mine') : h.nickname}</span>
         {#if said}{#key said.seq}<div class="gs-bubble"><span class="say">{said.text}</span></div>{/key}{/if}
       </div>
+      <span class="stem"></span>
     </div>
   {/each}
 </div>

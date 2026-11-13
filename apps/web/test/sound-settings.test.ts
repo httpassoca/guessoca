@@ -56,6 +56,6 @@ describe('duas mesas de som e o mudo, por navegador', () => {
 
   test('pular, empurrar, a trilha, o trovão e a sirene são do mapa; votação, acerto e fim de vez são do jogo', () => {
     expect((['jump', 'shove', 'music', 'thunder', 'siren'] as const).map(mixerOf)).toEqual(['map', 'map', 'map', 'map', 'map']);
-    expect((['vote', 'gotIt', 'turnEnd'] as const).map(mixerOf)).toEqual(['game', 'game', 'game']);
+    expect((['vote', 'gotIt', 'turnEnd', 'yourTurn'] as const).map(mixerOf)).toEqual(['game', 'game', 'game', 'game']);
   });
 });

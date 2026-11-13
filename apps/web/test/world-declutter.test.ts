@@ -29,4 +29,16 @@ describe('post-its sobre as cabeças não se cobrem', () => {
     const tags = [tag('b', 100, 10), tag('a', 105, 10)];
     expect(declutter(tags)).toEqual(declutter([...tags].reverse()));
   });
+
+  test('quem está falando fica no lugar (o balão aponta para ele), mesmo estando mais ao fundo; os outros sobem', () => {
+    const lift = declutter([{ ...tag('frente', 100, 10) }, { ...tag('fala', 120, 30), h: 80, pin: true }]);
+    expect(lift.get('fala')).toBe(0);
+    expect(lift.get('frente')).toBe(80 + TAG_GAP);
+  });
+
+  test('dois falando: entre eles vale a profundidade', () => {
+    const lift = declutter([{ ...tag('a', 100, 10), pin: true }, { ...tag('b', 120, 30), pin: true }, tag('c', 110, 0)]);
+    expect(lift.get('a')).toBe(0);
+    expect(lift.get('b')).toBe(40 + TAG_GAP);
+  });
 });

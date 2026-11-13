@@ -57,13 +57,15 @@ export interface TurnInfo {
   /** ms que sobravam quando o snapshot chegou (ver `countdown`) */
   left: number;
   running: boolean;
+  /** quem vem depois: a próxima da ordem que ainda joga, está conectada e não é falsa; null = só sobrou a da vez */
+  next: MemberView | null;
 }
 
 export interface VoteInfo {
   claimer: MemberView;
   /** fui eu que pedi */
   mine: boolean;
-  /** posso votar agora (sou eleitor e ainda não votei) */
+  /** posso votar agora (sou eleitor; depois de votar, ainda posso mudar até a votação fechar) */
   canVote: boolean;
   /** já votei, e como */
   voted: boolean;
@@ -72,9 +74,12 @@ export interface VoteInfo {
   waiting: boolean;
   voters: { member: MemberView; voted: boolean }[];
   left: number;
+  /** o post-it de quem pediu, o que está sendo julgado; null para quem pediu (não pode ver o próprio) */
+  card: PostitCard | null;
 }
 
-export interface RankingRow { place: number; member: MemberView; gaveUp: boolean }
+/** Uma linha do ranking: quem acertou tem lugar; quem desistiu não (`place` null) e vem depois. */
+export interface RankingRow { place: number | null; member: MemberView; gaveUp: boolean }
 
 export interface RoomView {
   me: MemberView | null;
@@ -98,8 +103,12 @@ export interface RoomView {
   missing: PostitCard[];
   /** lobby, moderador: os donos cujo post-it posso escrever agora (não prontos; nem o meu nem o que já escrevo) */
   hostCanWrite: string[];
-  /** lobby, moderador: o meu post-it está vazio e eu não posso escrevê-lo; Começar espera o autor */
+  /**
+   * lobby, moderador: o meu post-it está vazio e eu não posso escrevê-lo; Começar espera o autor (`ownPostitAuthor`).
+   * Sozinho na turma ninguém escreve o meu (o círculo me faz autor de mim mesmo): aí não há o que esperar, e é falso.
+   */
   ownPostitEmpty: boolean;
+  ownPostitAuthor: MemberView | null;
   readyCount: number;
   /** post-its com texto (o meu também: o servidor diz se está escrito, sem dizer o quê) */
   writtenCount: number;
@@ -165,7 +174,14 @@ export function roomView(s: RoomSnapshot): RoomView {
   }
 
   const turnOwner = s.turn ? byId.get(s.turn.owner) : undefined;
-  const turn: TurnInfo | null = s.turn && turnOwner ? { owner: turnOwner, mine: turnOwner.id === me?.id, left: s.turn.left, running: s.turn.running } : null;
+  let turn: TurnInfo | null = null;
+  if (s.turn && turnOwner) {
+    // como o servidor escolhe a próxima vez (`startTurn`): dá a volta na ordem a partir de quem está na vez
+    const i = s.order.indexOf(turnOwner.id);
+    const rotation = [...s.order.slice(i + 1), ...s.order.slice(0, Math.max(0, i))];
+    const nextId = rotation.find((id) => { const m = byId.get(id); return !!m && m.connected && !m.fake && !got.has(id) && !gaveUp.has(id); });
+    turn = { owner: turnOwner, mine: turnOwner.id === me?.id, left: s.turn.left, running: s.turn.running, next: (nextId && byId.get(nextId)) || null };
+  }
 
   let vote: VoteInfo | null = null;
   const claimer = s.vote ? byId.get(s.vote.claimer) : undefined;
@@ -174,14 +190,17 @@ export function roomView(s: RoomSnapshot): RoomView {
     const amVoter = !!me && s.vote.voters.includes(me.id);
     const iVoted = !!me && (voted.has(me.id) || s.vote.yours !== null);
     vote = {
-      claimer, mine: claimer.id === me?.id, canVote: amVoter && !iVoted, voted: iVoted, yours: s.vote.yours, waiting: !amVoter,
+      claimer, mine: claimer.id === me?.id, canVote: amVoter, voted: iVoted, yours: s.vote.yours, waiting: !amVoter,
       voters: pick(s.vote.voters).map((member) => ({ member, voted: voted.has(member.id) })), left: s.vote.left,
+      card: postits.find((c) => c.owner.id === claimer.id && !c.hidden) ?? null,
     };
   }
 
 
-  const ranking: RankingRow[] = [...pick(s.got).map((member) => ({ member, gaveUp: false })), ...pick(s.gaveUp).map((member) => ({ member, gaveUp: true }))]
-    .map((r, i) => ({ place: i + 1, ...r }));
+  const ranking: RankingRow[] = [
+    ...pick(s.got).map((member, i) => ({ place: i + 1, member, gaveUp: false })),
+    ...pick(s.gaveUp).map((member) => ({ place: null, member, gaveUp: true })),
+  ];
 
   const place = new Map(ranking.map((r) => [r.member.id, r.place]));
   const cardOf = new Map(postits.map((c) => [c.owner.id, c]));
@@ -201,6 +220,8 @@ export function roomView(s: RoomSnapshot): RoomView {
   const hostCards = hostLobby ? postits.filter((p) => !p.mine && p.owner.id !== writtenByMe && !p.ready) : [];
   const writtenCount = players.filter((p) => s.postits[p.id]?.written || !!s.postits[p.id]?.text?.trim()).length;
   const allWritten = players.length > 0 && writtenCount === players.length;
+  const myAuthorId = me ? authorOf(me.id) : null;
+  const ownPostitAuthor = hostLobby && me && s.postits[me.id] && !s.postits[me.id].written && myAuthorId !== me.id ? (myAuthorId && byId.get(myAuthorId)) || null : null;
   const startBlock: StartBlock | null = !hostLobby ? null : players.length < MIN_PLAYERS ? 'players' : !allWritten ? 'empty' : null;
   return {
     me, isModerator, isPlayer, isGhost: !!me && !isPlayer, done, players,
@@ -211,7 +232,8 @@ export function roomView(s: RoomSnapshot): RoomView {
     writeFor,
     missing: hostCards.filter((p) => p.progress === 'empty'),
     hostCanWrite: hostCards.map((p) => p.owner.id),
-    ownPostitEmpty: hostLobby && !!me && !!s.postits[me.id] && !s.postits[me.id].written,
+    ownPostitEmpty: ownPostitAuthor !== null,
+    ownPostitAuthor,
     readyCount: postits.filter((p) => p.ready).length,
     writtenCount,
     allReady: postits.length > 0 && postits.length === players.length && postits.every((p) => p.ready),
@@ -227,6 +249,14 @@ export function roomView(s: RoomSnapshot): RoomView {
     vote,
     ranking,
   };
+}
+
+/**
+ * A tela de entrar (ainda visitante): `full`, a turma já chegou ao limite (o Entrar vem desligado); `late`, o jogo já
+ * começou (quem entra fica de fantasma até o próximo).
+ */
+export function joinState(s: Pick<RoomSnapshot, 'members' | 'maxPlayers' | 'phase'>): { full: boolean; late: boolean } {
+  return { full: s.members.length >= s.maxPlayers, late: s.phase !== 'lobby' };
 }
 
 /** O tempo que sobra agora, contando desde quando o snapshot chegou; parado, fica no que sobrou. Nunca negativo. */

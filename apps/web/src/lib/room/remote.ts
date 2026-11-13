@@ -1,9 +1,9 @@
-import { cleanChat, CLOSE_KICKED, CLOSE_REPLACED, CLOSE_ROOM_ENDED, CLOSE_ROOM_NOT_FOUND, parsePresence, PING_INTERVAL, type ClientMessage, type Presence, type RoomError, type RoomSnapshot, type ServerMessage } from '@guess/protocol';
+import { cleanChat, CLOSE_KICKED, CLOSE_REPLACED, CLOSE_ROOM_ENDED, CLOSE_ROOM_NOT_FOUND, CLOSE_TOO_MANY, parsePresence, PING_INTERVAL, type ClientMessage, type Presence, type RoomError, type RoomSnapshot, type ServerMessage } from '@guess/protocol';
 import { pushPresence, type PresenceTrack } from '../world/presence';
 
 export type RemoteStatus = 'idle' | 'connecting' | 'open' | 'reconnecting' | 'closed';
 /** Por que a conexão fechou de vez (códigos 4xxx do servidor); null = ainda não fechou, ou fechou por `dispose`. */
-export type ClosedReason = 'notFound' | 'ended' | 'replaced' | 'kicked' | null;
+export type ClosedReason = 'notFound' | 'ended' | 'replaced' | 'kicked' | 'tooMany' | null;
 
 export interface RemoteState {
   status: RemoteStatus;
@@ -58,12 +58,12 @@ export interface ChatEvent { member: string; text: string }
 export const BACKOFF_START = 500;
 export const BACKOFF_MAX = 10_000;
 
-const CLOSE_REASONS: Record<number, NonNullable<ClosedReason>> = { [CLOSE_ROOM_NOT_FOUND]: 'notFound', [CLOSE_ROOM_ENDED]: 'ended', [CLOSE_REPLACED]: 'replaced', [CLOSE_KICKED]: 'kicked' };
+const CLOSE_REASONS: Record<number, NonNullable<ClosedReason>> = { [CLOSE_ROOM_NOT_FOUND]: 'notFound', [CLOSE_ROOM_ENDED]: 'ended', [CLOSE_REPLACED]: 'replaced', [CLOSE_KICKED]: 'kicked', [CLOSE_TOO_MANY]: 'tooMany' };
 /** 4xxx é da aplicação: o servidor fechou de propósito e reconectar não muda nada. Um código que não conhecemos vira "acabou". */
 const finalReason = (code: number): ClosedReason => CLOSE_REASONS[code] ?? (code >= 4000 && code < 5000 ? 'ended' : null);
 
 /**
- * A ponta do cliente no socket da sala (ADR 0002): conecta com o token da aba, aplica os snapshots inteiros que o
+ * A ponta do cliente no socket da sala (ADR 0002): conecta com o token desta sala neste navegador, aplica os snapshots inteiros que o
  * servidor manda e reconecta sozinha com espera crescente. Os pedidos viram mensagens; o servidor aplica ou recusa
  * (a recusa fica em `state.error`, o snapshot que temos continua valendo).
  *

@@ -131,7 +131,7 @@ html, body { margin: 0; min-height: 100%; background: var(--ss-bg); }
 /* atrás do personagem, discreto (issue #70): um pedaço da fachada do hotel sumindo no escuro, com as janelas vivas, e chuva fina */
 .gs-stage-facade { position: absolute; top: 56px; left: 50%; translate: -50% 0; image-rendering: pixelated; opacity: 0.55; pointer-events: none;
   -webkit-mask-image: radial-gradient(closest-side, #000 45%, transparent); mask-image: radial-gradient(closest-side, #000 45%, transparent); }
-.gs-stage-rain { position: absolute; inset: 0 24px 40px; overflow: hidden; pointer-events: none;
+.gs-stage-rain { position: absolute; top: 0; left: 24px; right: 24px; height: 330px; overflow: hidden; pointer-events: none;
   -webkit-mask-image: linear-gradient(to bottom, transparent, #000 25%, #000 80%, transparent); mask-image: linear-gradient(to bottom, transparent, #000 25%, #000 80%, transparent); }
 .gs-stage-rain span { position: absolute; top: -24px; width: 1px; height: 16px; background: rgb(185 178 255 / 0.32); rotate: 12deg; animation: gs-stage-rain 1s linear infinite; }
 @keyframes gs-stage-rain { to { transform: translate(-80px, 380px); } }
@@ -161,7 +161,6 @@ html, body { margin: 0; min-height: 100%; background: var(--ss-bg); }
 .gs-chars > .ss-tooltip > .gs-char { flex: 1; }
 /* a barra de baixo do pré-lobby: uma fileira só, de ponta a ponta, com casas maiores; rola de lado se não couber */
 .gs-charbar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 2; display: flex; flex-direction: column; gap: 8px; padding: 12px 16px 12px; background: color-mix(in srgb, var(--ss-bg) 92%, transparent); border-top: 1px solid var(--ss-line); backdrop-filter: var(--gs-float-blur); }
-.gs-charbar .gs-lbl { text-align: center; }
 .gs-chars.bar { display: flex; grid-template-columns: none; max-height: none; overflow-x: auto; overflow-y: hidden; justify-content: safe center; scrollbar-gutter: auto; padding-bottom: 4px; }
 .gs-chars.bar > .ss-tooltip { flex: 0 0 76px; height: 120px; }
 /* a tela do pré-lobby deixa o lugar da barra embaixo */
@@ -440,6 +439,8 @@ html, body { margin: 0; min-height: 100%; background: var(--ss-bg); }
 .gs-keys li { display: flex; justify-content: space-between; align-items: center; min-height: 28px; }
 .gs-keys li > span:last-child:not(.ss-kbd) { display: inline-flex; gap: 8px; }
 .gs-toast { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); z-index: 40; padding: 8px 16px; background: var(--ss-danger); color: var(--ss-fg-on-danger); font-size: var(--ss-ui-sm); }
+/* um aviso bom (a moderação chegou a mim), não uma recusa */
+.gs-toast.gs-good { background: var(--ss-accent); color: var(--ss-fg-on-primary); }
 
 /* a única entrada: sobe uns pixels e aparece (menu, votação) */
 @keyframes gs-rise { from { opacity: 0; transform: translateY(8px); } }
@@ -448,3 +449,112 @@ html, body { margin: 0; min-height: 100%; background: var(--ss-bg); }
   .gs-head .tip, .gs-notepad-tab, .gs-rank, .gs-chat, .gs-char, :is(.gs-screen, .gs-room) .ss-btn, .gs-slot, .gs-slot-pick, .gs-slot-over, .gs-trash { transition: none; }
   .gs-menu, .gs-vote, .gs-progress.writing .ss-icon { animation: none; }
 }
+
+/* o jogo e o fim (issue #69) */
+/* a barra da vez e, ao lado, o atalho do moderador para a coluna */
+.gs-turn-row { display: flex; align-items: stretch; justify-content: center; gap: 8px; }
+.gs-room .gs-mod-chip { flex: none; min-height: 52px; height: auto; padding: 0 12px; gap: 8px; color: var(--ss-fg); background: var(--gs-float-bg); border-color: var(--gs-float-line); }
+.gs-turn .who { display: inline-flex; align-items: baseline; gap: 12px; }
+.gs-turn .next { color: var(--ss-fg-faint); font: 400 var(--ss-ui-sm)/20px var(--ss-font-mono); }
+/* a vez virou minha: a barra pisca na cor de destaque duas vezes */
+.gs-turn.mine { animation: gs-your-turn 700ms var(--gs-ease) 2; }
+@keyframes gs-your-turn {
+  0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--ss-accent) 0%, transparent); }
+  30% { box-shadow: 0 0 0 3px var(--ss-accent), 0 0 24px 4px color-mix(in srgb, var(--ss-accent) 45%, transparent); background: color-mix(in srgb, var(--ss-accent) 18%, var(--gs-float-bg)); }
+  100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--ss-accent) 0%, transparent); }
+}
+/* a pausa: uma faixa clara embaixo da barra */
+.gs-paused { display: flex; align-items: center; gap: 12px; padding: 10px 12px 10px 16px; border-color: oklch(72% 0.17 58); color: oklch(80% 0.15 70); animation: gs-rise var(--gs-enter) var(--gs-ease); }
+.gs-paused .what { display: flex; flex-direction: column; gap: 2px; margin-right: auto; }
+.gs-paused strong { font: 500 var(--ss-ui-md)/20px var(--ss-font-body); color: var(--ss-fg); }
+/* a votação: o post-it que está sendo julgado */
+.gs-vote-postit { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.gs-chip.big { max-width: 100%; height: auto; min-height: 32px; padding: 4px 10px; color: var(--ss-fg); font-size: var(--ss-ui-md); }
+.gs-chip.big img { width: 32px; height: 32px; }
+:is(.gs-screen, .gs-room) .gs-vote .ss-btn.chosen { box-shadow: inset 0 0 0 1px var(--ss-fg); }
+/* o ranking: quem desistiu, sem lugar, embaixo de uma linha */
+.gs-ranking.gaveup { padding-top: 6px; border-top: 1px solid var(--ss-line); }
+.gs-ranking.gaveup li { padding-left: 32px; }
+.gs-ranking.gaveup .gs-who { opacity: 0.7; }
+/* o ⋯ de uma linha da turma no jogo */
+.gs-rowmenu { position: relative; display: inline-flex; }
+.gs-rowmenu-list { position: absolute; z-index: 20; top: calc(100% + 4px); right: 0; display: flex; flex-direction: column; align-items: stretch; gap: 2px; min-width: 168px; padding: 4px; background: var(--ss-bg-elev); box-shadow: 0 8px 24px rgb(0 0 0 / 0.5); }
+.gs-rowmenu-list .ss-btn { justify-content: flex-start; gap: 8px; color: var(--ss-fg); }
+.gs-rowmenu-list .ss-btn:not(:has(.ss-icon)) { padding-left: 34px; }
+/* a linha com o ⋯ aberto fica por cima das de baixo */
+.gs-turma > li:has(.gs-rowmenu-list) { position: relative; z-index: 30; }
+.gs-turma .act { min-width: 0; }
+/* o cartão do fim, no meio da tela */
+.gs-end-wrap { position: absolute; top: 0; right: 0; bottom: 0; left: 0; z-index: 15; display: flex; align-items: center; justify-content: center; padding: 24px; pointer-events: none; }
+.gs-end { pointer-events: auto; display: flex; flex-direction: column; gap: 16px; width: min(520px, 100%); max-height: calc(100vh - 48px); overflow: auto; padding: 24px; background: color-mix(in srgb, var(--ss-bg) 94%, transparent); border-color: var(--ss-line-strong); box-shadow: 0 16px 48px rgb(0 0 0 / 0.5); animation: gs-rise var(--gs-enter) var(--gs-ease); }
+.gs-end-title { margin: 0; font: 500 var(--ss-size-h3)/1.2 var(--ss-font-body); }
+.gs-end-winner { margin: 0; display: flex; align-items: center; gap: 12px; font-size: var(--ss-size-h4, 18px); }
+.gs-end-winner .gs-who { color: var(--ss-accent); }
+.gs-end-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; font-size: var(--ss-ui-md); }
+.gs-end-list li { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr) auto; align-items: center; gap: 12px; min-height: 32px; }
+.gs-end-list .gs-chip { max-width: 100%; justify-self: start; color: var(--ss-fg); }
+.gs-end-list li.got .gs-chip { border-color: var(--ss-green); }
+.gs-end-foot { display: flex; justify-content: flex-end; gap: 8px; flex-wrap: wrap; }
+/* as estatísticas: cabeçalhos por extenso pedem colunas de empurrão mais largas */
+.gs-stats th.num.shoves, .gs-stats th.num.shovedByPlayers, .gs-stats th.num.shovedByBots { width: 76px; }
+/* no telhado: o fio de uma etiqueta que subiu até a cabeça, e os bots com etiqueta mais leve (não têm post-it) */
+.gs-head .stem { position: absolute; left: -1px; top: 0; width: 2px; height: var(--gs-lift, 0px); background: rgb(255 255 255 / 0.28); pointer-events: none; }
+.gs-head .bot .tag { background: transparent; color: var(--ss-fg-muted); font-style: italic; outline: 1px dashed color-mix(in srgb, var(--ss-fg) 30%, transparent); outline-offset: -1px; }
+@media (prefers-reduced-motion: reduce) {
+  .gs-turn.mine, .gs-paused, .gs-rowmenu-list, .gs-end { animation: none; }
+  .gs-turn.mine { box-shadow: 0 0 0 2px var(--ss-accent); }
+}
+
+/* ── início e lobby: primeira vez (como funciona, convite, teclas) ── */
+/* a barra de personagens: o rótulo (e o nome do escolhido) à esquerda, a fileira no resto; o tooltip de cima não cobre o rótulo */
+.gs-charbar { flex-direction: row; align-items: center; gap: 16px; }
+.gs-charbar-lbl { flex: 0 0 120px; display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.gs-charbar-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 500 var(--ss-ui-md)/20px var(--ss-font-body); color: var(--ss-fg); }
+/* a fileira rola de lado: as pontas esmaecem e aparecem setas enquanto houver mais para aquele lado */
+.gs-chars-wrap { position: relative; flex: 1; min-width: 0; }
+.gs-chars-wrap.left .gs-chars.bar { -webkit-mask-image: linear-gradient(to right, transparent, #000 64px); mask-image: linear-gradient(to right, transparent, #000 64px); }
+.gs-chars-wrap.right .gs-chars.bar { -webkit-mask-image: linear-gradient(to left, transparent, #000 64px); mask-image: linear-gradient(to left, transparent, #000 64px); }
+.gs-chars-wrap.left.right .gs-chars.bar { -webkit-mask-image: linear-gradient(to right, transparent, #000 64px, #000 calc(100% - 64px), transparent); mask-image: linear-gradient(to right, transparent, #000 64px, #000 calc(100% - 64px), transparent); }
+:is(.gs-screen, .gs-room) .ss-btn.gs-chars-arrow { position: absolute; top: 50%; z-index: 1; transform: translateY(-50%); width: 32px; min-width: 32px; height: 48px; padding: 0; justify-content: center; background: var(--ss-bg); }
+.gs-chars-arrow.l { left: 0; }
+.gs-chars-arrow.r { right: 0; }
+.gs-chars.bar { scrollbar-width: none; }
+.gs-chars.bar::-webkit-scrollbar { display: none; }
+/* telas baixas (1366×768): casas menores e menos folga, para o formulário e o idioma caberem sem rolar */
+@media (max-height: 900px) {
+  .gs-charbar { padding: 8px 16px; }
+  .gs-chars.bar > .ss-tooltip { flex-basis: 56px; height: 84px; }
+  .gs-screen:has(.gs-charbar) { padding-top: 16px; padding-bottom: 116px; }
+  .gs-stage-hero { height: 240px; }
+  .gs-pre .gs-create { gap: 14px; }
+  .gs-pre.gs-panel .body { gap: 14px; padding-block: 16px; }
+  .gs-pre .head { padding-block: 12px; }
+}
+/* sem apelido, a etiqueta do palco guarda o lugar mas não aparece */
+.gs-stage-tag.empty { visibility: hidden; }
+/* como funciona: embaixo do palco */
+.gs-howto { width: 100%; margin-top: 16px; display: flex; flex-direction: column; gap: 8px; }
+.gs-howto h2 { margin: 0; }
+.gs-howto ol { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 4px; color: var(--ss-fg-muted); font-size: var(--ss-ui-sm); line-height: 18px; }
+.gs-howto li::marker { color: var(--ss-fg-faint); font-family: var(--ss-font-mono); }
+.gs-code-problem { margin-top: -12px; }
+/* o convite: em destaque no topo da coluna enquanto a sala tem menos de duas pessoas */
+.gs-side-body > .gs-invite { border: 1px solid var(--ss-line-strong); padding: 12px; background: color-mix(in srgb, var(--ss-fg) 5%, transparent); }
+.gs-side-body > .gs-invite + .gs-sec { border-top: 0; padding-top: 0; }
+.gs-invite-row { display: flex; gap: 8px; }
+:is(.gs-screen, .gs-room) .gs-invite-link { flex: 1; min-width: 0; height: 36px; padding: 0 10px; font: 400 var(--ss-ui-sm) var(--ss-font-mono); color: var(--ss-fg-muted); background: var(--ss-bg-inset); border: 1px solid var(--ss-line); box-sizing: border-box; }
+:is(.gs-screen, .gs-room) .ss-btn.gs-invite-copy { height: 36px; min-height: 36px; gap: 6px; }
+/* o personagem no lobby: uma linha com o rosto, o nome e Trocar */
+.gs-char-now { display: inline-flex; align-items: center; gap: 8px; min-width: 0; }
+.gs-char-now h3 { margin: 0; font: 500 var(--ss-ui-md)/20px var(--ss-font-body); color: var(--ss-fg); }
+/* a pergunta antes de Só moderar */
+.gs-ask { display: flex; flex-direction: column; gap: 8px; padding: 8px 12px; border: 1px solid var(--ss-line-strong); }
+/* o telhado cinza do lobby se explica numa linha discreta em cima, no meio do que sobra ao lado da coluna */
+.gs-grey-hint { position: absolute; z-index: 5; top: var(--gs-edge); right: calc(var(--gs-edge) + var(--gs-rank-w) + 12px); margin: 0; padding-top: 8px; text-align: center; pointer-events: none; color: var(--ss-fg-faint); font: 400 var(--ss-ui-sm)/16px var(--ss-font-mono); }
+/* as teclas da primeira vez: embaixo no meio, longe da fala */
+.gs-keyshint-wrap { position: absolute; z-index: 9; bottom: var(--gs-edge); right: calc(var(--gs-edge) + 200px + 12px); display: flex; justify-content: center; pointer-events: none; }
+.gs-keyshint { pointer-events: auto; display: grid; grid-template-columns: auto auto; align-items: end; gap: 8px 16px; padding: 12px 16px; animation: gs-rise var(--gs-enter) var(--gs-ease); }
+.gs-keyshint .gs-float-title { grid-column: 1 / -1; }
+.gs-keyshint .gs-keys { min-width: 260px; font-size: var(--ss-ui-sm); }
+.gs-keyshint .gs-keys li { gap: 16px; min-height: 24px; }
+@media (prefers-reduced-motion: reduce) { .gs-keyshint { animation: none; } }

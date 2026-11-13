@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 import { CHARACTERS, TURN_MAX, TURN_MIN, TURN_STEP } from '@guess/rules';
-import { characterToClaim, clockText, countdown, devTools, moveBy, roomView, turnFraction, turnOptions, turnTone } from '../src/lib/room/view';
+import { characterToClaim, clockText, countdown, devTools, joinState, moveBy, roomView, turnFraction, turnOptions, turnTone } from '../src/lib/room/view';
 import type { RoomSnapshot } from '@guess/protocol';
 import { member, postit, snapshot } from './snapshots';
 
@@ -123,6 +123,23 @@ describe('lobby: a escrita', () => {
     expect(roomView(lobby()).ownPostitEmpty).toBe(true);
     expect(roomView(lobby({ postits: { m1: postit('m3', { text: null, written: true }), m2: postit('m1', { text: 'Pelé' }), m3: postit('m2', { text: 'Xuxa' }) } })).ownPostitEmpty).toBe(false);
     expect(roomView(lobby({ moderator: 'm2' })).ownPostitEmpty).toBe(false);
+    expect(roomView(lobby()).ownPostitAuthor?.nickname).toBe('Bia');
+  });
+
+  test('sozinho na turma, o próprio post-it vazio não espera ninguém', () => {
+    const members = [member('m1', 'Zé')];
+    const v = roomView(snapshot({ members, authors: { m1: 'm1' }, postits: { m1: postit('m1', { text: null }) } }));
+    expect(v.ownPostitEmpty).toBe(false);
+    expect(v.ownPostitAuthor).toBeNull();
+    expect(v.missing).toEqual([]);
+  });
+
+  test('a tela de entrar: sala cheia e jogo já começado', () => {
+    const members = [member('m1', 'Zé'), member('m2', 'Ana'), member('m3', 'Bia')];
+    expect(joinState({ members, maxPlayers: 3, phase: 'lobby' })).toEqual({ full: true, late: false });
+    expect(joinState({ members, maxPlayers: 4, phase: 'playing' })).toEqual({ full: false, late: true });
+    expect(joinState({ members, maxPlayers: 8, phase: 'ended' })).toEqual({ full: false, late: true });
+    expect(joinState({ members, maxPlayers: 8, phase: 'lobby' })).toEqual({ full: false, late: false });
   });
 
   test('o moderador vê os post-its que faltam e pode escrevê-los, menos o próprio e o que já escreve', () => {
@@ -255,7 +272,7 @@ describe('jogo', () => {
     expect(v.postits.filter((p) => p.turn).map((p) => p.owner.id)).toEqual(['m2']);
   });
 
-  test('votação: quem pode votar vota uma vez; quem pediu e os fantasmas esperam', () => {
+  test('votação: quem pode votar vota (e muda o voto); quem pediu e os fantasmas esperam', () => {
     const vote = { claimer: 'm1', voters: ['m2', 'm3'], voted: ['m3'], left: 9_000, yours: null };
     const asAna = roomView(playing({ you: 'm2', vote }));
     expect(asAna.vote?.claimer.nickname).toBe('Zé');
@@ -264,7 +281,7 @@ describe('jogo', () => {
     expect(asAna.vote?.voters.map((x) => [x.member.id, x.voted])).toEqual([['m2', false], ['m3', true]]);
 
     const asBia = roomView(playing({ you: 'm3', vote: { ...vote, yours: true } }));
-    expect(asBia.vote?.canVote).toBe(false);
+    expect(asBia.vote?.canVote).toBe(true); // dá para mudar o voto até fechar
     expect(asBia.vote?.voted).toBe(true);
     expect(asBia.vote?.yours).toBe(true);
 
@@ -279,6 +296,26 @@ describe('jogo', () => {
     expect(asGhost.vote?.waiting).toBe(true);
   });
 
+  test('só quem desistiu: ninguém em primeiro', () => {
+    const v = roomView(playing({ gaveUp: ['m2'] }));
+    expect(v.ranking.map((r) => [r.place, r.member.id])).toEqual([[null, 'm2']]);
+  });
+
+  test('a votação mostra o post-it de quem pediu, menos para quem pediu', () => {
+    const vote = { claimer: 'm2', voters: ['m1', 'm3'], voted: [], left: 9_000, yours: null };
+    expect(roomView(playing({ vote })).vote?.card?.text).toBe('Pelé');
+    expect(roomView(playing({ you: 'm2', moderator: 'm1', vote, postits: { m1: postit('m3', { text: 'Didi' }), m2: postit('m1', { text: null }), m3: postit('m2', { text: 'Xuxa' }) } })).vote?.card).toBeNull();
+  });
+
+  test('quem vem depois: a próxima da ordem que ainda joga e está conectada', () => {
+    expect(roomView(playing()).turn?.next?.id).toBe('m2');
+    expect(roomView(playing({ got: ['m2'] })).turn?.next?.id).toBe('m3');
+    const members = [member('m1', 'Zé'), member('m2', 'Ana', { connected: false }), member('m3', 'Bia')];
+    expect(roomView(playing({ members })).turn?.next?.id).toBe('m3');
+    expect(roomView(playing({ turn: { owner: 'm3', left: 1, running: true } })).turn?.next?.id).toBe('m1'); // dá a volta
+    expect(roomView(playing({ got: ['m2'], gaveUp: ['m3'] })).turn?.next).toBeNull(); // só sobrou quem está na vez
+  });
+
   test('revelado, o meu post-it aparece', () => {
     const v = roomView(playing({ got: ['m1'], postits: { m1: postit('m3', { text: 'Pelé', ready: true, revealed: true }) } }));
     const mine = v.postits.find((p) => p.mine)!;
@@ -287,11 +324,11 @@ describe('jogo', () => {
     expect(mine.status).toBe('got');
   });
 
-  test('ranking: quem acertou em ordem, depois quem desistiu', () => {
+  test('ranking: quem acertou em ordem, depois quem desistiu (sem lugar)', () => {
     const members = [member('m1', 'Zé'), member('m2', 'Ana'), member('m3', 'Bia'), member('m4', 'Edu')];
     const postits = { m1: postit('m4', { text: 'Pelé', revealed: true }), m2: postit('m1', { text: 'Xuxa' }), m3: postit('m2', { text: 'Didi', revealed: true }), m4: postit('m3', { text: 'Gugu', revealed: true }) };
     const v = roomView(playing({ members, postits, got: ['m3', 'm1'], gaveUp: ['m4'] }));
-    expect(v.ranking.map((r) => [r.place, r.member.nickname, r.gaveUp])).toEqual([[1, 'Bia', false], [2, 'Zé', false], [3, 'Edu', true]]);
+    expect(v.ranking.map((r) => [r.place, r.member.nickname, r.gaveUp])).toEqual([[1, 'Bia', false], [2, 'Zé', false], [null, 'Edu', true]]);
     expect(v.postits.find((p) => p.owner.id === 'm2')!.status).toBe('playing');
     expect(v.postits.find((p) => p.owner.id === 'm4')!.status).toBe('gaveUp');
     expect(v.done).toBe(true);
@@ -299,7 +336,7 @@ describe('jogo', () => {
 
   test('a turma no jogo: a vez, quem acertou (com o lugar) e quem desistiu', () => {
     const v = roomView(playing({ turn: { owner: 'm2', left: 1000, running: true }, got: ['m3'], gaveUp: ['m1'] }));
-    expect(v.turma.map((r) => [r.member.id, r.card?.turn, r.status, r.place])).toEqual([['m1', false, 'gaveUp', 2], ['m2', true, 'playing', null], ['m3', false, 'got', 1]]);
+    expect(v.turma.map((r) => [r.member.id, r.card?.turn, r.status, r.place])).toEqual([['m1', false, 'gaveUp', null], ['m2', true, 'playing', null], ['m3', false, 'got', 1]]);
   });
 
   test('a turma no jogo: quantas vezes cada um já teve a vez (zero para quem ainda não teve, ou com um servidor antigo)', () => {

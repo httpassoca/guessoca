@@ -55,11 +55,23 @@ describe('os sons da sala, entre dois snapshots', () => {
   });
 
   test('o jogo acabou de começar: a primeira vez não é fim de vez', () => {
-    expect(roomSounds(snapshot({ phase: 'lobby' }), playing('m1', {}, 60_000), 'm1')).toEqual([]);
+    expect(roomSounds(snapshot({ phase: 'lobby' }), playing('m2', {}, 60_000), 'm1')).toEqual([]);
   });
 
   test('o jogo acabou: sem turnEnd', () => {
     expect(roomSounds(playing('m2'), snapshot({ phase: 'ended', gaveUp: ['m1', 'm2', 'm3'] }), 'm1')).toEqual([]);
+  });
+
+  test('a minha vez começou: yourTurn (no lugar de turnEnd), também na primeira vez do jogo', () => {
+    expect(roomSounds(playing('m2', {}, 200), playing('m1', {}, 60_000), 'm1')).toEqual(['yourTurn']);
+    expect(roomSounds(snapshot({ phase: 'lobby' }), playing('m1', {}, 60_000), 'm1')).toEqual(['yourTurn']);
+    expect(roomSounds(playing('m2', { vote: vote('m2') }), playing('m1', { got: ['m2'] }, 60_000), 'm1')).toEqual(['gotIt', 'yourTurn']);
+    expect(roomSounds(playing('m1', {}, 300), playing('m1', {}, 60_000), 'm1')).toEqual(['yourTurn']); // só sobrei eu
+  });
+
+  test('a minha vez continua (votação deu não, pausa): nada', () => {
+    expect(roomSounds(playing('m1', { vote: vote('m1') }, 20_000), playing('m1', {}, 20_000), 'm1')).toEqual([]);
+    expect(roomSounds(playing('m1', {}, 20_000), playing('m1', { paused: true, turn: { owner: 'm1', left: 20_000, running: false } }), 'm1')).toEqual([]);
   });
 
   test('acabei de entrar na turma (o snapshot anterior não era meu): nada', () => {
@@ -86,7 +98,7 @@ describe('os sons da sala, snapshot a snapshot', () => {
     expect(feed('open', a, 'm1')).toEqual([]); // abriu, mas o snapshot ainda é o velho
     const replay = playing('m3', { got: ['m2'], vote: vote('m3') }, 60_000);
     expect(feed('open', replay, 'm1')).toEqual([]); // o snapshot inteiro que o servidor manda ao voltar
-    expect(feed('open', playing('m1', { got: ['m2'] }, 60_000), 'm1')).toEqual(['turnEnd']); // daí em diante, normal
+    expect(feed('open', playing('m1', { got: ['m2'] }, 60_000), 'm1')).toEqual(['yourTurn']); // daí em diante, normal
   });
 
   test('sem sala, nada', () => {

@@ -12,7 +12,8 @@ owner's files ──cp──▶ assets-src/ (gitignored)         text grids in c
                          │   bun run sprites   (tools/sprites/src/index.ts)
                          ▼
    apps/web/public/sprites/*.png        apps/web/src/lib/sprites/*.json      (both committed)
-   char-0/1.png, char-2….webp,          characters, atlases,
+   char-N-idle / char-N-moves           characters, atlases,
+   (.png for 0/1, .webp for the rest),
    rooftop, skyline-*,                  characters, rooftop, emotes
    emotes-<lang>
                          │                        │
@@ -32,6 +33,8 @@ owner's files ──cp──▶ assets-src/ (gitignored)         text grids in c
 
 - **Hero**: Ozzbit Games' free "male hero" pack. Personal and non-commercial use only, modifications allowed, **credit required** ("Herói: Ozzbit Games", the `credit.character` i18n key, shown in the menu and on the home screen; `hero.json` carries `"credit": "Ozzbit Games"`). The pack itself must never be redistributed.
 - **Skeleton knight** and every seven-sheet character (`PACKS` in `tools/sprites/src/packs.ts`): the owner's own art, most of it made by an image model at the owner's request. No restriction and no credit (`"credit": null`).
+- **Cats** (`cats.png`): LuizMelo's "Pet Cats Pack", CC0. No restriction; the README names the author anyway.
+- **Birds** (`birds.png`): carysaurus's free "Bird Sprites". Free and commercial use, **credit required** ("Pássaros: carysaurus", the `credit.birds` i18n key, shown next to the hero's credit in the menu and on the home screen; `critters.json` carries `"credit": "carysaurus"`), and the pack must not be redistributed or resold: only the generated sheet is committed. The flight frames are drawn by us in code.
 - **Scenery, emotes and skyline**: drawn in code (text grids and a seeded generator). No licence strings attached.
 - **Never commit `assets-src/`.** It's in `.gitignore` and `.dockerignore`. Commit only the generated output.
 - Art from any other pack needs a licence that allows this use (a free, non-commercial game whose repo is public). Signs and text are our own words: no real brands or game names.
@@ -47,7 +50,7 @@ Pipeline, `tools/sprites/src/` (`@guess/sprites`, pure apart from `png.ts` and t
 | `png.ts` | Read and write PNG files; the only disk I/O for images. |
 | `image.ts` | Pure RGBA `Image` operations: crop, blit, colour swap/erase/keep, connected components, solidify, bounds, shear, squash, stretch, rotate, `under`. |
 | `grid.ts` | Pixel art written as text: one character per pixel, `.` is transparent. |
-| `atlas.ts` | What the two models share: `ANIMATION_NAMES` (row order) and `layout()`, which crops all frames to one rectangle and builds the sheet and `Atlas`. |
+| `atlas.ts` | What the models share: `ANIMATION_NAMES` (animation order), `layout()`, which crops all frames to one rectangle and builds a one-row-per-animation sheet and `Atlas`, and `paginate()`, which cuts that sheet into the pages that are written (`MAX_SHEET`, see "Sheet pages"). |
 | `hero.ts` | The hero recipe: slice 128×128 cells, remove the sword from the shove, one sheet per hair ramp in `HAIRS` (only blonde today). |
 | `skeleton.ts` | The skeleton recipe: slice 170×125 cells, remove slash trails, draw run/jump/fall, one sheet per cape ramp in `CAPES` (only red today). |
 | `pack.ts` | The recipe for characters that arrive complete as seven sheets (image-model art). Changes no pixel: grounds every frame, optionally shifts an animation sideways, writes the sheet at the art's size with `scale` in the atlas. |
@@ -57,24 +60,27 @@ Pipeline, `tools/sprites/src/` (`@guess/sprites`, pure apart from `png.ts` and t
 | `rooftop.ts` | The rooftop palette, the `Sketch` stamping board, every prop/texture/sign as a text grid, and the shelf-packed `rooftop.png` + atlas. |
 | `life.ts` | The roof's ambient life as text grids (issue #70): loose window panes, the spinning fan, steam puffs, splashes, ripples, drips, neon shines for puddles, the failing BAR/24H frames, the plane, the car and the side-roof clutter. `ROOFTOP_RECIPES` = `RECIPES` + these, the list `index.ts` packs into `rooftop.png`. |
 | `skyline.ts` | The two seeded, seamlessly tiling city strips, and `twinkles()`, the few windows per strip the client blinks. |
+| `critters.ts` | The cats and birds: slices the two packs without changing a pixel, draws the birds' wing flap as text grids, stacks one strip per animation into `cats.png` and `birds.png` + `critters.json`. |
 | `../test/` | Recipe tests with fake images; real-art tests skip when `assets-src/` is absent. |
 
 Generated data, `apps/web/src/lib/sprites/`:
 
 | File | Job |
 |---|---|
-| `atlases.json` | One `Atlas` per model: frame size, anchor, head box, stand box, animation rows with frames/fps/loop, credit. |
-| `characters.json` | Slot `n` → model, colour name, UI colour, sheet URL, atlas name. |
+| `atlases.json` | One `Atlas` per model: frame size, anchor, head box, stand box, `pages` (size and frames per line of each sheet), each animation's page, first line, frames/fps/loop, credit. |
+| `characters.json` | Slot `n` → model, colour name, UI colour, sheet URLs (one per page), atlas name. |
 | `rooftop.json` | Every rooftop frame (position, anchor, `tile`, `face`) plus the skyline strips. |
 | `emotes.json` | Each balloon's rectangle and tail tip (shared by both languages). |
-| `characters.ts` | Typed access for the client: `CHARACTER_ART`, `character(n)`, `frameAt`, `frameIndex`, `sheetSize`, `fitScale`, `attackMs`. |
+| `characters.ts` | Typed access for the client: `CHARACTER_ART`, `character(n)`, `frameAt` (page and corner of a frame), `frameIndex`, `sheetSize(atlas, page)`, `largestSheet`, `fitScale`, `attackMs`. |
 | `rooftop.ts` | Typed access to `rooftop.json`; the sheet URLs. |
+| `critters.json`, `critters.ts` | The critter strips (sheet rectangle, frames, fps, loop, feet anchor) and `stripFrame`. |
 
 Client rendering, `apps/web/src/lib/world/` (Pixi files have no automated tests; the pure ones do):
 
 | File | Job |
 |---|---|
-| `scene.ts` | The Pixi `Application`, layer order, depth sorting, character sprites, shadows, emote balloons. |
+| `scene.ts` | The Pixi `Application`, layer order, depth sorting, character sprites, shadows, emote balloons; loads character sheets only for who is in the room. |
+| `sheet-cache.ts` | Pure: which character sheets are loaded, when to free them, how much to shrink a sheet larger than the GPU's texture limit. |
 | `platforms.ts` | Draws the dressed roofs: top, back ledge, facade, front parapet, box props, decor. |
 | `dressing.ts` | Pure: which frame dresses each `MAP` box, roof rectangles on screen, `DECOR` placement, neon flicker and beacon timing. |
 | `backdrop.ts` | Sky bands, stars, moon, two parallax skyline strips, the drop to the street and the street fog. |
@@ -87,6 +93,8 @@ Client rendering, `apps/web/src/lib/world/` (Pixi files have no automated tests;
 | `celebration.ts` | The confetti around whoever just guessed right. |
 | `confetti.ts` | Pure confetti maths (seeded pieces, closed-form position by age, world units). |
 | `cheer.ts` | Pure: who newly got it right, from two consecutive snapshots. |
+| `critters.ts` | Pure: the cats' wall-clock routine, routes between perches, reactions to presence; the bird flocks. |
+| `fauna.ts` | Draws the critters inside the bodies container, tinted, sorted among the bodies by depth. |
 | `parallax.ts` | Pure parallax offset and the per-layer factors. |
 | `film.ts` | The film look: bloom on scenery, RGB split and CRT grain/scanlines/vignette on the world. |
 | `art.ts` | Loads `rooftop.png` and the skylines into textures; tiles get their own repeat-mode canvas. |
@@ -96,7 +104,7 @@ Client rendering, `apps/web/src/lib/world/` (Pixi files have no automated tests;
 | `crowd.ts` | Pure: the other bodies (interpolated presence, fake players' fixed spots). |
 | `runtime.ts` | The rAF loop: steps physics, sends presence, calls `Scene.render`, positions HTML post-its. |
 
-HTML art, `apps/web/src/lib/panels/`: `Hero.svelte` (a character's idle in a CSS background, the same window for both models), `Swatch.svelte` (the head box as a coloured square), `Stage.svelte` (the chosen character at 4× on a strip of roof in the pre-lobby), `Ledge.svelte` (that strip, drawn from `rooftop.png` on a canvas), `CharacterPicker.svelte` (the eight buttons).
+HTML art, `apps/web/src/lib/panels/`: `Hero.svelte` (a character's idle in a CSS background from its `-idle` sheet, the same window for every model), `Swatch.svelte` (the head box as a coloured square), `Stage.svelte` (the chosen character at 4× on a strip of roof in the pre-lobby), `Ledge.svelte` (that strip, drawn from `rooftop.png` on a canvas), `CharacterPicker.svelte` (the eight buttons).
 
 World geometry the art must match: `packages/world/src/index.ts` (`MAP`, `DEPTH`, `DEPTH_K`, `BODY_*`, `project`, `depthKey`, `Anim`, `SHOVE_COOLDOWN_MS`).
 
@@ -112,7 +120,7 @@ There are four spaces. Comments say which one a value is in.
 - **Scale**: `pickScale` in `view.ts` uses the largest integer that fits about 600×300 world units on screen, clamped to 2–6 (3 on a 1080p window). The integer scale keeps pixels square. `groundY` is 80 % of the screen height.
 - **Why everything is pixelated**: `TextureSource.defaultOptions.scaleMode = 'nearest'`, `antialias: false`, `roundPixels: true`, `resolution: 1`, and `image-rendering: pixelated` in the HTML. Tiles are copied to their own canvas with `addressMode: 'repeat'` so a `TilingSprite` never samples a neighbour on the sheet. Never introduce smooth scaling or fractional scales on sprites.
 - **Depth sorting**: bodies are sorted by `depthKey(p) = z`, larger first (further back is drawn first), with ties broken by id so the order doesn't flicker. Each sprite's `zIndex` is its place in that list. Height doesn't count: someone riding a head has nearly the same `z` as the person below, so who covers whom is decided by `z` (then id), not by who is on top.
-- **Layer order** inside the world container: `scenery` (backdrop: sky, moon, `skylife.sky` (flash, searchlight, meteor, plane), far city, its twinkles, near city, its twinkles, drop, cars, street fog; then `platforms.back`: back decor, roof tops, ledges, facades, edges, living windows and siren wash, facade signs, floor decor, box props; then `rooflife`: puddle shine, splashes, ripples, drips, fan, steam, puddle kicks) → shadows → bodies → `platforms.front` (front parapets, covering feet at the edge) → emote balloons → confetti → weather. The post-its and panels are HTML above the canvas and never pass through the filters.
+- **Layer order** inside the world container: `scenery` (backdrop: sky, moon, `skylife.sky` (flash, searchlight, meteor, plane), far city, its twinkles, near city, its twinkles, drop, cars, street fog; then `platforms.back`: back decor, roof tops, ledges, facades, edges, living windows and siren wash, facade signs, floor decor, box props; then `rooflife`: puddle shine, splashes, ripples, drips, fan, steam, puddle kicks) → shadows → bodies (and the critters, sorted among them by depth) → `platforms.front` (front parapets, covering feet at the edge) → emote balloons → confetti → weather. The post-its and panels are HTML above the canvas and never pass through the filters.
 - **Shadow**: an ellipse at the ground under the feet (`groundAt(MAP, x, z)`), not at the body's height, so a jump reads as height. It's `BODY_RX·1.3` by `BODY_RZ·DEPTH_K·1.8` world units at 40 % black, and shrinks to 45 % size by 120 units above the ground.
 - **`BODY_H = 40`** is the physics height (what you stand on when riding a head). It isn't the sprite height (hero 37, skeleton 51, Kratos 61, Vorcaro 50, Orelha 15, Bolsonaro 70, knight 10, Old Snake 49, Pinocchio 50, Eve 50, Katarina 50, Punisher 59, Mista 52). Post-it height comes from the atlas instead: `headY(n) = anchor.y − head.y + 3` (hero 40, skeleton 47). The emote tail sits at `headY − 11`, `EMOTE_GAP = 14` units in front of the face.
 
@@ -120,7 +128,7 @@ There are four spaces. Comments say which one a value is in.
 
 ### Animations
 
-Every model's sheet has one row per animation, in this exact order (`ANIMATION_NAMES` in `tools/sprites/src/atlas.ts`, `Anim` in `@guess/world`):
+Every model has the same seven animations, in this exact order (`ANIMATION_NAMES` in `tools/sprites/src/atlas.ts`, `Anim` in `@guess/world`):
 
 | Row | Name | When the world plays it | Loop | Hero (frames @ fps) | Skeleton (frames @ fps) |
 |---|---|---|---|---|---|
@@ -153,9 +161,23 @@ Every model's sheet has one row per animation, in this exact order (`ANIMATION_N
 { "model": "skeleton", "name": "vermelho", "color": "#982b2b", "sheet": "/sprites/char-1.png", "atlas": "skeleton" }
 ```
 
-- `index.ts` writes the `i`-th sheet a model's `build()` returns to the `i`-th slot of that model, so variant order = slot order.
+- `index.ts` paginates the `i`-th sheet a model's `build()` returns and writes its pages to the `i`-th slot of that model, so variant order = slot order.
 - `color` is the ramp's base colour. It's used for borders and marks in the UI, and **must also be `--gs-char-N` in `apps/web/src/app.css`** (`apps/web/test/characters.test.ts` checks this). Colours must be unique.
 - The UI names characters "Personagem N" (`pre.characterN` in `apps/web/src/lib/i18n.ts`), not by colour, so a new variant needs no i18n. The `name` field (Portuguese colour name) isn't shown.
+
+### Sheet pages
+
+A recipe's `build()` still returns one sheet per variant with one row per animation (`layout()`), as wide as the longest animation. `index.ts` then cuts it with `paginate()` (`tools/sprites/src/atlas.ts`) into the files that are committed, moving whole frames only:
+
+- **Page 0, `char-N-idle`**: the idle, in one line. The picker, the pre-lobby stage and the face square (`Hero.svelte`, `Swatch.svelte`) only ever download this one, and the roof loads it first.
+- **Page 1, `char-N-moves`**: walk, run, jump, fall, fall_loop and shove, each starting on a new line and wrapping at `cols` frames per line. `cols` is chosen so the page is as close to square as it can be (smallest longest side, then smallest area). If they don't fit in one page, more pages follow (`char-N-moves-2`…); none does today.
+- **`MAX_SHEET = 8192`**: no page has a side longer than this. It is what software WebGL (SwiftShader) and many GPUs accept. A larger texture fails to upload, and because Pixi batches the roof, the failure blacks out everything drawn in the same batch (the middle roof, its boxes, the HOTEL sign and every character there), not just that character. `paginate()` throws if an idle doesn't fit one line or an animation doesn't fit one page.
+- The atlas says where each frame is: `pages[p] = { w, h, cols }`, and each animation has `page` and `row` (its first line). `frameAt(atlas, name, i)` in the client returns `{ page, x, y }`; never compute frame positions by hand.
+- The file names changed from `char-N.<ext>` when pages came in (issue #75), so an old `/sistema` override of a one-sheet layout can't mask a page. Replacing a sheet from `/sistema` still works per page: same format, same pixel size.
+
+How the roof loads them (`scene.ts`, `sheet-cache.ts`): only the characters of who is in the room (the members with a character and the bots, the boss among them), as soon as they appear in the snapshot. The idle page arrives first; until the moves page arrives the body plays its idle, and before the idle arrives the body isn't drawn. A sheet nobody has used for `SHEET_KEEP_MS` (60 s) is freed. A few seconds after the roof is quiet, the other sheets are downloaded at low priority into the HTTP cache (not decoded). The renderer reads `MAX_TEXTURE_SIZE` and never uploads a bigger texture: a sheet that doesn't fit is shrunk at decode time and drawn larger by the same factor (`?texmax=2048` in the URL fakes a small GPU to see it), and a character whose idle sheet fails to load is drawn as the hero.
+
+Supplied art is never stored at a reduced resolution: the files keep the pixels as delivered, and shrinking only ever happens in GPU memory, on a GPU that couldn't hold the file otherwise.
 
 ### Palette-ramp recolouring
 
@@ -280,13 +302,34 @@ All of these are client-side constants, tuned by eye at 1080p (scale 3). No `bun
   - the low fog's alpha and drift.
 - `backdrop.ts`: the `SKY` bands, the moon position, `FAR_BASE`/`NEAR_BASE` (where each skyline strip sits), the drop gradient, and the street fog tint, alpha and drift.
 - `PARALLAX` in `parallax.ts`: the moon 0.02, far city 0.12, near city 0.3, street 0.75; the roofs are 1.
-- `neonFlicker` and `beaconOn` in `dressing.ts`: the sign and mast light timings; `barSign` and `sign24h` in `ambient.ts` for the other two signs, and the rest of the ambient timings (section 9).
+- `neonFlicker` and `beaconOn` in `dressing.ts`: the sign and mast light timings; `barSign` and `sign24h` in `ambient.ts` for the other two signs, and the rest of the ambient timings (section 10).
 
 ### 8. The confetti (issue #58)
 
 When a guess is confirmed, every client draws confetti around that character for about 2 s (`celebration.ts`, maths in `confetti.ts`), and the guesser's own browser launches its body upward (`applyCheer` in `@guess/world`). No sheet: each piece is `Texture.WHITE` stretched to a 1- or 2-world-pixel square in a flat colour from the rooftop `PALETTE` (the neons, the lit window, the antenna and TV lights). It keeps the pixel grid: positions are whole world units times the integer scale, no rotation, and no alpha: a piece blinks out at the end of its life instead of fading. Half the pieces burst at once and the rest are born over one second from wherever the character is, then stay in the world, so the launch leaves a trail. Tune `CONFETTI_PIECES`, `CONFETTI_COLORS` and the speed, drag and fall ranges in `confetti.ts`; the launch height is `CHEER_VY`.
 
-### 9. Ambient life on the roof (issue #70)
+### 9. The critters: cats and birds (issue #71)
+
+Ambient animals that live on the roof, from two itch.io packs, drawn by the client only (no network, no physics).
+
+**Getting the packs.** Download LuizMelo's "Pet Cats Pack" and carysaurus's free "Bird Sprites" (the free file is `Birds_Free_Carysaurus.zip`; don't buy the paid one). Unzip the cats' `Pet Cats Pack/` folder into `assets-src/cats/` (`Cat-1` … `Cat-6`, `Meow-VFX`) and the three bird PNGs into `assets-src/birds/`. Then `bun run sprites`. Without them the recipe says what's missing and keeps the committed sheets.
+
+**The recipe** (`tools/sprites/src/critters.ts`) changes no pixel of the packs:
+
+- cats: 50×50 cells, feet on row 31 (ground row 32), feet centre x 25. `CATS` picks three folders (the folder numbers don't follow the pack's preview: Cat-2 is black, Cat-6 the grey tabby, Cat-5 white; Cat-3 has no `Itch`), `CAT_ANIMS` the twelve animations with their frame counts (the sheet width / 50) and fps chosen by eye. All cat frames are cropped to one union rectangle (30×16), so every strip shares the anchor. The meow lines (`Meow-VFX`, three 16×16 frames) get their own strip, anchored at the mouth end;
+- birds: 32×32 cells, feet on row 31, the 12-frame idle of the pigeon and the crow (the yellow bird is left out). The free pack has no flight, so `PIGEON_FLY` and `CROW_FLY` draw three frames each (wings up, spread, down) as text grids in **that bird's own colours** (`PIGEON`, `CROW`, read from the idle with `palette()`), with the idle's head, placed so the body line sits on `FLY_BODY_ROW`. A test checks they use only the bird's colours.
+
+**Drawing** (`apps/web/src/lib/world/fauna.ts`): 1× (one sheet pixel = one world unit, times the view's integer scale), mirrored by facing, tinted `0xc8c0ff` (Pixi `tint`) so daylight art sits in the night without touching its pixels, in the bodies container with a `zIndex` between the bodies behind and in front of it (no bloom; the lobby's grey comes from the world filter). The clock is `Date.now()`, so frames agree across tabs.
+
+**Behaviour** (`apps/web/src/lib/world/critters.ts`, pure and tested in `apps/web/test/world-critters.test.ts`):
+
+- **Places.** `CAT_SPOTS` are world points with the roof index: box lids from `MAP` (y = box `top`), the front parapet (roof top + 4, z 0), the back ledge (roof top + 5, z `DEPTH`), the floor. `floorOf` gives where a cat steps down to (in front of a box's footprint). `BIRDS` perch on the HOTEL sign (roof top + 23, z `DEPTH + 3` like the back decor), the back ledge, the tank lid, the antenna's middle crossbar (+24) and, for the crow, on the mast's beacon (+39). A new prop or a moved decor needs its perch moved by hand: nothing ties them.
+- **Routes.** `route(a, b, gait)` is straight legs: hop down, walk to the front lane (z 18, clear of every box), along it, leap each gap edge to edge in an arc, out of the lane, hop up. `routeAt(route, t)` is closed form.
+- **Routine.** Each cat has `beats` (act at a place for some ms, or walk between two places); `scheduled(i, seed, now)` plays them on a loop over the wall clock, shifted by a hash of the room code (`seedOf`). Every tab shows the same cat doing the same thing.
+- **Reactions** come from presence via `Watcher` (who started a jump or shove, who landed, who runs, how long each has stood still): someone within `CAT_LOOK_R` → the resting cat sits and faces them; running, shoving or landing within `CAT_SCARE_R`, or a bot within `CAT_BOT_R` → meow (not for bots) and run to the refuge on the next roof; standing still `CAT_VISIT_MS` near it on its roof → the cat walks over, sits beside, then lies down and sleeps, and leaves when the person moves; the boss landing on a roof scatters its cats and flocks; a confirmed guess makes the nearest cat meow. After a reaction the cat walks back to its scheduled place and waits there until the routine reaches it, so tabs converge. Birds: running, jumping, shoving or landing within `BIRD_SCARE_R` sends the whole flock up `flightOffset`'s arc, with a few grey 1-px feathers using the confetti's closed-form maths, and it drops back along the same arc 20–60 s later; the crow only leaves for the boss.
+- **Tuning**: the radii and times are the constants at the top of each section; speeds `CAT_WALK`/`CAT_RUN` keep the feet from sliding; `FLY_*` and `FLIGHT_MS` shape the flight.
+
+### 10. Ambient life on the roof (issue #70)
 
 The roof isn't a still picture: windows, sky, rain and props move on their own, on every client, with no network traffic. Everything follows three rules:
 
@@ -313,7 +356,7 @@ To see rare events without waiting, open the game with `?ceu=N` (1–120) on loc
 
 This reads only the committed output (no pack needed) and writes to `.preview/` (gitignored), printing every path:
 
-- `<model>-<animation>.png`: that animation's frames side by side (wrapping at 2400 px) at 4×, on a checker background (transparent pixels show), each frame bordered. Red ticks below and to the left of each frame mark the anchor column and row; the feet should sit on them in every frame.
+- `<model>-<animation>.png`: that animation's frames side by side (read from the pages through the atlas) (wrapping at 2400 px) at 4×, on a checker background (transparent pixels show), each frame bordered. Red ticks below and to the left of each frame mark the anchor column and row; the feet should sit on them in every frame.
 - `characters-idle.png`: the first idle frame of every slot, in slot order. Check the colours and that the feet line up.
 - `rooftop.png`: every rooftop frame with its anchor; `emotes-pt-BR.png` and `emotes-en-US.png` with the tail tip as anchor; `skyline-far.png` and `skyline-near.png` each tiled twice side by side, so you can see the seam.
 
@@ -376,7 +419,8 @@ Things the client already handles: an atlas with `scale < 1` is drawn smaller ev
 - **CI has no `assets-src/`.** Tests that read real art must not touch the disk when it's absent. `describe.skipIf(!existsSync(pack))` is not enough on its own: bun runs a skipped `describe` body while registering its tests, so guard every read inside the body as well (see the end of `tools/sprites/test/skeleton.test.ts`). The recipe tests use fake images built in code.
 - **Semi-transparent pixels get solidified.** `solidify` makes any alpha above 0 fully opaque, so soft edges become hard halos and drop shadows become solid blobs. Clean the source.
 - **White slash trails versus white bones or shirts.** Trails are erased as white components that are too big: on the hero, white blobs over `SHIRT_WHITE_MAX = 24` px (the shirt's blobs are at most 17 px; trails are 325+); on the skeleton, white blobs over `SLASH_MIN = 100` (the largest bone blob is 55; the smallest trail 180), plus loose mostly-white pieces of at least `SLASH_TIP_MIN = 40`. New art with large white areas (a white cape, a big skull) needs new thresholds, or a different trail colour in the source. The tests compare bone and eye counts before and after.
-- **The frame grows with the widest pose.** Trim wind-ups, or choose compact frames for the shove; check `<model>-*.png` in the preview for empty space.
+- **The frame grows with the widest pose.** Trim wind-ups, or choose compact frames for the shove; check `<model>-*.png` in the preview for empty space. A wide frame no longer breaks the 8192 limit (the pages wrap), but it still costs memory in every frame of the moves page.
+- **Never upload a texture over the GPU's `MAX_TEXTURE_SIZE`.** It doesn't fail alone: Pixi batches the scene and the whole batch goes black. Keep generated pages at `MAX_SHEET` (8192) or less; the client checks the limit and shrinks in GPU memory if a GPU is smaller still.
 - **Keep head boxes, and so post-it heights, per model.** `headY` comes from each atlas's `head`. A wrong head box puts the post-it inside the sprite or floating far above it.
 - **`--gs-char-N` must match `characters.json`**, and a test checks it.
 - **Animations must stay within the shove cooldown** (450 ms), and remember the fall→fall_loop switch is the hero's `FALL_MS` for every model.

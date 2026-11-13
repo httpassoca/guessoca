@@ -10,3 +10,7 @@ Questions, answers and guesses happen out loud on the turma's voice call. The ga
 ## Consequences
 
 The room state machine models the vote as data (open votes, a deadline timer, a tally) and never reads post-it text to decide anything. Ghosts and disconnected people don't vote, so a two-person game is one voter deciding. Players can't undo a result; the moderator can.
+
+## Amendment: a vote can be changed while the vote is open
+
+A voter can change their vote until the vote closes (by its deadline, or because every connected voter has voted). On a noisy call people press the wrong button or change their mind once the claimer explains; the vote is a quick show of hands, not a sealed ballot. Sending the same vote again is accepted and changes nothing. Results still can't be undone by players.

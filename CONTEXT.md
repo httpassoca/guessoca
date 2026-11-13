@@ -7,11 +7,11 @@
 ### Sala
 
 **Sala** (`room`):
-O lugar onde uma turma se reúne para jogar. Qualquer pessoa cria uma sala e entra por um código de quatro letras ou pelo link `/sala/CODE`. Antes de entrar há o **pré-lobby** (`prelobby`), a tela de criar ou entrar: cada pessoa escolhe apelido e personagem (o personagem ainda dá para trocar no lobby), e quem cria escolhe também o tamanho da vez, quantas pessoas cabem (de 2 a 8) e se só vai moderar; o moderador ainda muda isso no lobby, sem deixar o limite abaixo da turma. Vive em memória: sobrevive ao fim do jogo e morre depois de dez minutos sem atividade, levando junto as imagens dos post-its.
+O lugar onde uma turma se reúne para jogar. Qualquer pessoa cria uma sala e entra por um código de quatro letras ou pelo link `/sala/CODE`. Antes de entrar há o **pré-lobby** (`prelobby`), a tela de criar ou entrar: cada pessoa escolhe apelido e personagem (o personagem ainda dá para trocar no lobby), e quem cria escolhe também o tamanho da vez, quantas pessoas cabem (de 2 a 8) e se só vai moderar; o moderador ainda muda isso no lobby, sem deixar o limite abaixo da turma. Vive em memória: sobrevive ao fim do jogo e morre depois de dez minutos sem atividade, levando junto as imagens dos post-its. Atividade é alguém da turma pedir algo; com o jogo rodando, também o jogo andar (a vez mudar, uma votação abrir ou fechar) e alguém da turma estar no telhado com a aba à vista.
 _Evitar_: lobby, partida, servidor, mesa
 
 **Turma** (`members`):
-As pessoas numa sala, de 2 até o limite escolhido (no máximo 8), conectadas ou não. Quem cai continua na turma até a sala morrer e volta com o mesmo token. "Jogar de novo com a mesma turma" leva todo mundo de volta ao lobby.
+As pessoas numa sala, de 2 até o limite escolhido (no máximo 8), conectadas ou não. Quem cai (ou fecha a aba, ou sai pelo menu) continua na turma até a sala morrer e volta ao mesmo lugar abrindo o link da sala no mesmo navegador: o token é por sala e por navegador, e duas abas na mesma sala são a mesma pessoa (a nova assume). De outro navegador é outra pessoa; não há "sou eu" para tomar um lugar. "Jogar de novo com a mesma turma" leva todo mundo de volta ao lobby; quem está desconectado nessa hora fica de fora, como fantasma, e volta para o fim da ordem se reaparecer ainda no lobby.
 _Evitar_: grupo, time, jogadores, party
 
 **Apelido** (`nickname`):
@@ -19,7 +19,7 @@ O nome que uma pessoa escolhe ao entrar na sala. Não há conta nem cadastro.
 _Evitar_: usuário, login, conta
 
 **Moderador** (`moderator`):
-Quem criou a sala; se sai, a pessoa mais antiga da sala assume. Pode tudo, a qualquer momento: marcar alguém como acertou ou não (passa por cima da votação e desfaz uma revelação), pular uma vez, pausar o relógio, reordenar a turma, expulsar, passar o papel de moderador e encerrar o jogo. Joga normalmente ou escolhe só moderar, como fantasma.
+Quem criou a sala; se sai, a pessoa mais antiga da sala assume, e quem recebe o papel (assim ou passado) é avisado. Pode tudo, a qualquer momento: marcar alguém como acertou ou não (passa por cima da votação e desfaz uma revelação), pular uma vez, pausar o relógio, reordenar a turma, expulsar (para sempre: quem foi expulso não volta àquela sala), passar o papel de moderador e encerrar o jogo. Joga normalmente ou escolhe só moderar, como fantasma.
 _Evitar_: host, admin, dono da sala, mestre
 
 **Fantasma** (`ghost`):
@@ -103,6 +103,10 @@ _Evitar_: reação, emoji, fala
 **Fala** (`chat`):
 Uma mensagem curta, de até 60 caracteres, escrita no campo do canto de baixo à direita (Enter foca, Enter manda). Não fica guardada nem em lista: vira um balão de pixel perto do personagem de quem falou, da família dos balões dos emotes, que todo mundo vê por 3 a 6 s conforme o tamanho; uma fala nova da mesma pessoa troca a anterior. Uma por segundo por pessoa. Fala quem tem personagem, no lobby, no jogo e no fim; bot não fala. Passa por fora do estado da sala e não conta como atividade.
 _Evitar_: mensagem, chat (em português), histórico, log
+
+**Bicho** (`critter`):
+Os gatos e os pássaros que moram no telhado: três gatos, um por prédio, e cinco pombos e um corvo em poleiros (a placa do hotel, a mureta do fundo, a caixa-d'água, a antena, a torre). São enfeite vivo: não são sólidos, não têm post-it nem nome, não contam para nada no jogo e não passam pela rede. Cada aba os calcula sozinha, numa rotina pelo relógio de parede semeada pela sala (todas as abas veem o mesmo gato fazendo a mesma coisa) e em reações à presença: o gato senta e olha quem chega perto, foge pulando o vão de quem corre para ele, empurra ou pousa perto, vem sentar do lado de quem fica parado perto dele, se afasta dos bots, e o mais perto mia na comemoração; o bando sai voando quando alguém corre ou pula perto e volta depois. O pouso do chefão espanta todos os bichos daquele telhado.
+_Evitar_: pet, mascote, NPC, animal (no código é `critter`)
 
 **Presença** (`presence`):
 Onde o personagem de uma pessoa está, como se move e o que anima. Sai de cada aba umas quinze vezes por segundo e chega às outras por fora do estado da sala; não conta como atividade.

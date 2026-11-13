@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { openRoom } from '../src/lib/rooms';
+import { openFailure, openRoom, peekRoom, roomCheck } from '../src/lib/rooms';
 
 const reply = (status: number, body: unknown) => async () => new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } });
 
@@ -20,8 +20,47 @@ describe('abrir uma sala', () => {
     expect(body).toEqual({});
   });
 
+  test('salas demais (429) e servidor lotado (503) dizem por quê; o resto é "fora do ar"', async () => {
+    const why = async (status: number) => openRoom({}, reply(status, {})).then(() => null, openFailure);
+    expect(await why(429)).toBe('tooMany');
+    expect(await why(503)).toBe('full');
+    expect(await why(500)).toBe('down');
+    expect(openFailure(new TypeError('Failed to fetch'))).toBe('down');
+  });
+
   test('servidor fora do ar ou resposta estranha é erro', async () => {
     await expect(openRoom({}, reply(503, {}))).rejects.toThrow();
     await expect(openRoom({}, reply(201, { code: 'nope' }))).rejects.toThrow();
+  });
+});
+
+describe('olhar uma sala antes de entrar', () => {
+  const peek = { phase: 'lobby', members: 2, maxPlayers: 8, member: false };
+  test('404 do servidor: código errado', () => {
+    expect(roomCheck(404, { found: false })).toEqual({ kind: 'missing' });
+  });
+  test('cheia: só para quem ainda não é da turma', () => {
+    expect(roomCheck(200, { ...peek, members: 3, maxPlayers: 3 })).toEqual({ kind: 'full', max: 3 });
+    expect(roomCheck(200, { ...peek, members: 3, maxPlayers: 3, member: true })).toEqual({ kind: 'ok' });
+  });
+  test('jogo em andamento: avisa que entra de fantasma (quem já é da turma só volta)', () => {
+    expect(roomCheck(200, { ...peek, phase: 'playing' })).toEqual({ kind: 'playing' });
+    expect(roomCheck(200, { ...peek, phase: 'ended' })).toEqual({ kind: 'playing' });
+    expect(roomCheck(200, { ...peek, phase: 'playing', member: true })).toEqual({ kind: 'ok' });
+    expect(roomCheck(200, peek)).toEqual({ kind: 'ok' });
+  });
+  test('servidor antigo (index.html), 404 sem corpo, erro ou corpo estranho: não se sabe', () => {
+    expect(roomCheck(200, null)).toEqual({ kind: 'unknown' });
+    expect(roomCheck(404, null)).toEqual({ kind: 'unknown' });
+    expect(roomCheck(500, { found: false })).toEqual({ kind: 'unknown' });
+    expect(roomCheck(200, { members: '2' })).toEqual({ kind: 'unknown' });
+  });
+  test('peekRoom pede com o token e nunca lança', async () => {
+    let asked = '';
+    const r = await peekRoom('ABCD', 'tok', async (url) => { asked = url; return new Response(JSON.stringify(peek)); });
+    expect(asked).toBe('/api/rooms/ABCD?token=tok');
+    expect(r).toEqual({ kind: 'ok' });
+    expect(await peekRoom('ABCD', 'tok', async () => new Response('<!doctype html>'))).toEqual({ kind: 'unknown' });
+    expect(await peekRoom('ABCD', 'tok', async () => { throw new Error('rede'); })).toEqual({ kind: 'unknown' });
   });
 });

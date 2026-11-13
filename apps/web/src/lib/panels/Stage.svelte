@@ -2,16 +2,17 @@
   import { onMount } from 'svelte';
   import { ROOFTOP, rooftopSheet } from '../sprites/rooftop';
   import { windowFrame, windowId, type Pane } from '../world/ambient';
+  import HowTo from './HowTo.svelte';
   import Hero from './Hero.svelte';
   import Ledge from './Ledge.svelte';
 
   /**
    * O personagem escolhido no pré-lobby, parado em loop numa faixa de telhado, com o apelido em cima como no jogo. Fica ao
-   * lado do formulário. `n` null: só o telhado.
+   * lado do formulário, com "como funciona" embaixo. `n` null: só o telhado.
    *
    * O chão não sai do lugar e a escala é a mesma para todos (`UNIT` pixels por unidade do mundo): trocando de personagem,
    * vê-se o tamanho de cada um contra o mesmo telhado, do cavaleiro pequenino ao homem no dinossauro. A altura do palco é
-   * a do mais alto; o apelido acompanha a cabeça.
+   * a do mais alto; o apelido acompanha a cabeça. Sem apelido, a etiqueta guarda o lugar mas não aparece.
    *
    * Atrás, discreto (issue #70): um pedaço da fachada do hotel, sumindo no escuro, com as janelas vivas do jogo (as
    * mesmas contas de `world/ambient.ts`: acendem, apagam, a televisão tremeluz, às vezes alguém passa), e chuva fina.
@@ -57,16 +58,17 @@
   });
 </script>
 
-<div class="gs-stage" aria-hidden="true">
-  <canvas class="gs-stage-facade" bind:this={canvas} width={W} height={H} style:width="{W * UNIT}px" style:height="{H * UNIT}px"></canvas>
-  <div class="gs-stage-rain">
+<div class="gs-stage">
+  <canvas class="gs-stage-facade" bind:this={canvas} width={W} height={H} style:width="{W * UNIT}px" style:height="{H * UNIT}px" aria-hidden="true"></canvas>
+  <div class="gs-stage-rain" aria-hidden="true">
     {#each DROPS as d, i (i)}<span style:left="{d.left}%" style:animation-delay="{d.delay}s" style:animation-duration="{d.dur}s"></span>{/each}
   </div>
-  <div class="gs-stage-hero">
+  <div class="gs-stage-hero" aria-hidden="true">
     {#if n !== null}
       <span class="gs-stage-tag" class:empty={!nickname.trim()}>{nickname.trim() || '·'}</span>
       <Hero {n} unit={UNIT} animate />
     {/if}
   </div>
   <Ledge w={84} />
+  <HowTo />
 </div>

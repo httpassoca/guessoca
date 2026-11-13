@@ -2,7 +2,7 @@ import { afterAll, beforeAll, describe, expect, test } from 'bun:test';
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { CLOSE_REPLACED, CLOSE_ROOM_NOT_FOUND, CODE_RE, IMAGE_BYTES_MAX, IMAGE_ID_RE, type ClientMessage, type RoomSnapshot, type ServerMessage } from '@guess/protocol';
+import { CLOSE_REPLACED, CLOSE_ROOM_NOT_FOUND, CODE_RE, IMAGE_BYTES_MAX, IMAGE_ID_RE, SOCKET_MESSAGE_BYTES_MAX, type ClientMessage, type RoomSnapshot, type ServerMessage } from '@guess/protocol';
 import { createServer } from '../src/server';
 import { silentLog } from '../src/log';
 import { Rooms } from '../src/rooms';
@@ -14,7 +14,7 @@ let base: string;
 const wsUrl = (room: string, token: string) => `${base.replace('http', 'ws')}/ws?room=${room}&token=${token}`;
 
 beforeAll(() => {
-  app = createServer({ port: 0, distDir: '/nonexistent', log: silentLog });
+  app = createServer({ port: 0, distDir: '/nonexistent', log: silentLog, limits: { createBurst: 1000, connectBurst: 1000 } }); // a suíte abre muitas salas e sockets do mesmo IP
   base = `http://localhost:${app.server.port}`;
 });
 afterAll(() => app.stop());
@@ -80,6 +80,20 @@ describe('servidor', () => {
     const big = await fetch(`${base}/api/rooms`, { method: 'POST', body: JSON.stringify({ turnMs: 45_000, pad: 'x'.repeat(4096) }) });
     expect(big.status).toBe(413);
     expect(app.rooms.size).toBe(before);
+  });
+
+  test('GET /api/rooms/CODE: olhada antes de entrar (fase, turma, limite, se o token já é da turma); sala ausente é 404', async () => {
+    const code = await openRoom({ maxPlayers: 2 });
+    const peek = async (q = '') => { const r = await fetch(`${base}/api/rooms/${code.toLowerCase()}${q}`); return [r.status, await r.json()]; };
+    expect(await peek()).toEqual([200, { phase: 'lobby', members: 0, maxPlayers: 2, member: false }]);
+    const tab = await Tab.open(code, 'token-olhada-1');
+    tab.send({ type: 'join', nickname: 'Ana' });
+    await tab.until((s) => s.members.length === 1);
+    expect(await peek('?token=token-olhada-1')).toEqual([200, { phase: 'lobby', members: 1, maxPlayers: 2, member: true }]);
+    expect(await peek('?token=token-outro-12')).toEqual([200, { phase: 'lobby', members: 1, maxPlayers: 2, member: false }]);
+    expect((await fetch(`${base}/api/rooms/ZZZZ`)).status).toBe(404);
+    expect((await fetch(`${base}/api/rooms/${code}`, { method: 'POST' })).status).toBe(405);
+    tab.ws.close();
   });
 
   test('token inválido ou sala ausente no WebSocket: 400 antes do upgrade', async () => {
@@ -337,11 +351,98 @@ describe('salas', () => {
     const seq = [0, 0, 0, 0, 0, 0, 0, 0, 0.99, 0.99, 0.99, 0.99];
     let i = 0;
     const rooms = new Rooms(silentLog, () => seq[i++]);
-    const first = rooms.create(), second = rooms.create();
+    const first = rooms.create()!, second = rooms.create()!;
     expect(first.code).toBe('AAAA');
     expect(second.code).toBe('ZZZZ'); // AAAA de novo foi sorteado e descartado
     expect(rooms.get('zzzz')).toBe(second);
     expect(rooms.size).toBe(2);
     first.dispose(); second.dispose();
+  });
+
+  test('a busca de código desiste depois de algumas tentativas, e há um teto de salas vivas', () => {
+    const stuck = new Rooms(silentLog, () => 0);
+    const only = stuck.create();
+    expect(only?.code).toBe('AAAA');
+    expect(stuck.create()).toBeNull(); // todo sorteio dá AAAA: não trava, desiste
+    const capped = new Rooms(silentLog, Math.random, {}, { max: 2 });
+    const made = [capped.create(), capped.create()];
+    expect(made.every(Boolean)).toBe(true);
+    expect(capped.create()).toBeNull();
+    for (const r of [only, ...made]) r!.dispose();
+  });
+});
+
+describe('servidor: limites (issue #72)', () => {
+  const post = (url: string, ip?: string) => fetch(`${url}/api/rooms`, { method: 'POST', body: '{}', headers: ip ? { 'x-real-ip': ip } : {} });
+
+  test('criar sala tem limite por IP (429) e um teto de salas vivas (503)', async () => {
+    const s = createServer({ port: 0, distDir: '/nonexistent', log: silentLog, limits: { createBurst: 2, roomsMax: 3 } });
+    try {
+      const url = `http://localhost:${s.server.port}`;
+      // o teste conecta do loopback, como o nginx: o X-Real-IP vale
+      expect((await post(url, '203.0.113.1')).status).toBe(200);
+      expect((await post(url, '203.0.113.1')).status).toBe(200);
+      const tooMany = await post(url, '203.0.113.1');
+      expect(tooMany.status).toBe(429);
+      expect(Number(tooMany.headers.get('retry-after'))).toBeGreaterThan(0);
+      expect((await post(url, '203.0.113.2')).status).toBe(200);
+      expect((await post(url, '203.0.113.3')).status).toBe(503);
+    } finally { s.stop(); }
+  });
+
+  test('uma mensagem maior que o limite do socket derruba a conexão', async () => {
+    const code = await openRoom();
+    const ws = new WebSocket(wsUrl(code, 'token-grande-1'));
+    await nextMessage(ws);
+    const gone = closed(ws);
+    ws.send('x'.repeat(SOCKET_MESSAGE_BYTES_MAX + 1));
+    expect((await gone).code).not.toBe(1000);
+  });
+
+  test('sockets demais do mesmo IP: o upgrade é recusado com 429', async () => {
+    const s = createServer({ port: 0, distDir: '/nonexistent', log: silentLog, limits: { socketsPerIp: 2 } });
+    const opened: WebSocket[] = [];
+    try {
+      const url = `http://localhost:${s.server.port}`;
+      const { code } = (await (await post(url)).json()) as { code: string };
+      const ws = (t: string) => new WebSocket(`${url.replace('http', 'ws')}/ws?room=${code}&token=${t}`);
+      for (const t of ['token-ip-0001', 'token-ip-0002']) { const w = ws(t); opened.push(w); await nextMessage(w); }
+      const refused = await fetch(`${url}/ws?room=${code}&token=token-ip-0003`, { headers: { upgrade: 'websocket', connection: 'upgrade', 'sec-websocket-key': 'dGhlIHNhbXBsZSBub25jZQ==', 'sec-websocket-version': '13' } });
+      expect(refused.status).toBe(429);
+      // quem fecha libera o lugar
+      const bye = closed(opened[0]);
+      opened[0].close();
+      await bye;
+      await new Promise((r) => setTimeout(r, 20));
+      const w = ws('token-ip-0004'); opened.push(w);
+      expect((await nextMessage(w)).type).toBe('snapshot');
+    } finally { for (const w of opened) w.close(); s.stop(); }
+  });
+
+  test('reabrir sockets sem parar do mesmo IP também é recusado com 429', async () => {
+    const s = createServer({ port: 0, distDir: '/nonexistent', log: silentLog, limits: { connectBurst: 2, connectPerSecond: 0.01 } });
+    try {
+      const url = `http://localhost:${s.server.port}`;
+      const { code } = (await (await post(url)).json()) as { code: string };
+      const upgrade = (t: string) => fetch(`${url}/ws?room=${code}&token=${t}`, { headers: { upgrade: 'websocket', connection: 'upgrade', 'sec-websocket-key': 'dGhlIHNhbXBsZSBub25jZQ==', 'sec-websocket-version': '13' } });
+      expect((await upgrade('token-re-0001')).status).toBe(101);
+      expect((await upgrade('token-re-0002')).status).toBe(101);
+      expect((await upgrade('token-re-0003')).status).toBe(429);
+    } finally { s.stop(); }
+  });
+
+  test('arquivo que falta em /fonts, /sprites, /assets e /music é 404, não a página', async () => {
+    const dist = mkdtempSync(join(tmpdir(), 'guess-dist-'));
+    writeFileSync(join(dist, 'index.html'), '<!doctype html><title>guessoca</title>');
+    const s = createServer({ port: 0, distDir: dist, log: silentLog });
+    try {
+      const url = `http://localhost:${s.server.port}`;
+      for (const p of ['/fonts/Caskaydia-Cove.ttf', '/sprites/nada.png', '/assets/x.js', '/music/x.mp3']) {
+        const r = await fetch(`${url}${p}`);
+        expect([p, r.status]).toEqual([p, 404]);
+        expect(r.headers.get('content-type') ?? '').not.toContain('text/html');
+      }
+      expect((await fetch(`${url}/sala/ABCD`)).status).toBe(200);
+    } finally { s.stop(); rmSync(dist, { recursive: true }); }
   });
 });

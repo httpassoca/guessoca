@@ -14,7 +14,8 @@ server {
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
-        # O cliente pinga a cada 15 s e o servidor derruba após 30 s parado (protocol): 5 min sobra.
+        # O cliente pinga a cada 15 s e o servidor derruba após 90 s parado (protocol): 5 min sobra.
+        # O servidor confia no X-Real-IP abaixo (limites por IP) porque só o nginx chega ao container (127.0.0.1:3003).
         proxy_read_timeout 300s;
         proxy_send_timeout 300s;
     }
