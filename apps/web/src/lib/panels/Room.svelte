@@ -20,6 +20,7 @@
   import World from '../world/World.svelte';
   import Chat from './Chat.svelte';
   import Corner from './Corner.svelte';
+  import EndCard from './EndCard.svelte';
   import Game from './Game.svelte';
   import KeysHint from './KeysHint.svelte';
   import { keysHintSeen, rememberKeysHintSeen } from '../hints';
@@ -34,7 +35,8 @@
    * do canto de cima à esquerda (menu, coluna, link), a coluna da sala à esquerda (o lobby, ou a turma e a moderação no
    * jogo; recolhível), a vez e a votação em cima no meio, o ranking no canto de cima à direita e o bloco preso embaixo
    * ao lado da coluna (só no jogo e no fim) e o campo da fala no canto de baixo à direita (Enter foca; o que se fala vira
-   * um balão sobre o personagem, no `World`). Tudo o que é decidido vem de `roomView`; aqui só se desenha e se pede.
+   * um balão sobre o personagem, no `World`). No fim, o cartão do fim no meio (`EndCard`), que fecha para a coluna. Na
+   * minha vez, o título da aba avisa. Tudo o que é decidido vem de `roomView`; aqui só se desenha e se pede.
    * No lobby, uma linha discreta em cima explica o telhado cinza (a cor vem com o jogo) e, na primeira vez neste
    * navegador, o cartão das teclas fica embaixo no meio até a pessoa fechá-lo.
    */
@@ -82,6 +84,31 @@
   $effect(() => { setMusic(musicWanted(room.phase)); });
   function setNotepadMin(on: boolean) { notepadMin = on; rememberNotepadMinimized(on); }
 
+  /** telas baixas (1366×768): o bloco aberto cobre o telhado onde a turma fica */
+  const SMALL_H = 900;
+  let endOpen = $state(false);
+  // o jogo começando numa tela baixa minimiza o bloco; o fim minimiza o bloco e abre o cartão do fim (sem lembrar:
+  // é a fase, não a pessoa, que pede)
+  let seenPhase2: Phase | null = null;
+  $effect(() => {
+    const phase = room.phase;
+    const prev = seenPhase2;
+    seenPhase2 = phase;
+    if (prev === null || prev === phase) return;
+    if (phase === 'playing' && window.innerHeight < SMALL_H) notepadMin = true;
+    if (phase === 'ended') { notepadMin = true; endOpen = true; }
+    else endOpen = false;
+  });
+
+  // a minha vez no título da aba: dá para ver de outra aba (o som já avisou)
+  const myTurn = $derived(room.phase === 'playing' && !!v.turn?.mine);
+  const baseTitle = typeof document === 'undefined' ? 'Guessoca' : document.title;
+  $effect(() => {
+    const base = baseTitle;
+    document.title = myTurn ? `● ${t('play.yourTurn')} – ${base}` : base;
+    return () => { document.title = base; };
+  });
+
   // recusa do servidor: um aviso que some sozinho
   let refused = $state(false);
   let seenSeq = untrack(() => st.errorSeq);
@@ -126,9 +153,12 @@
       send({ type: 'character', character: next });
       rememberCharacter(next);
     }
+    // o cartão do fim fecha com Esc (o menu abre no Esc seguinte)
+    if (endOpen && !menuOpen && !typing && e.key === 'Escape') { e.preventDefault(); endOpen = false; return; }
     // com um botão focado o Enter é dele: a fala só abre com o foco solto
-    const canChat = canTalk && !menuOpen && (el === null || el === document.body);
-    const action = keyAction(e, { inTextField: typing, canSkip: v.canSkip && !menuOpen, canNotepad: game && !menuOpen, canPanel: !menuOpen, canChat });
+    const focusFree = el === null || el === document.body;
+    const canChat = canTalk && !menuOpen && focusFree;
+    const action = keyAction(e, { inTextField: typing, canSkip: v.canSkip && !menuOpen, canNotepad: game && !menuOpen, canPanel: !menuOpen, canChat, focusFree: focusFree && !menuOpen });
     if (!action) return;
     e.preventDefault();
     switch (action) {
@@ -138,6 +168,7 @@
       case 'menu': menuOpen = !menuOpen; break;
       case 'blur': el?.blur(); break;
       case 'chat': chat?.focus(); break;
+      case 'stay': break; // fora da vez, o Tab não leva o foco para os botões
     }
   }
 
@@ -208,12 +239,16 @@
   {/if}
   {#if room.phase === 'playing'}
     <div class="gs-top" style:left="{topLeft}px">
-      <TurnBar {v} {room} {send} {turnLeft} {voteLeft} />
+      <TurnBar {v} {room} {send} {turnLeft} {voteLeft} {sideOpen} onmod={() => setSide(true)} />
     </div>
   {/if}
   {#if game}
     <div class="gs-rank"><Ranking rows={v.ranking} {room} /></div>
     <Notepad code={room.code} minimized={notepadMin} left={pad.left} width={pad.width} onminimize={setNotepadMin} />
+  {/if}
+
+  {#if room.phase === 'ended' && endOpen}
+    <EndCard {v} {room} left={topLeft} onclose={() => (endOpen = false)} onplayagain={() => send({ type: 'playAgain' })} />
   {/if}
 
   {#if canTalk}<Chat bind:this={chat} onsend={(text) => remote.chat(text)} />{/if}

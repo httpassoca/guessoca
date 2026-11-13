@@ -1,7 +1,8 @@
 /**
  * O teclado do jogo, puro: que ação uma tecla vira. O mouse cuida dos painéis; o teclado só tem atalhos. Num campo de
- * texto as teclas são do texto (Esc só sai do campo). Tab = passar a vez, só na própria vez; fora dela o Tab anda
- * entre os botões como sempre. Acertei não tem atalho (abre uma votação: só no botão, para não sair sem querer). N abre e minimiza o bloco (só com o jogo correndo ou no fim, quando
+ * texto as teclas são do texto (Esc só sai do campo). Tab = passar a vez, só na própria vez; fora dela, com o foco
+ * solto, o Tab não faz nada (`stay`: senão vai parar no botão do menu e o Enter deixa de abrir a fala); com um botão
+ * focado, anda entre os botões como sempre. Acertei não tem atalho (abre uma votação: só no botão, para não sair sem querer). N abre e minimiza o bloco (só com o jogo correndo ou no fim, quando
  * ele existe); P recolhe e mostra o painel da sala; Esc abre e fecha o menu; Enter foca o campo da fala (nele, Enter manda
  * e Esc sai: isso é com o `Chat.svelte`).
  *
@@ -9,7 +10,7 @@
  * J empurra e 1–4 são os emotes. Vão pela posição da tecla (`code`), não pela letra, para correr com Shift continuar
  * andando. Não se cruzam com as do jogo.
  */
-export type KeyAction = 'skip' | 'notepad' | 'panel' | 'menu' | 'blur' | 'chat';
+export type KeyAction = 'skip' | 'notepad' | 'panel' | 'menu' | 'blur' | 'chat' | 'stay';
 
 export interface KeyPress { key: string; code?: string; ctrlKey?: boolean; altKey?: boolean; metaKey?: boolean; shiftKey?: boolean; repeat?: boolean }
 export interface KeyContext {
@@ -22,12 +23,16 @@ export interface KeyContext {
   canPanel: boolean;
   /** dá para falar agora: tenho personagem, não há menu aberto nem botão focado (o Enter seria dele) */
   canChat?: boolean;
+  /** o foco está solto (na página, em nenhum botão) */
+  focusFree?: boolean;
 }
 
 export function keyAction(e: KeyPress, ctx: KeyContext): KeyAction | null {
   if (e.ctrlKey || e.altKey || e.metaKey || e.repeat) return null;
   if (e.key === 'Escape') return ctx.inTextField ? 'blur' : 'menu';
-  if (ctx.inTextField || e.shiftKey) return null;
+  if (ctx.inTextField) return null;
+  if (e.key === 'Tab' && ctx.focusFree && !(ctx.canSkip && !e.shiftKey)) return 'stay';
+  if (e.shiftKey) return null;
   switch (e.key) {
     case 'Tab': return ctx.canSkip ? 'skip' : null;
     case 'n': case 'N': return ctx.canNotepad ? 'notepad' : null;
