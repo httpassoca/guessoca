@@ -55,9 +55,13 @@ apps/server        Bun.serve: `/health`, `POST /api/rooms` (corpo JSON do pré-l
                      papel vai para a pessoa conectada mais antiga. Repassa as ações ao jogo e o põe em dia a cada entrada.
                      Jogadores falsos, no lobby, escrevem uma identidade ao acaso e ficam prontos (de novo, depois de apagado). `snapshotFor` esconde o post-it do
                      próprio dono
+  src/bots.ts        os bots engraçados, puro: o diretor (quando e quantos chegam) e o cérebro de cada um (o que faz), sobre
+                     a física do `@guess/world`; `attacks.json` (gerado por `bun run sprites`) dá a duração do ataque de cada
+                     personagem
   src/host.ts        `RoomHost`: sockets por token, timers que a sala pede, silêncio de 30 s, a presença de cada um repassada
                      aos outros (~15 por segundo, só a mais recente; quem chega recebe a de todos), o empurrão entregue só a
-                     quem foi empurrado, e as imagens da sala em memória
+                     quem foi empurrado, o laço dos bots engraçados (só com a opção ligada e o jogo rodando), e as
+                     imagens da sala em memória
                      (ADR 0003): só de quem é da turma, liberadas quando nenhum post-it as usa (uma subida ainda sem post-it
                      espera 2 min; no máximo 2 por pessoa)
   src/rooms.ts       `Rooms`: as salas vivas num mapa em memória, códigos de 4 letras sem I nem O

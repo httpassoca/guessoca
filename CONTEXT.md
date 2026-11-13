@@ -104,4 +104,8 @@ _Evitar_: locale, tradução (é o mecanismo, não a escolha)
 
 **Jogador falso** (`fakePlayer`):
 Pessoa inventada para testar sozinho, só em localhost ou com `?dev`, nunca em produção. No lobby, escreve uma identidade ao acaso e fica pronta (de novo, se o post-it dela for apagado), fica parada no telhado e pula as próprias vezes.
-_Evitar_: bot, NPC, IA, dummy
+_Evitar_: bot (é outra coisa: o bot engraçado), NPC, IA, dummy
+
+**Bot engraçado** (`funnyBot`):
+Personagem que ninguém controla e que aparece no telhado com o jogo rodando, se o moderador ligou a opção: anda, segue, sobe na cabeça, imita, empurra e é empurrado, para distrair e fazer rir. Não é da turma, não tem post-it nem vez, e não sabe nada do jogo. O nome sobre a cabeça é o do personagem. Quantos vêm, quando e o que fazem é sorteado, até quinze de uma vez; quando o jogo acaba, somem.
+_Evitar_: NPC, IA, jogador falso (esse é da turma e só existe para testar)

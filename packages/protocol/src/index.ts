@@ -44,6 +44,10 @@ export const CODE_LENGTH = 4;
 export const CODE_RE = new RegExp(`^[${CODE_ALPHABET}]{${CODE_LENGTH}}$`);
 /** Id público de membro: `m` e um número. */
 export const MEMBER_ID_RE = /^m\d{1,6}$/;
+/** O id de um bot engraçado (`b` e um número): não é da turma, só anda no telhado. */
+export const BOT_ID_RE = /^b\d{1,6}$/;
+/** Quantos bots engraçados cabem no telhado ao mesmo tempo. */
+export const BOTS_MAX = 15;
 /** Id de imagem guardada na sala: hexadecimal. */
 export const IMAGE_ID_RE = /^[0-9a-f]{16,32}$/;
 
@@ -82,6 +86,8 @@ export type ClientMessage =
   | { type: 'onlyModerate'; on: boolean }
   /** quantas pessoas cabem na sala, de `MIN_PLAYERS` a `MAX_MEMBERS`; nunca menos que a turma de agora */
   | { type: 'maxPlayers'; n: number }
+  /** moderador, a qualquer momento: liga ou desliga os bots engraçados (só aparecem com o jogo rodando) */
+  | { type: 'funnyBots'; on: boolean }
   // lobby: a escrita acontece aqui
   /** o post-it de `owner` como está agora (cada tecla); `image` = id devolvido pelo upload, ou null */
   | { type: 'write'; owner: string; text: string; image: string | null }
@@ -110,7 +116,7 @@ export type ClientMessage =
   | { type: 'addFake' }
   /** o próprio personagem; passa por fora da sala, repassado aos outros (não é atividade) */
   | { type: 'presence'; presence: Presence }
-  /** empurrei `target` para o lado `dir`; a aba dele aplica em si mesma */
+  /** empurrei `target` (uma pessoa ou um bot) para o lado `dir`; a aba dela aplica em si mesma (o bot, o servidor) */
   | { type: 'shove'; target: string; dir: 1 | -1 }
   | { type: 'ping' };
 
@@ -122,11 +128,14 @@ export type ServerMessage =
   | { type: 'snapshot'; snapshot: RoomSnapshot }
   /** pedido recusado, só para quem pediu; o snapshot que a pessoa tem continua valendo */
   | { type: 'error'; error: RoomError }
-  /** a presença de outra pessoa da sala */
+  /** a presença de outra pessoa da sala, ou de um bot (`member` é o id dele, `b…`) */
   | { type: 'presence'; member: string; presence: Presence }
   /** alguém (`by`) me empurrou para o lado `dir` */
   | { type: 'shoved'; by: string; dir: 1 | -1 }
   | { type: 'pong' };
+
+/** Um bot engraçado no telhado agora: quem é. Onde está chega por `presence`, como a de uma pessoa. */
+export interface BotView { id: string; character: number }
 
 /** Uma pessoa da turma como todo mundo a vê. */
 export interface MemberView {
@@ -192,6 +201,10 @@ export interface RoomSnapshot {
   maxPlayers: number;
   /** a turma, na ordem em que entrou */
   members: MemberView[];
+  /** o moderador ligou os bots engraçados */
+  funnyBots: boolean;
+  /** os bots que estão no telhado agora (só com o jogo rodando) */
+  bots: BotView[];
   /** quem joga, na ordem das vezes */
   order: string[];
   /** dono → autor */
@@ -277,6 +290,8 @@ export function parseClientMessage(raw: unknown): ClientMessage | null {
       return Array.isArray(m.order) && m.order.length <= 16 && m.order.every(isId) && new Set(m.order).size === m.order.length ? { type: 'order', order: [...m.order] } : null;
     case 'maxPlayers':
       return isMaxPlayers(m.n) ? { type: 'maxPlayers', n: m.n } : null;
+    case 'funnyBots':
+      return typeof m.on === 'boolean' ? { type: 'funnyBots', on: m.on } : null;
     case 'turnMs':
       return isTurnMs(m.ms) ? { type: 'turnMs', ms: m.ms } : null;
     case 'onlyModerate':
@@ -297,7 +312,7 @@ export function parseClientMessage(raw: unknown): ClientMessage | null {
       return presence ? { type: 'presence', presence } : null;
     }
     case 'shove':
-      return isId(m.target) && (m.dir === 1 || m.dir === -1) ? { type: 'shove', target: m.target, dir: m.dir } : null;
+      return (isId(m.target) || (typeof m.target === 'string' && BOT_ID_RE.test(m.target))) && (m.dir === 1 || m.dir === -1) ? { type: 'shove', target: m.target, dir: m.dir } : null;
     case 'kick':
     case 'handOver':
       return isId(m.member) ? { type: m.type, member: m.member } : null;

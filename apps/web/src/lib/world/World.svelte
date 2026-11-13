@@ -5,6 +5,7 @@
   import type { RemoteRoom } from '../room/remote';
   import type { RoomView } from '../room/view';
   import { playSfx } from '../sound/player';
+  import { character, properName } from '../sprites/characters';
   import { heads } from './heads';
   import { WorldRuntime, type SceneStatus } from './runtime';
 
@@ -15,7 +16,7 @@
    *
    * O post-it sobre a cabeça é um tooltip do dssoca (superfície, borda, fonte mono), sem papel amarelo: o meu é "?" até
    * ser revelado, o da vez fica com a cor de destaque, e cresce com o mouse em cima (só ele recebe o mouse; a camada não).
-   * No lobby, só o apelido.
+   * No lobby, só o apelido. Um bot engraçado leva só o nome do personagem dele.
    */
   let { remote, room, v, blocked, insetLeft }: { remote: RemoteRoom; room: RoomSnapshot; v: RoomView; blocked: boolean; insetLeft: number } = $props();
 
@@ -24,6 +25,11 @@
   let status = $state<SceneStatus>('loading');
   let runtime: WorldRuntime | null = null;
   const list = $derived(heads(room, v));
+  /** o nome de um personagem, para a etiqueta de um bot: o herói e o esqueleto pelo que são (traduzido); os outros pelo nome próprio */
+  const nameOf = (n: number) => {
+    const c = character(n);
+    return c.model === 'hero' ? t('char.hero') : c.model === 'skeleton' ? t('char.skeleton') : properName(c.name);
+  };
 
   onMount(() => {
     runtime = new WorldRuntime({
@@ -57,7 +63,7 @@
             {/if}
           </div>
         {/if}
-        <span class="tag">{h.mine ? t('postit.mine') : h.nickname}</span>
+        <span class="tag">{h.bot !== null ? nameOf(h.bot) : h.mine ? t('postit.mine') : h.nickname}</span>
       </div>
     </div>
   {/each}

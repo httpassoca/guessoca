@@ -78,7 +78,7 @@ export class RemoteRoom {
   /** o servidor mandou algo desde o último ping? um intervalo inteiro sem nada = a conexão morreu sem avisar */
   private heardSincePing = false;
   private readonly watchers = new Set<(state: RemoteState) => void>();
-  /** a presença de cada membro, por id; some com quem sai da turma */
+  /** a presença de cada membro e de cada bot, por id; some com quem sai da turma ou do telhado */
   private readonly presences = new Map<string, PresenceTrack>();
   private readonly shovedListeners = new Set<(e: ShovedEvent) => void>();
   private readonly makeSocket: SocketFactory;
@@ -174,7 +174,7 @@ export class RemoteRoom {
     }
     if (msg.type !== 'snapshot') return; // pong: só conta como resposta
     const { snapshot } = msg;
-    for (const id of this.presences.keys()) if (!snapshot.members.some((m) => m.id === id)) this.presences.delete(id);
+    for (const id of this.presences.keys()) if (!snapshot.members.some((m) => m.id === id) && !(snapshot.bots ?? []).some((b) => b.id === id)) this.presences.delete(id);
     const inside = snapshot.you !== null;
     const receivedAt = this.now();
     this.set(inside ? { room: snapshot, receivedAt, error: null } : { room: snapshot, receivedAt });

@@ -98,6 +98,12 @@ for (const m of models) {
 // só os atlas de quem está na lista, na ordem dela
 writeFileSync(atlasesPath, JSON.stringify(Object.fromEntries([...new Set(list.map((c) => c.atlas))].flatMap((m) => (atlases[m] ? [[m, atlases[m]]] : []))), null, 2) + '\n');
 writeFileSync(join(atlasOut, 'characters.json'), JSON.stringify(list, null, 2) + '\n');
+// quanto dura o ataque de cada personagem, em ms, na ordem dos lugares: o servidor simula os bots engraçados
+// (`apps/server/src/bots.ts`) e não leva os atlas do cliente na imagem de produção
+writeFileSync(
+  join(root, 'apps/server/src/attacks.json'),
+  JSON.stringify(list.map((c) => { const a = atlases[c.atlas]?.animations.shove; return a ? Math.round((a.frames / a.fps) * 1000) : 450; })) + '\n',
+);
 
 const langs: EmoteLang[] = ['pt-BR', 'en-US'];
 let emoteAtlas = null;

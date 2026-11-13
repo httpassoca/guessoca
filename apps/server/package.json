@@ -11,7 +11,10 @@
   },
   "dependencies": {
     "@guess/protocol": "workspace:*",
-    "@guess/rules": "workspace:*"
+    "@guess/rules": "workspace:*",
+    "@guess/world": "workspace:*"
   },
-  "devDependencies": { "typescript": "^5.9.0" }
+  "devDependencies": {
+    "typescript": "^5.9.0"
+  }
 }

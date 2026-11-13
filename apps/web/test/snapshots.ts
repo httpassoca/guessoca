@@ -13,7 +13,7 @@ export const postit = (author: string | null, extra: Partial<PostitView> = {}): 
 export function snapshot(p: Partial<RoomSnapshot> = {}): RoomSnapshot {
   const members = p.members ?? [member('m1', 'Zé'), member('m2', 'Ana'), member('m3', 'Bia')];
   return {
-    code: 'ABCD', phase: 'lobby', you: 'm1', moderator: 'm1', dev: false, maxPlayers: 8, members, order: members.filter((x) => !x.ghost).map((x) => x.id),
+    code: 'ABCD', phase: 'lobby', you: 'm1', moderator: 'm1', dev: false, maxPlayers: 8, funnyBots: false, bots: [], members, order: members.filter((x) => !x.ghost).map((x) => x.id),
     authors: {}, turnMs: 60_000, postits: {}, turn: null, paused: false, vote: null, got: [], gaveUp: [], ...p,
   };
 }

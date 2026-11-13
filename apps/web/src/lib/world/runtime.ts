@@ -181,7 +181,8 @@ export class WorldRuntime {
       const others = othersOf(bodies);
       // o ataque dura o que dura na folha do meu personagem (o mundo põe o piso e o teto)
       const shoveMs = me && me.character !== null ? attackMs(character(me.character).atlas) : undefined;
-      const real = new Set(room.members.filter((m) => !m.fake).map((m) => m.id));
+      // quem leva o meu empurrão: as pessoas (a aba delas aplica) e os bots (o servidor aplica); o falso não
+      const real = new Set([...room.members.filter((m) => !m.fake).map((m) => m.id), ...(room.bots ?? []).map((b) => b.id)]);
       const { steps, acc } = fixedSteps(this.acc, elapsed);
       this.acc = acc;
       try {
