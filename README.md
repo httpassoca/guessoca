@@ -59,6 +59,12 @@ apps/server        Bun.serve: `/health`, `POST /api/rooms` (corpo JSON do pré-l
   src/bots.ts        os bots engraçados, puro: o diretor (quando e quantos chegam; o chefão, raro) e o cérebro de cada um (o que faz), sobre
                      a física do `@guess/world`; `attacks.json` (gerado por `bun run sprites`) dá a duração do ataque de cada
                      personagem
+  src/talk.ts        a fala dos bots, pura: quais falam (30%, sorteado ao chegar), quando cada um quer falar (chamado pelo
+                     nome, empurrado, uma queda, o jogo andar, o chefão, outro bot, o silêncio), o pedido ao modelo (o
+                     retrato e a cena, nunca o post-it) e a resposta arrumada e filtrada; `personas.ts`: o retrato de cada
+                     um dos trinta personagens
+  src/groq.ts        o modelo dos bots que falam (Groq, API compatível com a da OpenAI), só com `GROQ_API_KEY`: o orçamento
+                     do processo (pedidos e tokens por minuto e por dia, com folga e prioridade) e o cliente com prazo
   src/host.ts        `RoomHost`: sockets por token, timers que a sala pede, silêncio de 90 s, a presença de cada um repassada
                      aos outros (~15 por segundo, só a mais recente; quem chega recebe a de todos), o empurrão entregue só a
                      quem foi empurrado, a fala repassada a todo mundo (uma por segundo por pessoa, nenhuma guardada), o laço
@@ -113,7 +119,7 @@ apps/web           Vite + Svelte 5 + PixiJS v8 + dssoca
                            a rotina dos gatos no relógio de parede semeada pela sala, os caminhos entre poleiros, as reações
                            à presença, os bandos de pássaros que saem e voltam), fauna (Pixi: desenha os bichos entre os
                            corpos, tingidos para a noite), World.svelte (que também desenha
-                           os balões de fala, na fonte Tiny5 de `public/fonts/`), e a vida no telhado (issue #70): ambient
+                           os balões de fala, na fonte VT323 de `public/fonts/`), e a vida no telhado (issue #70): ambient
                            (puro: quando cada coisa acontece, por hash do relógio: janelas, letreiros, avião, relâmpago,
                            carros, sirene, respingos, gotas, vapor; e o raio do chefão derrubado: o tempo, o caminho e o
                            prédio que ele atinge), windows (Pixi: as janelas que acendem e apagam por cima
@@ -301,6 +307,17 @@ cd ~/dev/guessoca && npm run docker:stop; npm run docker:start
 
 Para testar na sua máquina: `GUESS_ADMIN_HASH=<hash> PORT=3111 bun apps/server/src/index.ts`. O passo a passo do servidor,
 com a conferência e como trocar a senha, está em `docs/sistema.md`.
+
+O mesmo arquivo liga os **bots que falam**: com `GROQ_API_KEY` (uma chave grátis do Groq) em `~/.guessoca.env`, alguns
+bots engraçados falam pelo modelo de linguagem; sem ela, ficam calados. Acrescente com `>>` (o `>` de cima apaga o
+resto) e reinicie o container:
+
+```
+printf 'GROQ_API_KEY=%s\n' 'gsk_A_CHAVE' >> ~/.guessoca.env
+cd ~/dev/guessoca && npm run docker:stop; npm run docker:start
+```
+
+O modelo, os limites, o orçamento e como testar sem chave estão em `docs/groq.md`.
 
 - **Ver**: cada personagem com as sete animações tocando (tamanho, velocidade, pausa, quadro a quadro, linha do chão e
   âncora), os objetos do telhado, a cidade ao fundo, os balões, a música e os efeitos sonoros, e a tabela de todos os

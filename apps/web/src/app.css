@@ -383,19 +383,22 @@ html, body { margin: 0; min-height: 100%; background: var(--ss-bg); }
 /*
  * o balão de fala: da família dos balões dos emotes (papel branco, contorno escuro de 1 pixel com os cantos cortados,
  * rabicho embaixo no meio), em HTML para aceitar qualquer texto. `--u` é o lado de um pixel dele na tela (`--gs-chat-px`,
- * posto pelo `WorldRuntime`: a escala do telhado, o mesmo pixel dos emotes); tudo é múltiplo dele. A fonte é a Tiny5 (SIL OFL, `public/fonts/`), de 8 px nativos: sai
- * sempre em 8·`--u`, sem suavização, com a linha de 9 (cabem o acento de cima e a perna de baixo). O que ela não tem
- * (emoji) cai na fonte do sistema. O contorno são quatro sombras duras (os cantos ficam de fora); o rabicho, um pixel
- * com sombras. Uma fala de 60 caracteres dá 3 linhas; no máximo 4.
+ * posto pelo `WorldRuntime`: a escala do telhado, o mesmo pixel dos emotes); o contorno, o rabicho e os espaços são
+ * múltiplos dele. A fonte é a VT323 (SIL OFL, `public/fonts/`), desenhada numa grade de 25 pixels por eme, bem mais
+ * fina que a do mundo: o tamanho dela vem à parte (`--gs-chat-font`, `chatFontPx` em `bubbles.ts`), sempre 25 ou 50 px,
+ * para cada pixel dela ser um ou dois da tela, sem suavização, com a linha de 27/25 (cabem o acento de cima, a perna
+ * de baixo e um pixel de ar, e a linha de base cai num pixel inteiro). O que ela não tem (emoji) cai na fonte do
+ * sistema. O contorno são quatro sombras duras (os cantos ficam de fora); o rabicho, um pixel com sombras. Cabem 20
+ * caracteres por linha: uma fala de 60 dá 3 linhas; no máximo 4.
  */
-@font-face { font-family: 'Tiny5'; font-style: normal; font-weight: 400; font-display: block; src: url('/fonts/tiny5-latin.woff2') format('woff2');
+@font-face { font-family: 'VT323'; font-style: normal; font-weight: 400; font-display: block; src: url('/fonts/vt323-latin.woff2') format('woff2');
   unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
-@font-face { font-family: 'Tiny5'; font-style: normal; font-weight: 400; font-display: block; src: url('/fonts/tiny5-latin-ext.woff2') format('woff2');
+@font-face { font-family: 'VT323'; font-style: normal; font-weight: 400; font-display: block; src: url('/fonts/vt323-latin-ext.woff2') format('woff2');
   unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF; }
-.gs-bubble { --u: var(--gs-chat-px, 2px); --gs-ink: #1a1426; --gs-paper: #fff; position: relative; box-sizing: border-box; width: max-content; min-width: calc(11 * var(--u)); max-width: calc(104 * var(--u));
+.gs-bubble { --u: var(--gs-chat-px, 2px); --gs-ink: #1a1426; --gs-paper: #fff; position: relative; box-sizing: border-box; width: max-content; min-width: calc(11 * var(--u)); max-width: calc(20ch + 4 * var(--u));
   margin: var(--u) var(--u) calc(3 * var(--u)); padding: 0 calc(2 * var(--u)); background: var(--gs-paper); color: var(--gs-ink);
   box-shadow: 0 calc(-1 * var(--u)) var(--gs-ink), 0 var(--u) var(--gs-ink), calc(-1 * var(--u)) 0 var(--gs-ink), var(--u) 0 var(--gs-ink);
-  font: 400 calc(8 * var(--u))/calc(9 * var(--u)) 'Tiny5', var(--ss-font-mono), monospace; letter-spacing: 0; text-align: center; white-space: normal; overflow-wrap: anywhere;
+  font: 400 var(--gs-chat-font, 25px)/1.08 'VT323', var(--ss-font-mono), monospace; letter-spacing: 0; text-align: center; white-space: normal; overflow-wrap: anywhere;
   font-kerning: none; font-variant-ligatures: none; text-rendering: optimizeSpeed; -webkit-font-smoothing: none; font-smooth: never; }
 .gs-bubble .say { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 4; line-clamp: 4; overflow: hidden; padding: var(--u) 0; }
 .gs-bubble::after { content: ''; position: absolute; top: 100%; left: calc(50% - var(--u) / 2); left: round(down, calc(50% - var(--u) / 2), var(--u)); width: var(--u); height: var(--u); background: var(--gs-paper);
@@ -414,14 +417,14 @@ html, body { margin: 0; min-height: 100%; background: var(--ss-bg); }
 .gs-chat .ss-kbd { position: absolute; right: 8px; pointer-events: none; }
 
 /*
- * a barra de vida do chefão: embaixo, entre o bloco e a fala (onde, de `bossBarBox`). O nome na fonte de pixel (Tiny5,
- * 16 px = 2× a nativa), um gomo por empurrão que ele aguenta: vermelho neon com a luz em cima e a sombra embaixo, como
+ * a barra de vida do chefão: embaixo, entre o bloco e a fala (onde, de `bossBarBox`). O nome na fonte de pixel (VT323,
+ * 25 px, a nativa, como nos balões), um gomo por empurrão que ele aguenta: vermelho neon com a luz em cima e a sombra embaixo, como
  * um ladrilho; o perdido pisca em branco e a barra treme em passos de pixel
  */
 .gs-boss-wrap { position: absolute; z-index: 10; pointer-events: none; }
 .gs-boss { --gs-hp: oklch(64% 0.24 14); --gs-hp-hi: oklch(80% 0.15 14); --gs-hp-lo: oklch(44% 0.17 14);
   display: flex; flex-direction: column; gap: 8px; padding: 10px 12px 12px; animation: gs-rise var(--gs-enter) var(--gs-ease); }
-.gs-boss-head { display: flex; align-items: baseline; gap: 10px; min-width: 0; font: 400 16px/16px 'Tiny5', var(--ss-font-mono), monospace; }
+.gs-boss-head { display: flex; align-items: baseline; gap: 10px; min-width: 0; font: 400 25px/25px 'VT323', var(--ss-font-mono), monospace; }
 .gs-boss-tag { flex: none; color: var(--gs-hp); }
 .gs-boss-name { flex: 1; min-width: 0; color: var(--ss-fg); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .gs-boss-count { flex: none; color: var(--ss-fg-muted); font-variant-numeric: tabular-nums; }

@@ -9,8 +9,8 @@
  * O que toca na arte: monta a lista de `SceneBody` (unidades do mundo) para `scene.ts`, com `animSince` dos outros
  * medido aqui (a presença não leva quando a animação começou), e põe cada post-it em HTML em `headAnchor` (pixels da
  * tela), separado por `declutter` (quem está falando fica no lugar; quem sobe ganha um fio até a cabeça, `--gs-lift`), com `z-index` 1000 − `z` (quem está mais à frente cobre). O balão de fala mora nessa
- * mesma etiqueta (`World.svelte`); daqui sai só o tamanho do pixel dele (`--gs-chat-px`), que é a escala do
- * telhado: um pixel do balão é um pixel do mundo.
+ * mesma etiqueta (`World.svelte`); daqui saem só o tamanho do pixel dele (`--gs-chat-px`), que é a escala do
+ * telhado (um pixel do balão é um pixel do mundo), e o da fonte (`--gs-chat-font`, `chatFontPx`).
  */
 import { EMOTE_MS, EMOTES, type RoomSnapshot } from '@guess/protocol';
 import { attackMs, character } from '../sprites/characters';
@@ -24,7 +24,7 @@ import { crowd, othersOf, type CrowdBody } from './crowd';
 import { fixedSteps, STEP_MS } from './loop';
 import { PresenceSender, presenceOfBody, type Emote } from './presence';
 import type { Scene, SceneBody } from './scene';
-import { snapShift } from './bubbles';
+import { chatFontPx, snapShift } from './bubbles';
 import { presentCharacters } from './sheet-cache';
 import { declutter, type Tag } from './declutter';
 import { rememberedZoom, rememberZoom } from '../identity';
@@ -250,7 +250,11 @@ export class WorldRuntime {
     const view = renderView(visible, this.insetLeft);
     // um pixel do balão de fala = um pixel do mundo, como nos balões dos emotes
     const chatPx = visible.scale;
-    if (chatPx !== this.chatPx) { this.chatPx = chatPx; this.opts.heads.style.setProperty('--gs-chat-px', `${chatPx}px`); }
+    if (chatPx !== this.chatPx) {
+      this.chatPx = chatPx;
+      this.opts.heads.style.setProperty('--gs-chat-px', `${chatPx}px`);
+      this.opts.heads.style.setProperty('--gs-chat-font', `${chatFontPx(chatPx)}px`);
+    }
     const body = this.body;
     // a primeira vez, já em cima do corpo (dt 0 só aplica os limites do mundo)
     try { this.cam = followCamera(this.cam ?? { x: body.x }, body, visible, this.cam ? elapsed / 1000 : 0); }
