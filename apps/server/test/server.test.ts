@@ -82,6 +82,20 @@ describe('servidor', () => {
     expect(app.rooms.size).toBe(before);
   });
 
+  test('GET /api/rooms/CODE: olhada antes de entrar (fase, turma, limite, se o token já é da turma); sala ausente é 404', async () => {
+    const code = await openRoom({ maxPlayers: 2 });
+    const peek = async (q = '') => { const r = await fetch(`${base}/api/rooms/${code.toLowerCase()}${q}`); return [r.status, await r.json()]; };
+    expect(await peek()).toEqual([200, { phase: 'lobby', members: 0, maxPlayers: 2, member: false }]);
+    const tab = await Tab.open(code, 'token-olhada-1');
+    tab.send({ type: 'join', nickname: 'Ana' });
+    await tab.until((s) => s.members.length === 1);
+    expect(await peek('?token=token-olhada-1')).toEqual([200, { phase: 'lobby', members: 1, maxPlayers: 2, member: true }]);
+    expect(await peek('?token=token-outro-12')).toEqual([200, { phase: 'lobby', members: 1, maxPlayers: 2, member: false }]);
+    expect((await fetch(`${base}/api/rooms/ZZZZ`)).status).toBe(404);
+    expect((await fetch(`${base}/api/rooms/${code}`, { method: 'POST' })).status).toBe(405);
+    tab.ws.close();
+  });
+
   test('token inválido ou sala ausente no WebSocket: 400 antes do upgrade', async () => {
     const code = await openRoom();
     expect((await fetch(`${base}/ws?room=${code}&token=curto`)).status).toBe(400);

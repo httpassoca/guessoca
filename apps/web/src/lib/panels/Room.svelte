@@ -21,6 +21,8 @@
   import Chat from './Chat.svelte';
   import Corner from './Corner.svelte';
   import Game from './Game.svelte';
+  import KeysHint from './KeysHint.svelte';
+  import { keysHintSeen, rememberKeysHintSeen } from '../hints';
   import Lobby from './Lobby.svelte';
   import Menu from './Menu.svelte';
   import Notepad from './Notepad.svelte';
@@ -33,6 +35,8 @@
    * jogo; recolhível), a vez e a votação em cima no meio, o ranking no canto de cima à direita e o bloco preso embaixo
    * ao lado da coluna (só no jogo e no fim) e o campo da fala no canto de baixo à direita (Enter foca; o que se fala vira
    * um balão sobre o personagem, no `World`). Tudo o que é decidido vem de `roomView`; aqui só se desenha e se pede.
+   * No lobby, uma linha discreta em cima explica o telhado cinza (a cor vem com o jogo) e, na primeira vez neste
+   * navegador, o cartão das teclas fica embaixo no meio até a pessoa fechá-lo.
    */
   let { remote, st, room, token, status }: { remote: RemoteRoom; st: RemoteState; room: RoomSnapshot; token: string; status: string } = $props();
 
@@ -45,6 +49,8 @@
   const voteLeft = $derived(v.vote ? countdown(v.vote.left, st.receivedAt, now) : 0);
 
   let menuOpen = $state(false);
+  let keysHint = $state(!keysHintSeen());
+  function closeKeysHint() { keysHint = false; rememberKeysHintSeen(); }
   let chat = $state<{ focus: () => void }>();
   /** quem tem personagem fala (no lobby, no jogo e no fim); o balão precisa de uma cabeça */
   const canTalk = $derived(v.me !== null && v.me.character !== null);
@@ -196,6 +202,10 @@
     </footer>
   </aside>
 
+  {#if room.phase === 'lobby'}
+    <p class="gs-grey-hint" style:left="{topLeft}px">{t('lobby.greyHint')}</p>
+    {#if keysHint}<div class="gs-keyshint-wrap" style:left="{topLeft}px"><KeysHint onclose={closeKeysHint} /></div>{/if}
+  {/if}
   {#if room.phase === 'playing'}
     <div class="gs-top" style:left="{topLeft}px">
       <TurnBar {v} {room} {send} {turnLeft} {voteLeft} />

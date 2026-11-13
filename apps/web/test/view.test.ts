@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 import { CHARACTERS, TURN_MAX, TURN_MIN, TURN_STEP } from '@guess/rules';
-import { characterToClaim, clockText, countdown, devTools, moveBy, roomView, turnFraction, turnOptions, turnTone } from '../src/lib/room/view';
+import { characterToClaim, clockText, countdown, devTools, joinState, moveBy, roomView, turnFraction, turnOptions, turnTone } from '../src/lib/room/view';
 import type { RoomSnapshot } from '@guess/protocol';
 import { member, postit, snapshot } from './snapshots';
 
@@ -123,6 +123,23 @@ describe('lobby: a escrita', () => {
     expect(roomView(lobby()).ownPostitEmpty).toBe(true);
     expect(roomView(lobby({ postits: { m1: postit('m3', { text: null, written: true }), m2: postit('m1', { text: 'Pelé' }), m3: postit('m2', { text: 'Xuxa' }) } })).ownPostitEmpty).toBe(false);
     expect(roomView(lobby({ moderator: 'm2' })).ownPostitEmpty).toBe(false);
+    expect(roomView(lobby()).ownPostitAuthor?.nickname).toBe('Bia');
+  });
+
+  test('sozinho na turma, o próprio post-it vazio não espera ninguém', () => {
+    const members = [member('m1', 'Zé')];
+    const v = roomView(snapshot({ members, authors: { m1: 'm1' }, postits: { m1: postit('m1', { text: null }) } }));
+    expect(v.ownPostitEmpty).toBe(false);
+    expect(v.ownPostitAuthor).toBeNull();
+    expect(v.missing).toEqual([]);
+  });
+
+  test('a tela de entrar: sala cheia e jogo já começado', () => {
+    const members = [member('m1', 'Zé'), member('m2', 'Ana'), member('m3', 'Bia')];
+    expect(joinState({ members, maxPlayers: 3, phase: 'lobby' })).toEqual({ full: true, late: false });
+    expect(joinState({ members, maxPlayers: 4, phase: 'playing' })).toEqual({ full: false, late: true });
+    expect(joinState({ members, maxPlayers: 8, phase: 'ended' })).toEqual({ full: false, late: true });
+    expect(joinState({ members, maxPlayers: 8, phase: 'lobby' })).toEqual({ full: false, late: false });
   });
 
   test('o moderador vê os post-its que faltam e pode escrevê-los, menos o próprio e o que já escreve', () => {
