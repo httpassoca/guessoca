@@ -51,14 +51,14 @@
       remote, host: host!, heads: layer!, lang: untrack(() => i18n.lang),
       onStatus: (s, detail) => { status = s; if (detail) document.documentElement.dataset.renderer = detail; },
       onEvent: (ev) => { if (ev.type === 'jump' || ev.type === 'shove') playSfx(ev.type); },
+      onShoved: () => playSfx('shove'), // levei um empurrão que pegou
     });
-    const offShoved = remote.onShoved(() => playSfx('shove')); // levei um empurrão
     const offChat = remote.onChat((e) => { bubbles = say(bubbles, e.member, e.text, performance.now()); scheduleBubbles(); });
     // a fonte dos balões já carregada quando a primeira fala chegar
     document.fonts?.load("8px 'Tiny5'").catch(() => {});
     runtime.setRoom(untrack(() => room));
     runtime.start();
-    return () => { offShoved(); offChat(); clearTimeout(bubbleTimer); runtime?.dispose(); runtime = null; };
+    return () => { offChat(); clearTimeout(bubbleTimer); runtime?.dispose(); runtime = null; };
   });
   $effect(() => { runtime?.setRoom(room); });
   $effect(() => { runtime?.setBlocked(blocked); });

@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { CLOSE_KICKED, CLOSE_REPLACED, CLOSE_ROOM_ENDED, CLOSE_ROOM_NOT_FOUND, PING_INTERVAL, type MemberView, type Presence, type RoomSnapshot } from '@guess/protocol';
+import { CLOSE_KICKED, CLOSE_REPLACED, CLOSE_ROOM_ENDED, CLOSE_ROOM_NOT_FOUND, CLOSE_TOO_MANY, PING_INTERVAL, type MemberView, type Presence, type RoomSnapshot } from '@guess/protocol';
 import { BACKOFF_MAX, BACKOFF_START, RemoteRoom, type RemoteState, type SocketLike } from '../src/lib/room/remote';
 import { ManualClock } from './manual-clock';
 
@@ -253,6 +253,15 @@ describe('RemoteRoom: o jogo', () => {
     room.connect(); last().open();
     last().serverClose(CLOSE_KICKED);
     expect(room.state).toMatchObject({ status: 'closed', reason: 'kicked' });
+    clock.run();
+    expect(sockets).toHaveLength(1);
+  });
+
+  test('fechado por mensagens ou conexões demais (4429): fecha de vez, diz por quê e não martela o servidor', () => {
+    const { room, last, clock, sockets } = setup();
+    room.connect(); last().open();
+    last().serverClose(CLOSE_TOO_MANY);
+    expect(room.state).toMatchObject({ status: 'closed', reason: 'tooMany' });
     clock.run();
     expect(sockets).toHaveLength(1);
   });

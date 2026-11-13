@@ -10,7 +10,7 @@
   import CharacterPicker from '../panels/CharacterPicker.svelte';
   import Stage from '../panels/Stage.svelte';
   import { clockText, turnOptions } from '../room/view';
-  import { openRoom } from '../rooms';
+  import { openFailure, openRoom, type OpenFailure } from '../rooms';
   import { navigate, roomPath } from '../route.svelte';
 
   /**
@@ -25,7 +25,7 @@
   let onlyModerate = $state(saved.onlyModerate);
   let problems = $state<FormProblem[]>([]);
   let opening = $state(false);
-  let failed = $state(false);
+  let failed = $state<OpenFailure | false>(false);
 
   const turns = turnOptions();
   const turnIdx = $derived(turns.indexOf(turnMs));
@@ -44,7 +44,7 @@
       const code = await openRoom(c.init);
       rememberAutoJoin(code); // a sala nova nos põe na turma ao chegar, com o apelido e o personagem lembrados
       navigate(roomPath(code));
-    } catch { failed = true; } finally { opening = false; }
+    } catch (err) { failed = openFailure(err); } finally { opening = false; }
   }
 
   let code = $state('');
@@ -98,7 +98,7 @@
         </div>
 
         <button class="ss-btn primary full-width" type="submit" disabled={opening}>{opening ? t('home.opening') : t('pre.createRoom')}</button>
-        {#if failed}<p class="gs-error">{t('home.openFailed')}</p>{/if}
+        {#if failed}<p class="gs-error">{t(failed === 'tooMany' ? 'home.tooManyRooms' : failed === 'full' ? 'home.serverFull' : 'home.openFailed')}</p>{/if}
       </form>
 
       <div class="gs-or"><span>{t('pre.or')}</span></div>
