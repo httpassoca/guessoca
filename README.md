@@ -60,8 +60,9 @@ apps/server        Bun.serve: `/health`, `POST /api/rooms` (corpo JSON do pré-l
                      personagem
   src/host.ts        `RoomHost`: sockets por token, timers que a sala pede, silêncio de 30 s, a presença de cada um repassada
                      aos outros (~15 por segundo, só a mais recente; quem chega recebe a de todos), o empurrão entregue só a
-                     quem foi empurrado, o laço dos bots engraçados (só com a opção ligada e o jogo rodando), e as
-                     imagens da sala em memória
+                     quem foi empurrado, o laço dos bots engraçados (só com a opção ligada e o jogo rodando), as
+                     estatísticas do jogo (conta cada empurrão entregue e cada queda, que é a presença passar a piscar, e
+                     passa à sala, que as mostra no snapshot do fim), e as imagens da sala em memória
                      (ADR 0003): só de quem é da turma, liberadas quando nenhum post-it as usa (uma subida ainda sem post-it
                      espera 2 min; no máximo 2 por pessoa)
   src/rooms.ts       `Rooms`: as salas vivas num mapa em memória, códigos de 4 letras sem I nem O
@@ -76,6 +77,7 @@ apps/web           Vite + Svelte 5 + PixiJS v8 + dssoca
                            crescente até 10 s, e para de vez em 4404/4410/4409/4403 dizendo por quê
   src/lib/room/view.ts     o snapshot visto por mim: quem sou, para quem escrevo, de quem é a vez, se posso acertar, passar,
                            desistir ou votar, os post-its como posso vê-los, o ranking, a contagem regressiva
+  src/lib/room/stats.ts    as estatísticas do fim do jogo: do snapshot para as linhas da tabela (uma por pessoa) e os destaques
   src/lib/image.ts         a imagem do post-it: reduz a 512 px, WebP baixando a qualidade até caber, sobe por POST
   src/lib/effects.ts       "efeitos de tela" (os filtros de filme) ligados ou não, por navegador (localStorage)
   src/lib/sprites/         os atlas gerados (`characters.json`, `atlases.json`, `emotes.json`, `rooftop.json`),
@@ -101,7 +103,7 @@ apps/web           Vite + Svelte 5 + PixiJS v8 + dssoca
   src/lib/panels/          Room (o telhado atrás de tudo, a barra, a coluna da fase que recolhe, teclado), TurnBar (vez e votação
                            no alto), Roster (a tira de post-its embaixo), Lobby (ordem arrastável, autores, personagens, tamanho da vez), Writing
                            e PostitEditor (ao vivo, imagem, Pronto, moderador escreve os vazios), Playing (vez, votação, ranking),
-                           ModPanel, Ended, Notepad, Menu
+                           ModPanel, Ended, Stats (as estatísticas do jogo, na coluna do fim), Notepad, Menu
   src/lib/screens/         Home (abrir sala, entrar com código, crédito) e Sala (apelido, depois o jogo; sala inexistente,
                            encerrada ou expulso)
   test/                    tradução, rotas, identidade, teclas, imagem, `RemoteRoom` com socket falso e contra o servidor de
