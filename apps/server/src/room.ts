@@ -276,7 +276,7 @@ export function step(state: RoomState, input: RoomInput, now: number, opts: Step
       break;
     }
     case 'bots': {
-      s.bots = input.bots.map((b) => ({ id: b.id, character: b.character }));
+      s.bots = input.bots.map((b) => ({ id: b.id, character: b.character, ...(b.scale !== undefined ? { scale: b.scale } : {}) }));
       break;
     }
   }

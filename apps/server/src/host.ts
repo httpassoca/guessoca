@@ -25,6 +25,12 @@ export const BOT_TICK = 33;
 /** Um bot parado ainda manda a presença dele de vez em quando (quem entra tarde, um pacote perdido). */
 const BOT_HEARTBEAT = 1000;
 
+/** O personagem do chefão numa sala de desenvolvimento, se `DEV_BOSS_CHARACTER` diz um lugar que existe. */
+function devBossCharacter(): number | undefined {
+  const n = Number(process.env.DEV_BOSS_CHARACTER ?? '');
+  return process.env.DEV_BOSS_CHARACTER && Number.isInteger(n) && n >= 0 && n < CHARACTERS ? n : undefined;
+}
+
 interface StoredImage {
   bytes: Uint8Array<ArrayBuffer>;
   /** id do membro que subiu */
@@ -219,8 +225,9 @@ export class RoomHost {
     const playing = this.state.phase !== 'dead' && this.state.game.phase === 'playing';
     if (!playing) { this.stopBots(); return; }
     if (!this.state.funnyBots || this.botTimer) return; // desligada com bots no telhado: o laço segue até fugirem (`runBots`)
-    // numa sala de desenvolvimento o primeiro bot chega logo, para dar para ver sem esperar
-    this.botWorld ??= new BotWorld(this.rng, { characters: CHARACTERS, attackMs, ...(this.state.dev ? { firstWithin: 3000 } : {}) });
+    // numa sala de desenvolvimento o primeiro bot chega logo, para dar para ver sem esperar, e é um chefão
+    // (`DEV_BOSS_CHARACTER=<lugar>` escolhe o personagem dele); em produção nada disso vale
+    this.botWorld ??= new BotWorld(this.rng, { characters: CHARACTERS, attackMs, ...(this.state.dev ? { firstWithin: 3000, bossFirst: true, bossCharacter: devBossCharacter() } : {}) });
     this.botLast = this.clock();
     this.botTimer = setInterval(() => this.runBots(), this.botTick);
   }

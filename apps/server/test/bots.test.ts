@@ -1,8 +1,8 @@
 import { describe, expect, test } from 'bun:test';
-import { BOTS_MAX, parsePresence } from '@guess/protocol';
+import { BOSS_SCALE, BOTS_MAX, parsePresence } from '@guess/protocol';
 import { CHARACTERS } from '@guess/rules';
-import { MAP, spawnPoint } from '@guess/world';
-import { ACTIONS, BOT_SHOVE_PLAYER_MS, BOTS_FLEE_MS, BotWorld, type Seen } from '../src/bots';
+import { groundAt, MAP, spawnPoint, WALK } from '@guess/world';
+import { ACTIONS, BOSS_ACTIONS, BOSS_BOT_HIT_MS, BOSS_HP, BOT_SHOVE_PLAYER_MS, BOTS_FLEE_MS, BotWorld, type Bot, type Seen } from '../src/bots';
 import { lcg } from './sim';
 
 const DT = 1 / 30;
@@ -107,5 +107,157 @@ describe('bots engraçados', () => {
   test('sem ninguém no telhado também funciona', () => {
     const { counts } = run(61, 15, []);
     expect(Math.max(...counts)).toBeGreaterThan(0);
+  });
+
+  describe('o chefão', () => {
+    const taken = new Set<number>();
+    /** um mundo em que o primeiro acontecimento é um chefão, já com ele de pé no telhado */
+    function withBoss(seed: number, players: Seen[] = [person('m1')]) {
+      const world = new BotWorld(lcg(seed), { characters: CHARACTERS, firstWithin: 1000, bossFirst: true });
+      let now = 0;
+      const step = (enabled = true) => { now += DT * 1000; return world.tick(now, DT, players, { enabled, taken }); };
+      const boss = () => world.bots.find((b) => b.boss);
+      while (!boss() || boss()!.doing === 'arrive' || !boss()!.body.grounded) step();
+      return { world, boss: boss()!, step, now: () => now, wait: (ms: number) => { const end = now + ms; while (now < end) step(); } };
+    }
+
+    test('a lista marca o chefão com a escala dele, e só ele', () => {
+      const { world, boss, wait } = withBoss(71);
+      boss.leaveAt = Infinity;
+      for (let i = 0; i < 600 && world.bots.length < 3; i++) wait(1000); // chegam outros
+      expect(world.bots.length).toBeGreaterThan(2);
+      for (const v of world.roster()) expect(v.scale).toBe(v.id === boss.id ? BOSS_SCALE : undefined);
+      expect(world.roster().map((v) => v.id)).toContain(boss.id);
+    });
+
+    test('aguenta vários empurrões: os primeiros só o fazem cambalear, o último o joga longe e ele não volta', () => {
+      for (const seed of [72, 73, 74]) {
+        const { world, boss, wait, now } = withBoss(seed);
+        boss.leaveAt = Infinity;
+        for (let hit = 1; hit < BOSS_HP; hit++) {
+          const x = boss.body.x;
+          world.shoved(boss.id, hit % 2 ? 1 : -1, 'm1', now());
+          expect(boss.hp).toBe(BOSS_HP - hit);
+          expect(boss.emote?.name).toBe('exclaim');
+          expect(boss.body.stunnedUntil).toBeGreaterThan(now()); // cambaleia: um instante sem controle
+          wait(700);
+          expect(world.bots).toContain(boss);
+          expect(Math.abs(boss.body.x - x)).toBeLessThan(90); // o tranco é curto (e depois ele só anda)
+          expect(boss.body.respawnAt).toBeNull();
+        }
+        world.shoved(boss.id, 1, 'm1', now());
+        expect(Math.abs(boss.body.vx)).toBeGreaterThan(200);
+        wait(3000);
+        expect(world.bots).not.toContain(boss);
+        wait(1000);
+        expect(world.bots.some((b) => b.id === boss.id)).toBe(false);
+      }
+    });
+
+    test('o tranco não o tira do telhado, nem na beirada', () => {
+      const { world, boss, wait, now } = withBoss(75);
+      boss.leaveAt = Infinity;
+      boss.hp = 1000;
+      const roof = MAP.find((p) => p.kind === 'roof' && boss.body.x >= p.x0 && boss.body.x <= p.x1)!;
+      boss.body = { ...boss.body, x: roof.x1 - 2, y: roof.top };
+      for (let i = 0; i < 40; i++) {
+        world.shoved(boss.id, 1, 'm1', now());
+        wait(350);
+        expect(groundAt(MAP, boss.body.x, boss.body.z)).not.toBeNull();
+        expect(boss.body.respawnAt).toBeNull();
+      }
+    });
+
+    test('empurrão de outro bot também conta, mas pouco, e nunca é o que derruba', () => {
+      const { world, boss, wait, now } = withBoss(76);
+      boss.leaveAt = Infinity;
+      // outro bot qualquer no telhado, para bater nele
+      while (world.bots.length < 2) wait(1000);
+      const other = world.bots.find((b) => !b.boss)!;
+      for (const b of world.bots) b.leaveAt = Infinity;
+      const hp = boss.hp;
+      world.shoved(boss.id, 1, other.id, now());
+      expect(boss.hp).toBe(hp - 1);
+      wait(1000);
+      world.shoved(boss.id, 1, other.id, now()); // cedo demais: nem sente
+      expect(boss.hp).toBe(hp - 1);
+      for (let i = 0; i < BOSS_HP + 2; i++) { wait(BOSS_BOT_HIT_MS); if (world.bots.includes(other)) world.shoved(boss.id, 1, other.id, now()); }
+      expect(world.bots).toContain(boss);
+      expect(boss.hp).toBeGreaterThanOrEqual(1);
+      // uma pessoa termina
+      boss.hp = 1;
+      wait(1000);
+      world.shoved(boss.id, 1, 'm1', now());
+      wait(3000);
+      expect(world.bots).not.toContain(boss);
+    });
+
+    test('anda devagar, não cai sozinho e só faz coisa de chefão', () => {
+      const players = [person('m1'), person('m2', 60)];
+      let lived = 0;
+      for (const seed of [77, 78, 79, 80]) {
+        const { world, boss, step, now } = withBoss(seed, players);
+        boss.leaveAt = now() + 240_000;
+        // onde e desde quando ele "anda" sem sair do lugar
+        let ref = { x: boss.body.x, z: boss.body.z, at: now() };
+        while (world.bots.includes(boss) && boss.doing !== 'leave') {
+          step();
+          lived++;
+          const b = boss.body;
+          if (b.anim !== 'walk' || Math.abs(b.x - ref.x) > 1.5 || Math.abs(b.z - ref.z) > 1.5) ref = { x: b.x, z: b.z, at: now() };
+          expect(now() - ref.at).toBeLessThan(2500); // não fica andando parado, entalado em alguém
+          expect(boss.body.respawnAt).toBeNull();
+          if ((boss.doing as string) === 'leave') break;
+          if (boss.body.grounded) expect(Math.abs(boss.body.vx)).toBeLessThanOrEqual(WALK + 0.01);
+          expect([...BOSS_ACTIONS, 'revenge']).toContain(boss.doing);
+        }
+        expect(now()).toBeGreaterThan(200_000); // ficou até a hora de ir embora
+      }
+      expect(lived).toBeGreaterThan(1000);
+    });
+
+    test('empurra gente, respeitando o limite de todos os bots juntos', () => {
+      let total = 0;
+      for (const seed of [81, 82, 83]) {
+        const world = new BotWorld(lcg(seed), { characters: CHARACTERS, firstWithin: 1000, bossFirst: true });
+        const times: number[] = [];
+        let now = 0;
+        for (let i = 0; i < 10 * 60 * 30; i++) {
+          now += DT * 1000;
+          const r = world.tick(now, DT, [person('m1')], { enabled: true, taken });
+          for (const b of world.bots) if (b.boss) b.leaveAt = Infinity; else b.leaveAt = 0; // só o chefão fica
+          for (const s of r.shoves) if (world.bots.find((b) => b.id === s.by)?.boss) times.push(now);
+        }
+        total += times.length;
+        for (let i = 1; i < times.length; i++) expect(times[i] - times[i - 1]).toBeGreaterThanOrEqual(BOT_SHOVE_PLAYER_MS);
+      }
+      expect(total).toBeGreaterThan(0);
+    });
+
+    test('desligada a opção, o chefão foge como os outros', () => {
+      const { world, step, now } = withBoss(84);
+      const off = now();
+      while (now() < off + BOTS_FLEE_MS + 500) step(false);
+      expect(world.bots).toHaveLength(0);
+    });
+
+    test('em jogos longos aparece, é raro, nunca há dois ao mesmo tempo e o máximo continua valendo', () => {
+      const bosses = new Set<string>();
+      for (const seed of [91, 92, 93, 94]) {
+        const world = new BotWorld(lcg(seed), { characters: CHARACTERS });
+        let now = 0;
+        for (let i = 0; i < 45 * 60 * 30; i++) {
+          now += DT * 1000;
+          world.tick(now, DT, [person('m1'), person('m2', 40)], { enabled: true, taken: new Set([0, 1]) });
+          expect(world.bots.length).toBeLessThanOrEqual(BOTS_MAX);
+          const here = world.bots.filter((b: Bot) => b.boss);
+          expect(here.length).toBeLessThanOrEqual(1);
+          for (const b of here) bosses.add(`${seed}:${b.id}`);
+        }
+      }
+      // três horas de jogo: alguns chefões (um a cada meia hora, mais ou menos), não muitos
+      expect(bosses.size).toBeGreaterThan(2);
+      expect(bosses.size).toBeLessThan(16);
+    }, 60_000);
   });
 });

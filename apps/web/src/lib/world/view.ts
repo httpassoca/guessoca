@@ -68,16 +68,17 @@ export function renderView(visible: View, insetLeft: number): View {
 /**
  * A altura, acima dos pés, da base do post-it do personagem `n`, em unidades do mundo: o topo do quadrado da cabeça no
  * atlas (pixels do quadro, `anchor.y − head.y`) mais 3 de folga. Cada modelo tem a sua (o herói 40, o esqueleto 47), por
- * isso sai do atlas e não de `BODY_H`.
+ * isso sai do atlas e não de `BODY_H`. `scale`: quantas vezes maior o corpo é desenhado (o chefão dos bots engraçados);
+ * a cabeça sobe junto, a folga não.
  */
-export function headY(n: number): number {
+export function headY(n: number, scale = 1): number {
   const { atlas } = character(n);
-  return Math.round((atlas.anchor.y - atlas.head.y) * artScale(atlas)) + 3;
+  return Math.round((atlas.anchor.y - atlas.head.y) * artScale(atlas) * scale) + 3;
 }
 
 /** Onde vai a base (o meio de baixo) do post-it de quem está em `p` (unidades do mundo), em pixels da tela. */
-export function headAnchor(p: Vec3 & { character: number }, cam: Camera, view: View) {
-  return project({ x: p.x, y: p.y + headY(p.character), z: p.z }, cam, view);
+export function headAnchor(p: Vec3 & { character: number; scale?: number }, cam: Camera, view: View) {
+  return project({ x: p.x, y: p.y + headY(p.character, p.scale), z: p.z }, cam, view);
 }
 
 /**
@@ -85,10 +86,14 @@ export function headAnchor(p: Vec3 & { character: number }, cam: Camera, view: V
  * dos pés, fora do rosto (no olho)
  */
 export const EMOTE_GAP = 14;
-/** a altura, acima dos pés, da ponta do balão (unidades do mundo): 11 abaixo da base do post-it, nos olhos de `n` */
-export const emoteY = (n: number) => headY(n) - 11;
+/**
+ * a altura, acima dos pés, da ponta do balão (unidades do mundo): 11 abaixo da base do post-it, nos olhos de `n`; num
+ * corpo desenhado `scale` vezes maior, tudo isso vezes `scale`
+ */
+export const emoteY = (n: number, scale = 1) => (headY(n) - 11) * scale;
 
 /** Onde vai a ponta do rabinho do balão de quem está em `p` (unidades do mundo), em pixels da tela. */
-export function emoteAnchor(p: Vec3 & { facing: 1 | -1; character: number }, cam: Camera, view: View) {
-  return project({ x: p.x + p.facing * EMOTE_GAP, y: p.y + emoteY(p.character), z: p.z }, cam, view);
+export function emoteAnchor(p: Vec3 & { facing: 1 | -1; character: number; scale?: number }, cam: Camera, view: View) {
+  const k = p.scale ?? 1;
+  return project({ x: p.x + p.facing * EMOTE_GAP * k, y: p.y + emoteY(p.character, k), z: p.z }, cam, view);
 }

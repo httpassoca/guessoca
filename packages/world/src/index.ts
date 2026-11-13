@@ -132,8 +132,13 @@ export interface Body extends Vec3 {
 export interface Input { left: boolean; right: boolean; up: boolean; down: boolean; run: boolean; jump: boolean; shove: boolean }
 export const NO_INPUT: Input = { left: false, right: false, up: false, down: false, run: false, jump: false, shove: false };
 
-/** Outro corpo como este navegador o conhece agora (a última presença recebida, já interpolada). */
-export interface Other extends Vec3 { id: string; vx: number; vy: number; vz: number; solid: boolean }
+/**
+ * Outro corpo como este navegador o conhece agora (a última presença recebida, já interpolada). O chefão dos bots
+ * engraçados é maior que os outros: `h` é a altura dele, se não é `BODY_H` (não se passa por dentro dele pulando, e a
+ * cabeça fica lá em cima); `wide` multiplica a distância em x a que os dois corpos se encostam (1 = `2·BODY_RX`), para
+ * ninguém ficar dentro do desenho dele. A profundidade não muda: sempre dá para passar por trás ou pela frente.
+ */
+export interface Other extends Vec3 { id: string; vx: number; vy: number; vz: number; solid: boolean; h?: number; wide?: number }
 
 export type WorldEvent =
   | { type: 'jump' }
@@ -198,13 +203,13 @@ function walls(p: Platform, y: number): boolean {
 }
 
 /** se as elipses dos dois corpos se invadem em x/z (0 = mesmo ponto, 1 = encostando) */
-function spread(dx: number, dz: number): number {
-  return (dx / (2 * BODY_RX)) ** 2 + (dz / (2 * BODY_RZ)) ** 2;
+function spread(dx: number, dz: number, wide = 1): number {
+  return (dx / (2 * BODY_RX * wide)) ** 2 + (dz / (2 * BODY_RZ)) ** 2;
 }
 
 /** os dois corpos ocupam a mesma altura (com STEP de folga, para quem está em cima de uma cabeça não ser empurrado) */
 function sameHeight(y: number, o: Other): boolean {
-  return y + STEP < o.y + BODY_H && o.y + STEP < y + BODY_H;
+  return y + STEP < o.y + (o.h ?? BODY_H) && o.y + STEP < y + BODY_H;
 }
 
 /** dá para estar em (x, z) nesta altura: dentro do mundo, e fora dos lados que bloqueiam */
@@ -244,10 +249,11 @@ function separate(b: Body, others: readonly Other[], platforms: readonly Platfor
     if (!o.solid || !sameHeight(b.y, o)) continue;
     const dx = b.x - o.x;
     const dz = b.z - o.z;
-    if (spread(dx, dz) >= 1) continue;
+    const rx = 2 * BODY_RX * (o.wide ?? 1);
+    if (spread(dx, dz, o.wide) >= 1) continue;
     // onde a borda da elipse dobrada fica, mantendo o outro eixo
-    const ex = 2 * BODY_RX * Math.sqrt(Math.max(0, 1 - (dz / (2 * BODY_RZ)) ** 2));
-    const ez = 2 * BODY_RZ * Math.sqrt(Math.max(0, 1 - (dx / (2 * BODY_RX)) ** 2));
+    const ex = rx * Math.sqrt(Math.max(0, 1 - (dz / (2 * BODY_RZ)) ** 2));
+    const ez = 2 * BODY_RZ * Math.sqrt(Math.max(0, 1 - (dx / rx) ** 2));
     const sx = dx === 0 ? -b.facing : Math.sign(dx);
     const zs = dz === 0 ? [1, -1] : [Math.sign(dz)];
     const exits = [
@@ -267,8 +273,8 @@ function floorAt(platforms: readonly Platform[], others: readonly Other[], x: nu
   let top = groundAt(platforms, x, z);
   let by: string | null = null;
   for (const o of others) {
-    const head = o.y + BODY_H;
-    if (!o.solid || spread(x - o.x, z - o.z) >= 1 || wasY < head - STEP) continue;
+    const head = o.y + (o.h ?? BODY_H);
+    if (!o.solid || spread(x - o.x, z - o.z, o.wide) >= 1 || wasY < head - STEP) continue;
     if (top === null || head > top) {
       top = head;
       by = o.id;
@@ -299,7 +305,7 @@ function animate(b: Body, now: number): Anim {
  * - gravidade; colisão com os lados das plataformas mais altas que `y + STEP` (para em x e em z separadamente), e com os
  *   outros corpos sólidos que ocupam a mesma altura (só este corpo é empurrado para fora, pelo eixo de menor invasão);
  *   o mundo acaba em `WORLD_X0`/`WORLD_X1`, e em z de 0 a `DEPTH` enquanto estiver em cima de um telhado.
- * - chão: o topo mais alto debaixo dos pés (plataforma ou cabeça de outro, `other.y + BODY_H`) quando descendo; pousar
+ * - chão: o topo mais alto debaixo dos pés (plataforma ou cabeça de outro, `other.y + BODY_H`, ou `other.h`) quando descendo; pousar
  *   emite `land`. Em cima de uma cabeça, `riding` é o id, e o corpo anda junto com a velocidade dela.
  * - abaixo de `FALL_Y`: emite `fell` e marca `respawnAt = now + RESPAWN_MS`.
  * - animação (`anim`, e `animSince` quando muda): empurrando = shove (até `shoveUntil`); no ar subindo = jump,

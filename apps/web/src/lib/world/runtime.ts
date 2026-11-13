@@ -231,7 +231,7 @@ export class WorldRuntime {
   private sceneBody(b: CrowdBody, now: number): SceneBody {
     let a = this.animOf.get(b.id);
     if (!a || a.anim !== b.anim) { a = { anim: b.anim, since: now }; this.animOf.set(b.id, a); }
-    return { id: b.id, character: b.character, x: b.x, y: b.y, z: b.z, facing: b.facing, anim: b.anim, animSince: a.since, emote: b.emote, blink: b.blink };
+    return { id: b.id, character: b.character, x: b.x, y: b.y, z: b.z, facing: b.facing, anim: b.anim, animSince: a.since, emote: b.emote, blink: b.blink, scale: b.scale };
   }
 
   /** Cada post-it vai sobre a cabeça do seu dono, com `translate3d`; quem não está no telhado some. */

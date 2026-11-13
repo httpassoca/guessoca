@@ -46,6 +46,21 @@ describe('post-it sobre a cabeça', () => {
     expect(emoteY(1) - emoteY(0)).toBe(headY(1) - headY(0));
   });
 
+  test('num corpo desenhado maior (o chefão dos bots), a etiqueta e o balão sobem e se afastam na mesma proporção', () => {
+    for (const n of CHARACTER_ART.keys()) {
+      const { atlas } = character(n);
+      const top = (atlas.anchor.y - atlas.head.y) * (atlas.scale ?? 1);
+      expect(headY(n, 2)).toBeGreaterThanOrEqual(2 * top);
+      expect(headY(n, 2)).toBeLessThanOrEqual(2 * top + 4);
+      expect(emoteY(n, 2)).toBe(2 * emoteY(n));
+    }
+    const p = { x: 400, y: 0, z: 0, facing: 1 as const, character: 0 };
+    expect(headAnchor({ ...p, scale: 2 }, cam, view).y).toBe(headAnchor(p, cam, view).y - (headY(0, 2) - headY(0)) * 3);
+    expect(headAnchor({ ...p, scale: 1 }, cam, view)).toEqual(headAnchor(p, cam, view));
+    expect(emoteAnchor({ ...p, scale: 2 }, cam, view).x - 500).toBe(2 * EMOTE_GAP * 3);
+    expect(emoteAnchor({ ...p, scale: 2 }, cam, view).y).toBe(600 - 2 * emoteY(0) * 3);
+  });
+
   test('pular leva o post-it junto', () => {
     const a = headAnchor({ x: 0, y: 0, z: 0, character: 0 }, cam, view), b = headAnchor({ x: 0, y: 10, z: 0, character: 0 }, cam, view);
     expect(a.y - b.y).toBe(30);

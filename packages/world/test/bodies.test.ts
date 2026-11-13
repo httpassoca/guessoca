@@ -3,6 +3,7 @@ import {
   applyShove,
   BODY_H,
   BODY_RX,
+  BODY_RZ,
   SHOVE_COOLDOWN_MS,
   SHOVE_DY,
   SHOVE_DZ,
@@ -56,6 +57,20 @@ describe('os outros corpos', () => {
     const b = other('b', 100, 0, 10);
     const r = run(bodyAt(70, 10), (body, i) => ({ jump: i === 0, right: body.y > BODY_H }), 1, { others: [b] });
     expect(r.body).toMatchObject({ y: BODY_H, riding: 'b' });
+  });
+
+  test('um corpo mais alto (`h`, o chefão dos bots): não se passa por dentro dele pulando, e a cabeça fica lá em cima', () => {
+    const giant = other('b', 100, 0, 10, { h: 2 * BODY_H, wide: 1.5 });
+    // pulando contra ele, bate no lado mesmo no alto do pulo (num corpo comum, subiria na cabeça), e mais longe (`wide`)
+    const r = run(bodyAt(60, 10), (body, i) => ({ jump: i === 0, right: true }), 1.5, { others: [giant] });
+    expect(Math.max(...r.trace.map((t) => t.x))).toBeLessThanOrEqual(100 - 3 * BODY_RX + 0.01);
+    near(r.body.x, 100 - 3 * BODY_RX, 0.5);
+    // por trás dele passa-se como por qualquer um
+    expect(run(bodyAt(60, 10 + 2 * BODY_RZ + 1), { right: true }, 2, { others: [giant] }).body.x).toBeGreaterThan(140);
+    expect(r.body).toMatchObject({ y: 0, riding: null });
+    // caindo de cima, pousa na cabeça, na altura dele
+    const top = run(bodyAt(100, 10, { y: 140 }), {}, 1, { others: [giant] });
+    expect(top.body).toMatchObject({ y: 2 * BODY_H, grounded: true, riding: 'b' });
   });
 
   test('é carregado quando quem está embaixo anda', () => {

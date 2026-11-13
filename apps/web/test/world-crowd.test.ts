@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 import type { Presence } from '@guess/protocol';
-import { groundAt, MAP, spawnPoint } from '@guess/world';
+import { BODY_H, groundAt, MAP, spawnPoint } from '@guess/world';
 import { crowd, fakeSpot, othersOf } from '../src/lib/world/crowd';
 import { pushPresence, type PresenceTrack } from '../src/lib/world/presence';
 import { member } from './snapshots';
@@ -63,5 +63,22 @@ describe('a turma no telhado', () => {
       { id: 'm3', ...fakeSpot(0, MAP), vx: 0, vy: 0, vz: 0, solid: true },
       { id: 'm5', ...fakeSpot(1, MAP), vx: 0, vy: 0, vz: 0, solid: true },
     ]);
+  });
+});
+
+describe('os bots engraçados no telhado', () => {
+  const room = { you: 'm1', members: [member('m1', 'Eu', { character: 0 })], bots: [{ id: 'b1', character: 4 }, { id: 'b2', character: 26, scale: 2 }, { id: 'b3', character: 5 }] };
+  const tracks = new Map<string, PresenceTrack>([['b1', pushPresence(undefined, p({ x: 30 }), 0)], ['b2', pushPresence(undefined, p({ x: 60 }), 0)]]);
+
+  test('aparecem pela presença que o servidor manda; o chefão vem com a escala dele, os outros com 1', () => {
+    const c = crowd(room, (id) => tracks.get(id), 0);
+    expect(c.map((b) => [b.id, b.character, b.bot, b.scale, b.x])).toEqual([['b1', 4, true, 1, 30], ['b2', 26, true, 2, 60]]);
+  });
+
+  test('para a física, o chefão é mais alto e mais largo que os outros', () => {
+    const o = othersOf(crowd(room, (id) => tracks.get(id), 0));
+    expect(o[0].h).toBeUndefined();
+    expect(o[0].wide).toBeUndefined();
+    expect(o[1]).toMatchObject({ h: 2 * BODY_H, wide: 1.5 });
   });
 });

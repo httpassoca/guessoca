@@ -58,6 +58,11 @@ export interface SceneBody extends Vec3 {
   emote: EmoteName | null;
   /** caído ou voltando: o sprite pisca */
   blink: boolean;
+  /**
+   * quantas vezes maior que o normal é desenhado (o chefão dos bots engraçados: 2); sem isto, 1. Inteiro, para o pixel
+   * art continuar com pixels quadrados; o sprite, a sombra e o balão crescem juntos, a partir dos pés
+   */
+  scale?: number;
 }
 
 /** As animações na ordem das linhas da folha (`ANIMATION_NAMES` em `tools/sprites/src/atlas.ts`). */
@@ -221,7 +226,8 @@ export class Scene {
       d.sprite.texture = frames[frameIndex(atlas, anim, now - b.animSince)];
       d.sprite.anchor.set(atlas.anchor.x / atlas.frame.w, atlas.anchor.y / atlas.frame.h);
       d.sprite.position.set(at.x, at.y);
-      const k = s * artScale(atlas);
+      const big = b.scale ?? 1;
+      const k = s * artScale(atlas) * big;
       d.sprite.scale.set(b.facing * k, k);
       d.sprite.zIndex = i;
       d.sprite.visible = true;
@@ -235,7 +241,7 @@ export class Scene {
         const g = project({ x: b.x, y: ground, z: b.z }, cam, view);
         const k = Math.max(SHADOW_MIN, 1 - (b.y - ground) / SHADOW_FADE);
         d.shadow.position.set(at.x, g.y);
-        d.shadow.scale.set(s * k);
+        d.shadow.scale.set(s * k * big);
         d.shadow.alpha = b.blink ? BLINK_SHADOW_ALPHA : 1;
         d.shadow.visible = true;
       }
@@ -248,7 +254,7 @@ export class Scene {
         d.balloon.texture = tex;
         d.balloon.anchor.set(f.tip.x / f.w, f.tip.y / f.h);
         d.balloon.position.set(tip.x, tip.y);
-        d.balloon.scale.set(s);
+        d.balloon.scale.set(s * big);
         d.balloon.visible = true;
       }
     });

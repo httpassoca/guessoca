@@ -48,6 +48,8 @@ export const MEMBER_ID_RE = /^m\d{1,6}$/;
 export const BOT_ID_RE = /^b\d{1,6}$/;
 /** Quantos bots engraçados cabem no telhado ao mesmo tempo. */
 export const BOTS_MAX = 15;
+/** Quantas vezes maior que um personagem normal o chefão (o bot gigante) é desenhado; 2 mantém o pixel art inteiro. */
+export const BOSS_SCALE = 2;
 /** Id de imagem guardada na sala: hexadecimal. */
 export const IMAGE_ID_RE = /^[0-9a-f]{16,32}$/;
 
@@ -134,8 +136,11 @@ export type ServerMessage =
   | { type: 'shoved'; by: string; dir: 1 | -1 }
   | { type: 'pong' };
 
-/** Um bot engraçado no telhado agora: quem é. Onde está chega por `presence`, como a de uma pessoa. */
-export interface BotView { id: string; character: number }
+/**
+ * Um bot engraçado no telhado agora: quem é. Onde está chega por `presence`, como a de uma pessoa. `scale`: quantas vezes
+ * maior ele é desenhado (só o chefão manda, `BOSS_SCALE`); sem isto vale 1 (um servidor ou cliente de antes do chefão).
+ */
+export interface BotView { id: string; character: number; scale?: number }
 
 /** Uma pessoa da turma como todo mundo a vê. */
 export interface MemberView {
