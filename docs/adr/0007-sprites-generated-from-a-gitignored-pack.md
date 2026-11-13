@@ -136,3 +136,7 @@ Two limits had to give way:
 
 - **Attack length.** The art was made for 1.6 s (24 frames at 15 fps), but the game cuts an attack at `SHOVE_MAX_MS` (1.2 s), which the art prompt also states. It plays at 20 fps instead: the same frames, faster. Raising the cap would also mean changing the prompt's range for every future character, so that is left to the owner.
 - **Sheet size.** The explosion widens the shared frame to 365 px, so 24 frames make an 8760 px sheet, over the old `MAX_SHEET` of 8192. The limit is now 16384, which every desktop GPU we know of accepts. Software WebGL (SwiftShader, used by headless checks) caps textures at 8192 and draws such a sheet as a black box; check this character with a GPU-backed GL (`--use-angle=gl`).
+
+## Amendment: Sekiro
+
+A pack from the owner (`assets-src/sekiro/`, slot 27, generated for this game): a shinobi with a tied-up topknot, dark scarf and coat, and a katana. Size 1, 192×192 cells and, for the attack only, 256×224 cells where he stands 16 pixels further right (`dx: -16`); ground at row 172. The attack is a 24-frame, 1.1 s overhead katana strike that starts and ends on the idle pose. Common recipe, no pixel changed. The cast is now twenty-eight.

@@ -187,5 +187,12 @@
     "color": "#ee8f2b",
     "sheet": "/sprites/char-26.webp",
     "atlas": "vaultboy"
+  },
+  {
+    "model": "sekiro",
+    "name": "sekiro",
+    "color": "#8c4a2f",
+    "sheet": "/sprites/char-27.webp",
+    "atlas": "sekiro"
   }
 ]
