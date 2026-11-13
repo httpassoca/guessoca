@@ -5,7 +5,7 @@ This guide is for the next agent, or the owner, who is about to add a character,
 ## The flow
 
 ```
-owner's files ──cp──▶ assets-src/ (gitignored)         text grids in code (rooftop.ts, emotes.ts, skyline.ts)
+owner's files ──cp──▶ assets-src/ (gitignored)         text grids in code (rooftop.ts, life.ts, emotes.ts, skyline.ts)
                          │                                  │
                          ▼                                  ▼
             recipes in tools/sprites/src  ◀─────────────────┘
@@ -58,7 +58,8 @@ Pipeline, `tools/sprites/src/` (`@guess/sprites`, pure apart from `png.ts` and t
 | `characters.ts` | Every character in slot order (hero, skeleton, then `PACKS`) → `characters.json`. |
 | `emotes.ts` | The emote balloons, from a 3×5 text font, one sheet per language. |
 | `rooftop.ts` | The rooftop palette, the `Sketch` stamping board, every prop/texture/sign as a text grid, and the shelf-packed `rooftop.png` + atlas. |
-| `skyline.ts` | The two seeded, seamlessly tiling city strips. |
+| `life.ts` | The roof's ambient life as text grids (issue #70): loose window panes, the spinning fan, steam puffs, splashes, ripples, drips, neon shines for puddles, the failing BAR/24H frames, the plane, the car and the side-roof clutter. `ROOFTOP_RECIPES` = `RECIPES` + these, the list `index.ts` packs into `rooftop.png`. |
+| `skyline.ts` | The two seeded, seamlessly tiling city strips, and `twinkles()`, the few windows per strip the client blinks. |
 | `critters.ts` | The cats and birds: slices the two packs without changing a pixel, draws the birds' wing flap as text grids, stacks one strip per animation into `cats.png` and `birds.png` + `critters.json`. |
 | `../test/` | Recipe tests with fake images; real-art tests skip when `assets-src/` is absent. |
 
@@ -84,6 +85,10 @@ Client rendering, `apps/web/src/lib/world/` (Pixi files have no automated tests;
 | `dressing.ts` | Pure: which frame dresses each `MAP` box, roof rectangles on screen, `DECOR` placement, neon flicker and beacon timing. |
 | `backdrop.ts` | Sky bands, stars, moon, two parallax skyline strips, the drop to the street and the street fog. |
 | `weather.ts` | Rain streaks and the low front fog. |
+| `ambient.ts` | Pure (issue #70): when every ambient thing happens, from a hash of the clock (`occurrence`, window states, sign failures, plane, meteor, lightning, searchlight, cars, siren, splashes, ripples, drips, steam). No state, no per-frame randomness. |
+| `windows.ts` | Living windows over the facades (only the panes that differ from the facade are drawn) and the siren's red/blue wash. |
+| `skylife.ts` | Lightning flash and thunder, searchlight, plane, shooting star, blinking city windows, cars in the street fog; four containers `backdrop.ts` interleaves with its own. |
+| `rooflife.ts` | Rain touching things: splashes, puddle ripples and neon shine, drips, the AC fan, chimney steam, the kick when someone runs through a puddle. |
 | `rain.ts` | Pure rain simulation (fixed pool of drops, screen pixels). |
 | `celebration.ts` | The confetti around whoever just guessed right. |
 | `confetti.ts` | Pure confetti maths (seeded pieces, closed-form position by age, world units). |
@@ -115,7 +120,7 @@ There are four spaces. Comments say which one a value is in.
 - **Scale**: `pickScale` in `view.ts` uses the largest integer that fits about 600×300 world units on screen, clamped to 2–6 (3 on a 1080p window). The integer scale keeps pixels square. `groundY` is 80 % of the screen height.
 - **Why everything is pixelated**: `TextureSource.defaultOptions.scaleMode = 'nearest'`, `antialias: false`, `roundPixels: true`, `resolution: 1`, and `image-rendering: pixelated` in the HTML. Tiles are copied to their own canvas with `addressMode: 'repeat'` so a `TilingSprite` never samples a neighbour on the sheet. Never introduce smooth scaling or fractional scales on sprites.
 - **Depth sorting**: bodies are sorted by `depthKey(p) = z`, larger first (further back is drawn first), with ties broken by id so the order doesn't flicker. Each sprite's `zIndex` is its place in that list. Height doesn't count: someone riding a head has nearly the same `z` as the person below, so who covers whom is decided by `z` (then id), not by who is on top.
-- **Layer order** inside the world container: `scenery` (backdrop, then `platforms.back`: back decor, roof tops, ledges, facades, edges, facade signs, floor decor, box props) → shadows → bodies (and the critters, sorted among them by depth) → `platforms.front` (front parapets, covering feet at the edge) → emote balloons → confetti → weather. The post-its and panels are HTML above the canvas and never pass through the filters.
+- **Layer order** inside the world container: `scenery` (backdrop: sky, moon, `skylife.sky` (flash, searchlight, meteor, plane), far city, its twinkles, near city, its twinkles, drop, cars, street fog; then `platforms.back`: back decor, roof tops, ledges, facades, edges, living windows and siren wash, facade signs, floor decor, box props; then `rooflife`: puddle shine, splashes, ripples, drips, fan, steam, puddle kicks) → shadows → bodies (and the critters, sorted among them by depth) → `platforms.front` (front parapets, covering feet at the edge) → emote balloons → confetti → weather. The post-its and panels are HTML above the canvas and never pass through the filters.
 - **Shadow**: an ellipse at the ground under the feet (`groundAt(MAP, x, z)`), not at the body's height, so a jump reads as height. It's `BODY_RX·1.3` by `BODY_RZ·DEPTH_K·1.8` world units at 40 % black, and shrinks to 45 % size by 120 units above the ground.
 - **`BODY_H = 40`** is the physics height (what you stand on when riding a head). It isn't the sprite height (hero 37, skeleton 51, Kratos 61, Vorcaro 50, Orelha 15, Bolsonaro 70, knight 10, Old Snake 49, Pinocchio 50, Eve 50, Katarina 50, Punisher 59, Mista 52). Post-it height comes from the atlas instead: `headY(n) = anchor.y − head.y + 3` (hero 40, skeleton 47). The emote tail sits at `headY − 11`, `EMOTE_GAP = 14` units in front of the face.
 
@@ -297,7 +302,7 @@ All of these are client-side constants, tuned by eye at 1080p (scale 3). No `bun
   - the low fog's alpha and drift.
 - `backdrop.ts`: the `SKY` bands, the moon position, `FAR_BASE`/`NEAR_BASE` (where each skyline strip sits), the drop gradient, and the street fog tint, alpha and drift.
 - `PARALLAX` in `parallax.ts`: the moon 0.02, far city 0.12, near city 0.3, street 0.75; the roofs are 1.
-- `neonFlicker` and `beaconOn` in `dressing.ts`: the sign and mast light timings.
+- `neonFlicker` and `beaconOn` in `dressing.ts`: the sign and mast light timings; `barSign` and `sign24h` in `ambient.ts` for the other two signs, and the rest of the ambient timings (section 10).
 
 ### 8. The confetti (issue #58)
 
@@ -323,6 +328,27 @@ Ambient animals that live on the roof, from two itch.io packs, drawn by the clie
 - **Routine.** Each cat has `beats` (act at a place for some ms, or walk between two places); `scheduled(i, seed, now)` plays them on a loop over the wall clock, shifted by a hash of the room code (`seedOf`). Every tab shows the same cat doing the same thing.
 - **Reactions** come from presence via `Watcher` (who started a jump or shove, who landed, who runs, how long each has stood still): someone within `CAT_LOOK_R` → the resting cat sits and faces them; running, shoving or landing within `CAT_SCARE_R`, or a bot within `CAT_BOT_R` → meow (not for bots) and run to the refuge on the next roof; standing still `CAT_VISIT_MS` near it on its roof → the cat walks over, sits beside, then lies down and sleeps, and leaves when the person moves; the boss landing on a roof scatters its cats and flocks; a confirmed guess makes the nearest cat meow. After a reaction the cat walks back to its scheduled place and waits there until the routine reaches it, so tabs converge. Birds: running, jumping, shoving or landing within `BIRD_SCARE_R` sends the whole flock up `flightOffset`'s arc, with a few grey 1-px feathers using the confetti's closed-form maths, and it drops back along the same arc 20–60 s later; the crow only leaves for the boss.
 - **Tuning**: the radii and times are the constants at the top of each section; speeds `CAT_WALK`/`CAT_RUN` keep the feet from sliding; `FLY_*` and `FLIGHT_MS` shape the flight.
+
+### 10. Ambient life on the roof (issue #70)
+
+The roof isn't a still picture: windows, sky, rain and props move on their own, on every client, with no network traffic. Everything follows three rules:
+
+- **Time is a hash, not a dice roll.** `ambient.ts` computes every state from `now` (the tab's `performance.now()`) and a `hash(a, b, c, d)` of the thing's numbers (fixed arity, so it never allocates). `occurrence(now, { every, jitter, dur, p, salt })` is the building block for rare events: one every `every ± jitter` ms, lasting `dur`, in a fraction `p` of slots. Each tab has its own sky; nobody needs to see the same plane.
+- **Dim and rare.** The numbers live in `AMBIENT` (plane every 40–90 s, shooting star in 40 % of 30–50 s slots, lightning every 3–5 min and never in the lobby, siren every ~2–4 min) and in the constants at the top of `windows.ts`, `skylife.ts` and `rooflife.ts` (alphas, reach, counts). The tests in `apps/web/test/world-ambient.test.ts` hold the rates, so "rare" stays rare. Nothing is drawn near the top-centre turn bar (the plane flies at 14–34 % of the sky, meteors only on the outer thirds), and the lobby's black-and-white filter covers every new layer because it's applied to the whole world.
+- **Art is still text grids** (`tools/sprites/src/life.ts`), in `PALETTE` (which gained two leaf greens `a`/`A` and the green nav light `j`), packed into the same `rooftop.png`. Light effects that aren't pixel art (lightning flash, searchlight cone, siren wash) are code-drawn, low-alpha, and stepped where they can be (the siren wash is three bands, not a gradient).
+
+The pieces:
+
+- **Living windows**: `facade()` takes its plan from `PLANS`, and the atlas frame of each facade carries `windows` (first window at `x, y`, `w`×`h`, one every `bay` columns and `floor` rows, and the plan). `windows.ts` walks the facade's real columns and floors (not the tile's), and `windowFrame(base, windowId(roof, col, floor), now)` says which pane goes on top, or null when the facade's own drawing is right. Each window has its own 4–12 min epoch and is inverted 22 % of the time (about one change every few seconds across the map, which also breaks the three-floor repetition); TVs flicker between `win-t`, `win-t2`, `win-t3`; in 6 % of 26-s slots a lit window gets a silhouette crossing (`win-walk-0..4`). The overlay is recounted every 150 ms, one container per facade, so a frame only moves three containers. A loose pane must equal the facade's window without its sill (a test compares them pixel by pixel), so changing `WINDOWS` changes both.
+- **Far-city twinkles**: `skyline(spec, spots)` records every window it draws without consuming the seeded rng (the PNG stays byte-identical), and `twinkles(spots, seed, n)` picks half lit, half dark ones with its own seed. They go to `skylines[i].twinkle` in `rooftop.json` with their lit and dark colours; `skylife.ts` paints the ones that are inverted now (`twinkleOn`, 15–40 s epochs) over every repetition of the strip.
+- **Sky**: lightning brightens only the sky behind the far city (the skyline stands out against it), two flashes in 0.3 s, then `playSfx('thunder')` 1.5–3.5 s later. The searchlight is a stretched cone texture behind the far city. The plane is `plane` plus three 1-px light sprites (red, green, strobe, `navLights`).
+- **Rain touching things**: splash channels land on roof tops and box lids weighted by area, skipping points hidden under a box; puddles get two ripple channels each and a `puddle-*-shine` tinted with the nearest sign on the same roof (`puddleGlow`, within 80 units) that dims with that sign's failures; drips hang from the front cornice, the facade signs' bottom edges and the water tank's platform. `inPuddle` turns a walking or running body inside a puddle's ellipse into a `kick-*` splash at the feet.
+- **Props**: the AC fan is `fan-0..2` (FAN's blade cells re-coloured by angle) laid over the AC's lid; chimney steam is `puff-0..3` drifting left with the rain's slant and fading; BAR buzzes (`barSign`) and 24H blacks out and stutters back (`sign24h`), both as `neonSign(..., { off })` frames; the laundry line swaps `laundry-0/1`.
+- **Side-roof clutter**: plain `DECOR` floor/back entries (non-solid, `MAP` untouched). Tall pieces sit near the back (`z` ≥ 40) because floor decor is always drawn behind bodies. The space around the AC and the chimney is kept free (only a cat bowl next to the AC); a test checks it.
+- **Street**: four car channels (`carsAt`) on two lanes, moving with the street's parallax under its fog; the siren (`sirenAt`) washes the facades nearest to its moving `x` in red/blue and plays a quiet `siren` once.
+- **Home stage** (`Stage.svelte`): a piece of the hotel facade fading into the dark behind the character, its three windows driven by the same `windowFrame`, plus a few CSS rain streaks; both stop under `prefers-reduced-motion`.
+
+To see rare events without waiting, open the game with `?ceu=N` (1–120) on localhost or with `?dev`: `skySpeed` makes the plane, meteor, lightning and siren N times more frequent (same durations). Frame cost, measured headless at 1080p (rAF callback JS, game running, 4 bodies, interleaved A/B against `main`): p50 about 0.8 → 1.1 ms, p95 about 1.4 → 1.9 ms. If you add a layer, keep it pooled (no sprite created per frame), set Pixi properties only when they change, and keep empty `Graphics` hidden instead of clearing them every frame.
 
 ## Verification
 

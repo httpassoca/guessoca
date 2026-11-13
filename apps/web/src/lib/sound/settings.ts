@@ -1,7 +1,7 @@
 /**
  * O som que o navegador lembra (localStorage), como o apelido em `identity.ts`: dois volumes (0 a 100), um por mesa de
- * som, e o mudo, que vale para as duas. As mesas: `map`, os sons do telhado (pular, empurrar e a trilha da chuva), e
- * `game`, os sons do jogo (votação, acertou, fim de vez). `mixerOf` diz de que mesa é cada som.
+ * som, e o mudo, que vale para as duas. As mesas: `map`, os sons do telhado (pular, empurrar, a trilha da chuva, o
+ * trovão e a sirene), e `game`, os sons do jogo (votação, acertou, fim de vez, sua vez). `mixerOf` diz de que mesa é cada som.
  */
 import { local, readKey, writeKey, type MaybeStore } from '../identity';
 import type { SfxName } from './sfx';
@@ -19,9 +19,12 @@ export const MIXERS: readonly Mixer[] = ['map', 'game'];
 /** O volume de cada mesa (0 a 100) e o mudo, que cala as duas. */
 export interface SoundSettings { map: number; game: number; muted: boolean }
 
-/** De que mesa é cada som: pular, empurrar e a trilha são do mapa; votação, acerto e fim de vez são do jogo. */
+/**
+ * De que mesa é cada som: pular, empurrar, a trilha e o telhado em volta (o trovão, a sirene lá embaixo) são do mapa;
+ * votação, acerto, fim de vez e sua vez são do jogo.
+ */
 export function mixerOf(sound: SfxName | 'music'): Mixer {
-  return sound === 'jump' || sound === 'shove' || sound === 'music' ? 'map' : 'game';
+  return sound === 'vote' || sound === 'gotIt' || sound === 'turnEnd' || sound === 'yourTurn' ? 'game' : 'map';
 }
 
 const clampVolume = (v: number) => Math.min(100, Math.max(0, Math.round(v)));

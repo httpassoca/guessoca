@@ -3,7 +3,8 @@ import { DEPTH_K, MAP } from '@guess/world';
 import { gridLines, parseGrid } from '../src/grid';
 import { bounds, getPixel, type Image } from '../src/image';
 import { PALETTE, RECIPES, rooftopSheet, Sketch } from '../src/rooftop';
-import { SKYLINES, skyline } from '../src/skyline';
+import { SKYLINES, skyline, twinkles, type WindowSpot } from '../src/skyline';
+import { fanFrames, LIFE_RECIPES, pane, ROOFTOP_RECIPES, tvPanes, walkPanes } from '../src/life';
 
 const column = (img: Image, x: number) => Array.from({ length: img.height }, (_, y) => getPixel(img, x, y).join(','));
 const row = (img: Image, y: number) => Array.from({ length: img.width }, (_, x) => getPixel(img, x, y).join(','));
@@ -147,5 +148,61 @@ describe('a cidade ao fundo', () => {
     expect(warm.length).toBeGreaterThan(0);
     const neon = [...colors.keys()].filter((k) => { const [r, g, b] = k.split(',').map(Number); return (r > 200 && b > 150 && g < 100) || (g > 200 && b > 200 && r < 100); });
     expect(neon.length).toBeGreaterThan(0);
+  });
+});
+
+describe('a vida no telhado (issue #70)', () => {
+  test('toda grade nova é retangular, lê com a paleta e tem nome único na folha', () => {
+    for (const r of LIFE_RECIPES) {
+      const lines = gridLines(r.grid);
+      expect({ name: r.name, widths: new Set(lines.map((l) => l.length)).size }).toEqual({ name: r.name, widths: 1 });
+      expect(() => parseGrid(r.grid, PALETTE)).not.toThrow();
+    }
+    expect(new Set(ROOFTOP_RECIPES.map((r) => r.name)).size).toBe(ROOFTOP_RECIPES.length);
+    const all = rooftopSheet(256, ROOFTOP_RECIPES).atlas;
+    for (const r of LIFE_RECIPES) expect(all.frames[r.name]).toBeDefined();
+  });
+
+  test('a janela solta é a da fachada sem o peitoril, e cai em cima dela', () => {
+    for (const name of ['facade-a', 'facade-b', 'facade-c']) {
+      const facade = parseGrid(recipe(name).grid, PALETTE);
+      const w = atlas.frames[name].windows!;
+      expect(w.plan.length).toBe(3);
+      // cada janela do plano, recortada da fachada, é igual ao quadro solto dela
+      w.plan.forEach((row, f) => [...row].forEach((kind, i) => {
+        if (kind === '.') return;
+        const solo = parseGrid(pane(kind), PALETTE);
+        for (let y = 0; y < w.h; y++) for (let x = 0; x < w.w; x++) {
+          expect(getPixel(facade, w.x + i * w.bay + x, w.y + f * w.floor + y)).toEqual(getPixel(solo, x, y));
+        }
+      }));
+    }
+  });
+
+  test('a televisão tem três brilhos diferentes; a silhueta anda e a travessa passa na frente dela', () => {
+    const tv = Object.values(tvPanes());
+    expect(new Set(tv).size).toBe(3);
+    const walks = walkPanes();
+    expect(new Set(walks).size).toBe(walks.length);
+    for (const g of walks) expect(gridLines(g)[5]).toBe(gridLines(pane('l'))[5]);
+  });
+
+  test('a hélice gira: três passos diferentes, com o mesmo aro', () => {
+    const frames = fanFrames();
+    expect(new Set(frames).size).toBe(3);
+    for (const f of frames) expect(f.replace(/[kn]/g, '?')).toBe(frames[0].replace(/[kn]/g, '?'));
+  });
+
+  test('as janelas que piscam na cidade: sempre as mesmas, metade acesas, sem mudar a imagem', () => {
+    const s = SKYLINES[0];
+    const a: WindowSpot[] = [], b: WindowSpot[] = [];
+    const img = skyline(s, a);
+    skyline(s, b);
+    expect(img.data).toEqual(skyline(s).data);
+    const t = twinkles(a, s.seed, 14);
+    expect(t).toEqual(twinkles(b, s.seed, 14));
+    expect(t).toHaveLength(14);
+    expect(t.filter((x) => x.lit)).toHaveLength(7);
+    for (const x of t) if (x.lit) expect(getPixel(img, x.x, x.y).slice(0, 3)).toEqual([parseInt(x.on.slice(0, 2), 16), parseInt(x.on.slice(2, 4), 16), parseInt(x.on.slice(4), 16)]);
   });
 });

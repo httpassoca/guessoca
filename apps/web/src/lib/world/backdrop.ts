@@ -2,6 +2,8 @@
  * O fundo do telhado (issue #6): o céu em faixas de cor com estrelas e a lua, a cidade em duas camadas de paralaxe (a
  * de longe enevoada, a de perto escura), e a queda até a rua nos vãos: escurece para baixo e acaba numa neblina roxa,
  * iluminada pelos letreiros lá embaixo. Tudo atrás dos telhados. Pixi; a conta da paralaxe é pura (`parallax.ts`).
+ * O que mexe no céu e na rua (relâmpago, holofote, avião, janelas da cidade, carros; issue #70) é de `skylife.ts`,
+ * intercalado aqui entre as camadas: atrás da cidade de longe, por cima de cada faixa e debaixo da neblina da rua.
  *
  * Entrada: a lua e a neblina de `rooftop.png` e as faixas `skyline-far.png`/`skyline-near.png` (via `art.ts`, geradas
  * por `tools/sprites/src/rooftop.ts` e `skyline.ts`); o céu e o degradê da queda são desenhados aqui, em código. Saída:
@@ -12,6 +14,7 @@ import type { Camera, View } from '@guess/world';
 import { Container, Graphics, Sprite, Texture, TilingSprite } from 'pixi.js';
 import type { RooftopArt } from './art';
 import { PARALLAX, parallaxOffset } from './parallax';
+import { SkyLife } from './skylife';
 
 /** o céu, do alto até o horizonte: azul quase preto descendo para o roxo do neon refletido nas nuvens (no olho) */
 const SKY = [0x06051a, 0x0a0820, 0x0f0b2a, 0x150e33, 0x1c113c, 0x251545, 0x301a4f, 0x3e1f58, 0x4f2460, 0x62296a];
@@ -70,6 +73,8 @@ export class Backdrop extends Container {
   private readonly street: TilingSprite;
   private readonly fogH: number;
   private key = '';
+  /** o céu e a rua vivos (`skylife.ts`): relâmpago, holofote, avião, estrela cadente, janelas piscando, carros */
+  readonly life: SkyLife;
 
   constructor(art: RooftopArt) {
     super();
@@ -82,7 +87,8 @@ export class Backdrop extends Container {
     const fog = art.tile('fog');
     this.fogH = fog.height;
     this.street = new TilingSprite({ texture: fog, tint: FOG_TINT, alpha: 0.5 });
-    this.addChild(this.sky, this.moon, this.far, this.near, this.underNear, this.drop, this.street);
+    this.life = new SkyLife(art);
+    this.addChild(this.sky, this.moon, this.life.sky, this.far, this.life.far, this.near, this.life.near, this.underNear, this.drop, this.life.street, this.street);
   }
 
   /** Põe tudo no lugar para a câmera e a vista (pixels da tela); o céu só se redesenha quando a tela muda. `now` em ms. */
@@ -121,6 +127,7 @@ export class Backdrop extends Container {
     this.street.position.set(0, view.height - fogH);
     this.street.tilePosition.set(parallaxOffset(cam.x, PARALLAX.street, this.street.texture.width, s, now / 1000 * STREET_DRIFT), 0);
     this.street.alpha = 0.45 + 0.08 * Math.sin(now / 2300);
+    this.life.update(cam, view, now, { far: { top: this.far.y }, near: { top: this.near.y } });
   }
 
   private drawSky(view: View) {

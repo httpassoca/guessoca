@@ -90,7 +90,9 @@ const BEHIND = 3;
 
 /**
  * Os enfeites do telhado, por prédio, escolhidos no olho para não cair onde as caixas estão nem uns sobre os outros:
- * letreiros na fachada a 6 unidades da beirada (logo abaixo da cornija), torres com a luz no topo, poças pelo chão.
+ * letreiros na fachada a 6 unidades da beirada (logo abaixo da cornija), torres com a luz no topo, poças pelo chão, e
+ * a tralha dos telhados dos lados (cadeira, vaso, caixa, canos, claraboia, parabólica, varal). O que é deitado no chão
+ * fica sempre atrás dos corpos, então o mais alto vai perto do fundo (`z` grande), onde quase ninguém passa por trás.
  */
 export const DECOR: readonly Decor[] = [
   { frame: 'antenna', roof: 0, x: 44, layer: 'back' },
@@ -99,15 +101,30 @@ export const DECOR: readonly Decor[] = [
   { frame: 'sign-bar', roof: 0, x: 24, layer: 'facade', dy: 6 },
   { frame: 'puddle-a', roof: 0, x: 70, layer: 'floor', z: 14 },
   { frame: 'puddle-b', roof: 0, x: 212, layer: 'floor', z: 22 },
+  // a tralha do telhado da esquerda (issue #70): só enfeite, não é colisão; perto do ar-condicionado só a tigela do gato
+  { frame: 'plant', roof: 0, x: 16, layer: 'floor', z: 50 },
+  { frame: 'chair', roof: 0, x: 54, layer: 'floor', z: 40 },
+  { frame: 'cardboard', roof: 0, x: 92, layer: 'floor', z: 50 },
+  { frame: 'bowl', roof: 0, x: 170, layer: 'floor', z: 27 },
+  { frame: 'pipes', roof: 0, x: 222, layer: 'floor', z: 54 },
   { frame: 'sign-hotel', roof: 1, x: 352, layer: 'back' },
   { frame: 'antenna', roof: 1, x: 508, layer: 'back' },
   { frame: 'puddle-b', roof: 1, x: 470, layer: 'floor', z: 12 },
+  // uma poça debaixo do HOTEL, para pegar o ciano dele
+  { frame: 'puddle-a', roof: 1, x: 350, layer: 'floor', z: 40 },
   { frame: 'mast', roof: 2, x: 622, layer: 'back' },
   { frame: 'beacon', roof: 2, x: 622, layer: 'back', dy: MAST_H },
   { frame: 'antenna', roof: 2, x: 838, layer: 'back' },
   { frame: 'sign-24h', roof: 2, x: 792, layer: 'facade', dy: 6 },
   { frame: 'puddle-a', roof: 2, x: 662, layer: 'floor', z: 28 },
   { frame: 'puddle-b', roof: 2, x: 818, layer: 'floor', z: 16 },
+  // a tralha do telhado da direita: o varal sai da torre (27 acima do telhado) e acaba num poste antes da caixa-d'água
+  { frame: 'laundry-0', roof: 2, x: 624, layer: 'back', dy: 27 },
+  { frame: 'dish', roof: 2, x: 800, layer: 'back' },
+  { frame: 'cardboard', roof: 2, x: 604, layer: 'floor', z: 50 },
+  { frame: 'skylight', roof: 2, x: 776, layer: 'floor', z: 42 },
+  { frame: 'chair', roof: 2, x: 852, layer: 'floor', z: 34 },
+  { frame: 'plant', roof: 2, x: 868, layer: 'floor', z: 52 },
 ];
 
 /** Onde, no mundo (unidades), vai a âncora do enfeite; `project` leva isso para a tela. */

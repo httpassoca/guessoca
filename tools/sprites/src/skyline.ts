@@ -79,11 +79,17 @@ export function rng(seed: number): () => number {
 }
 
 /**
+ * Uma janela da faixa, em pixels dela: onde está, o tamanho, se saiu acesa, a cor acesa que ganhou (ou ganharia) e a
+ * cor de quando está apagada (a parede do prédio, na de longe; o vidro escuro, na de perto).
+ */
+export interface WindowSpot { x: number; y: number; w: number; h: number; lit: boolean; on: Hex; off: Hex }
+
+/**
  * Uma faixa da cidade, `width × height` pixels: prédios lado a lado da coluna 2 até `width − 2`, cada um com largura e
  * altura sorteadas, às vezes um recuo no topo, janelas, antena, caixa-d'água e neon; às vezes um vão de 1–4 pixels
  * entre eles (mostra a `base`). Determinística pela `seed`.
  */
-export function skyline(o: { layer: SkylineLayer; width: number; height: number; seed: number }): Image {
+export function skyline(o: { layer: SkylineLayer; width: number; height: number; seed: number }, spots?: WindowSpot[]): Image {
   const st = STYLES[o.layer];
   const r = rng(o.seed);
   const int = (a: number, b: number) => a + Math.floor(r() * (b - a + 1));
@@ -124,8 +130,15 @@ export function skyline(o: { layer: SkylineLayer; width: number; height: number;
       const floorLit = r() < 0.25 ? 2.2 : 1;
       for (let wx = x + 3; wx + ww < x + bw - 1; wx += sx) {
         if (!isInside(img, wx, wy)) continue;
-        if (r() < st.litP * dense * floorLit) rect(wx, wy, ww, wh, pick(st.lit));
-        else if (st.dark) rect(wx, wy, ww, wh, st.dark);
+        if (r() < st.litP * dense * floorLit) {
+          const on = pick(st.lit);
+          rect(wx, wy, ww, wh, on);
+          spots?.push({ x: wx, y: wy, w: ww, h: wh, lit: true, on, off: st.dark ?? body });
+        } else {
+          if (st.dark) rect(wx, wy, ww, wh, st.dark);
+          // a cor acesa de uma apagada sai da posição, para não gastar o sorteio (a cidade fica igual, byte a byte)
+          spots?.push({ x: wx, y: wy, w: ww, h: wh, lit: false, on: st.lit[(wx + wy) % st.lit.length], off: st.dark ?? body });
+        }
       }
     }
 
@@ -175,4 +188,22 @@ function clear(img: Image, x: number, y: number) {
 
 function isInside(img: Image, x: number, y: number) {
   return x >= 0 && y >= 0 && x < img.width && y < img.height && img.data[(y * img.width + x) * 4 + 3] !== 0;
+}
+
+/**
+ * As janelas da faixa que piscam no cliente (issue #70): `n` delas, escolhidas pelo sorteio semeado (`seed`, separado do
+ * da cidade), metade das que nasceram acesas e metade das apagadas, longe das bordas da faixa (o ladrilho emenda lá),
+ * em ordem de `x`. Só as janelas que a faixa já tem: piscar é trocar a cor de uma delas.
+ */
+export function twinkles(spots: readonly WindowSpot[], seed: number, n: number): WindowSpot[] {
+  const r = rng(seed ^ 0x7b1d);
+  const inner = spots.filter((p) => p.x > 4);
+  const take = (pool: WindowSpot[], k: number) => {
+    const left = [...pool], out: WindowSpot[] = [];
+    while (out.length < k && left.length) out.push(left.splice(Math.floor(r() * left.length), 1)[0]);
+    return out;
+  };
+  const lit = take(inner.filter((p) => p.lit), Math.ceil(n / 2));
+  const dark = take(inner.filter((p) => !p.lit), n - lit.length);
+  return [...lit, ...dark].sort((a, b) => a.x - b.x || a.y - b.y);
 }
