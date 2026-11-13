@@ -65,7 +65,7 @@
     const c = code.trim().toUpperCase();
     if (!CODE_RE.test(c)) { codeProblem = { kind: 'invalid' }; return; }
     checking = true;
-    const r = await peekRoom(c, token());
+    const r = await peekRoom(c, token(c));
     checking = false;
     if (code.trim().toUpperCase() !== c) return; // digitou outra coisa enquanto procurava
     if (r.kind === 'missing') codeProblem = { kind: 'missing' };

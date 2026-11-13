@@ -22,7 +22,7 @@
   let { code }: { code: string } = $props();
 
   // a rota recria esta tela a cada código novo (App faz {#key}); o código inicial basta
-  const myToken = token();
+  const myToken = token(untrack(() => code));
   const remote = new RemoteRoom({ url: wsUrl(), room: untrack(() => code), token: myToken });
   let st = $state.raw<RemoteState>(remote.state);
   let nickname = $state(rememberedNickname());
@@ -87,7 +87,8 @@
           <div class="title">{t(title)}</div>
           <p class="msg">{t(msg)}</p>
           <div class="act">
-            <button class="ss-btn primary" type="button" onclick={() => navigate('/')}>{t('gone.openNew')}</button>
+            {#if st.reason === 'replaced'}<button class="ss-btn primary" type="button" onclick={() => location.reload()}>{t('gone.replaced.here')}</button>{/if}
+            <button class="ss-btn" class:primary={st.reason !== 'replaced'} type="button" onclick={() => navigate('/')}>{t('gone.openNew')}</button>
           </div>
         </div>
       </div>

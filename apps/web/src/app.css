@@ -431,6 +431,8 @@ html, body { margin: 0; min-height: 100%; background: var(--ss-bg); }
 .gs-keys li { display: flex; justify-content: space-between; align-items: center; min-height: 28px; }
 .gs-keys li > span:last-child:not(.ss-kbd) { display: inline-flex; gap: 8px; }
 .gs-toast { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); z-index: 40; padding: 8px 16px; background: var(--ss-danger); color: var(--ss-fg-on-danger); font-size: var(--ss-ui-sm); }
+/* um aviso bom (a moderação chegou a mim), não uma recusa */
+.gs-toast.gs-good { background: var(--ss-accent); color: var(--ss-fg-on-primary); }
 
 /* a única entrada: sobe uns pixels e aparece (menu, votação) */
 @keyframes gs-rise { from { opacity: 0; transform: translateY(8px); } }

@@ -61,6 +61,8 @@
   const nameOf = (id: string) => v.players.find((p) => p.id === id)?.nickname ?? '';
   const open = (id: string) => { if (!opened.includes(id)) opened = [...opened, id]; };
   const close = (id: string) => (opened = opened.filter((x) => x !== id));
+  /** quem escreve o meu post-it, se caiu: o moderador não pode escrevê-lo, então precisa saber como seguir */
+  const myAuthorAway = $derived(v.ownPostitAuthor && !v.ownPostitAuthor.connected ? v.ownPostitAuthor : null);
 </script>
 
 {#if room.members.length < 2}
@@ -96,10 +98,10 @@
   <section class="gs-block gs-sec">
     <div class="gs-sec-head"><h3>{t('lobby.missing')}{#if v.missing.length}<span class="gs-n">{v.missing.length}</span>{/if}</h3></div>
     {#if v.missing.length || editing.length}<p class="gs-hint">{t('lobby.missingHint')}</p>{/if}
-    {#if v.ownPostitAuthor}<p class="gs-banner">{t('writing.ownEmpty', { author: v.ownPostitAuthor.nickname })}</p>{/if}
+    {#if v.ownPostitAuthor}<p class="gs-banner">{myAuthorAway ? t('writing.ownEmptyOffline', { author: myAuthorAway.nickname }) : t('writing.ownEmpty', { author: v.ownPostitAuthor.nickname })}</p>{/if}
     {#each v.missing.filter((c) => !editing.includes(c.owner.id)) as c (c.owner.id)}
       <div class="gs-line">
-        <span>{c.author ? t('writing.missingFor', { owner: c.owner.nickname, author: c.author.nickname }) : t('writing.orphanFor', { owner: c.owner.nickname })}</span>
+        <span>{c.author ? t(c.author.connected ? 'writing.missingFor' : 'writing.missingForOffline', { owner: c.owner.nickname, author: c.author.nickname }) : t('writing.orphanFor', { owner: c.owner.nickname })}</span>
         <button class="ss-btn gs-sm" type="button" onclick={() => open(c.owner.id)}>{t('lobby.writeIt')}</button>
       </div>
     {/each}

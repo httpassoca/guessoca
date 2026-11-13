@@ -73,7 +73,7 @@ apps/server        Bun.serve: `/health`, `POST /api/rooms` (corpo JSON do pré-l
 
 apps/web           Vite + Svelte 5 + PixiJS v8 + dssoca
   src/lib/route.ts         rotas: `/` início, `/sala/CODE`; `route.svelte.ts` é a rota reativa e `navigate`
-  src/lib/identity.ts      token e bloco por aba (sessionStorage); apelido e último personagem por navegador (localStorage)
+  src/lib/identity.ts      token por sala e por navegador, apelido e último personagem (localStorage); bloco por aba (sessionStorage)
   src/lib/i18n.ts          a tabela de tradução (pt-BR padrão, en-US), tipada para as duas terem as mesmas chaves
   src/lib/room/remote.ts   `RemoteRoom`: conecta com o token, aplica os snapshots, manda as ações, pinga, reconecta com espera
                            crescente até 10 s, e para de vez em 4404/4410/4409/4403 dizendo por quê
