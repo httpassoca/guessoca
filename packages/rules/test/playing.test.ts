@@ -498,6 +498,41 @@ describe('jogar de novo', () => {
     expect(s.game.paused).toBe(false);
   });
 
+  test('quem está desconectado fica de fora (fantasma), e ninguém escreve para ele nem espera o post-it dele', () => {
+    const s = playing('a', 'b', 'c', 'd');
+    s.drop('c');
+    s.do('a', { type: 'endGame' });
+    s.do('a', { type: 'playAgain' });
+    expect(s.game.order).toEqual(['a', 'b', 'd']);
+    expect(s.game.authors).toEqual(circle(['a', 'b', 'd']));
+    expect(Object.keys(s.game.postits).sort()).toEqual(['a', 'b', 'd']);
+    expect(s.game.characters.c).toBeDefined(); // continua na turma
+  });
+
+  test('quem estava de fora e volta ainda no lobby entra de novo no fim da ordem', () => {
+    const s = playing('a', 'b', 'c', 'd');
+    s.drop('c');
+    s.do('a', { type: 'endGame' });
+    s.do('a', { type: 'playAgain' });
+    s.writeAll();
+    s.back('c');
+    expect(s.game.order).toEqual(['a', 'b', 'd', 'c']);
+    expect(s.game.authors).toEqual(circle(['a', 'b', 'd', 'c']));
+    expect(Object.keys(s.game.postits).sort()).toEqual(['a', 'b', 'c', 'd']);
+    expect(s.game.postits.c).toEqual({ text: '', image: null, ready: false });
+  });
+
+  test('o fantasma que volta com o jogo rodando continua fantasma', () => {
+    const s = playing('a', 'b', 'c');
+    s.drop('c');
+    s.do('a', { type: 'endGame' });
+    s.do('a', { type: 'playAgain' });
+    s.writeAll();
+    s.do('a', { type: 'start' });
+    s.back('c');
+    expect(s.game.order).toEqual(['a', 'b']);
+  });
+
   test('a ordem nova segue a antiga, mesmo reordenada no jogo', () => {
     const s = playing();
     s.do('a', { type: 'order', order: ['c', 'a', 'b'] });
