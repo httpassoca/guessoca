@@ -194,5 +194,19 @@
     "color": "#8c4a2f",
     "sheet": "/sprites/char-27.webp",
     "atlas": "sekiro"
+  },
+  {
+    "model": "sanji",
+    "name": "sanji",
+    "color": "#e8c21a",
+    "sheet": "/sprites/char-28.webp",
+    "atlas": "sanji"
+  },
+  {
+    "model": "bladerunner",
+    "name": "blade runner",
+    "color": "#8aa0b4",
+    "sheet": "/sprites/char-29.webp",
+    "atlas": "bladerunner"
   }
 ]

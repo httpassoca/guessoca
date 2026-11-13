@@ -242,4 +242,29 @@ export const PACKS: readonly Pack[] = [
       spec: packSpec({ idle: [8, 8 / 1.2], walk: [12, 12 / 0.9], run: [12, 12 / 0.65], jump: [8, 20], fall: [8, 8 / 0.33], fall_loop: [8, 8 / 0.45], shove: [24, 24 / 1.1] }),
     },
   },
+  /**
+   * O Sanji: o cozinheiro loiro de terno escuro e cigarro, de franja sobre um olho. Tamanho 1,10 (141 pixels), células de
+   * 192×208 e, só no ataque, de 256×256, em que ele fica 11 pixels mais à direita (pés no x 97 em vez de 86): os quadros
+   * do ataque andam 11 para trás, e a tela de trabalho tem essa folga. O chão na linha 192. O ataque são 24 quadros em
+   * 1,2 s, o teto do jogo.
+   */
+  {
+    model: 'sanji', name: 'sanji', color: 'e8c21a', dir: 'sanji',
+    config: {
+      ...NEW, name: 'o Sanji', cellW: 192, cellH: 208, padX: 11, headRows: 32, cells: { shove: { cellW: 256, cellH: 256, dx: -11 } },
+      spec: packSpec({ idle: [8, 8 / 1.2], walk: [8, 8 / 0.95], run: [8, 8 / 0.65], jump: [8, 8 / 0.45], fall: [8, 8 / 0.33], fall_loop: [8, 8 / 0.45], shove: [24, 20] }),
+    },
+  },
+  /**
+   * O K (de Blade Runner 2049): o policial de sobretudo longo e gola de pelo, com uma pistola nas duas mãos. Tamanho 1
+   * (128 pixels), células de 160×160 e, só no ataque, de 192×160, com os pés no mesmo x (68). O chão na linha 144. O
+   * ataque são 22 quadros em 0,95 s: um tiro firme com as duas mãos.
+   */
+  {
+    model: 'bladerunner', name: 'blade runner', color: '8aa0b4', dir: 'bladerunner',
+    config: {
+      ...NEW, name: 'o Blade Runner', cellW: 160, cellH: 160, headRows: 30, cells: { shove: { cellW: 192, cellH: 160, dx: 0 } },
+      spec: packSpec({ idle: [8, 8 / 1.2], walk: [12, 12 / 0.9], run: [12, 12 / 0.65], jump: [8, 20], fall: [8, 8 / 0.33], fall_loop: [8, 8 / 0.45], shove: [22, 22 / 0.95] }),
+    },
+  },
 ];
