@@ -1,13 +1,14 @@
 /**
- * Quem esta aba é para o servidor, e o que o navegador lembra entre visitas (ADR 0003). O token vive na aba
- * (sessionStorage): sobrevive a refresh e queda de rede, e duas abas do mesmo navegador são duas pessoas na sala.
+ * Quem esta aba é para o servidor, e o que o navegador lembra entre visitas (ADR 0003). O token é por sala e por
+ * navegador (localStorage, emenda do ADR 0003): sobrevive a refresh, queda de rede, fechar a aba e fechar o navegador;
+ * duas abas na mesma sala são a mesma pessoa (a nova assume, a velha mostra "outra aba assumiu").
  * O apelido, o último personagem e o zoom do telhado são lembrados pelo navegador inteiro (localStorage); o bloco (o texto e se está
  * minimizado), a coluna recolhida e a entrada automática de quem acabou de criar a sala, só pela aba.
  */
 import { TOKEN_RE } from '@guess/protocol';
 import { CHARACTERS } from '@guess/rules';
 
-const TOKEN_KEY = 'guess.token';
+const SEATS_KEY = 'guess.seats';
 const NICKNAME_KEY = 'guess.nickname';
 const CHARACTER_KEY = 'guess.character';
 const NOTEPAD_KEY = 'guess.notepad.';
@@ -27,16 +28,43 @@ export function writeKey(store: MaybeStore, key: string, value: string) { try { 
 const read = readKey;
 const write = writeKey;
 
-/** O token guardado em `store`, ou um novo (UUID: 36 caracteres de `TOKEN_RE`) se não há um válido. */
-export function tokenIn(store: MaybeStore): string {
-  let t = read(store, TOKEN_KEY);
-  if (!TOKEN_RE.test(t)) { t = crypto.randomUUID(); write(store, TOKEN_KEY, t); }
-  return t;
+/** Um token sem uso por este tempo é esquecido: a sala morre bem antes (dez minutos parada, ADR 0003). */
+export const SEAT_TTL = 24 * 60 * 60_000;
+
+type Seats = Record<string, { token: string; at: number }>;
+
+/** Os lugares guardados, só os bem formados (lixo some sem quebrar). */
+function seatsIn(store: MaybeStore): Seats {
+  let raw: unknown;
+  try { raw = JSON.parse(read(store, SEATS_KEY) || '{}'); } catch { return {}; }
+  if (!raw || typeof raw !== 'object') return {};
+  const seats: Seats = {};
+  for (const [code, s] of Object.entries(raw as Record<string, unknown>)) {
+    const seat = s as { token?: unknown; at?: unknown } | null;
+    if (seat && typeof seat.token === 'string' && TOKEN_RE.test(seat.token) && typeof seat.at === 'number') seats[code] = { token: seat.token, at: seat.at };
+  }
+  return seats;
+}
+
+/**
+ * O token desta sala neste navegador (ADR 0003, emenda): o mesmo enquanto foi usado há menos de `SEAT_TTL`, senão um
+ * novo (UUID: 36 caracteres de `TOKEN_RE`). Usar renova a hora; os vencidos de outras salas são limpos aqui. É só um
+ * número aleatório por sala: não diz quem é a pessoa nem liga uma sala a outra.
+ */
+export function tokenIn(store: MaybeStore, code: string, now: number): string {
+  const key = code.toUpperCase();
+  const seats = seatsIn(store);
+  for (const [c, s] of Object.entries(seats)) if (now - s.at > SEAT_TTL) delete seats[c];
+  const token = seats[key]?.token ?? crypto.randomUUID();
+  seats[key] = { token, at: now };
+  write(store, SEATS_KEY, JSON.stringify(seats));
+  return token;
 }
 export const nicknameIn = (store: MaybeStore) => read(store, NICKNAME_KEY);
 export const rememberNicknameIn = (store: MaybeStore, nickname: string) => write(store, NICKNAME_KEY, nickname);
 
-export const token = () => tokenIn(session());
+/** Sem `localStorage` (bloqueado), o token fica pelo menos na aba, como era antes. */
+export const token = (code: string) => tokenIn(local() ?? session(), code, Date.now());
 export const rememberedNickname = () => nicknameIn(local());
 export const rememberNickname = (nickname: string) => rememberNicknameIn(local(), nickname);
 

@@ -14,7 +14,7 @@
  */
 import { existsSync, mkdirSync, readFileSync } from 'node:fs';
 import { join, relative, resolve } from 'node:path';
-import { ANIMATION_NAMES, type Atlas } from './atlas';
+import { ANIMATION_NAMES, cellOf, type Atlas } from './atlas';
 import type { CharacterEntry } from './characters';
 import type { EmoteAtlas } from './emotes';
 import { blank, blit, crop, getPixel, rgbOf, setPixel, type Hex, type Image } from './image';
@@ -103,10 +103,12 @@ export function contactSheet(frames: readonly Image[], o: ContactOptions, anchor
 /** As opções de sempre: `SCALE`×, 4 de espaço (cabe o tique), casas de um pixel da folha, até 2400 de largura. */
 export const PREVIEW: ContactOptions = { scale: SCALE, pad: 4, checker: SCALE, maxWidth: 2400 };
 
-/** Os quadros da animação `name` numa folha de personagem, em pixels do quadro. */
-export function animationFrames(sheet: Image, atlas: Atlas, name: (typeof ANIMATION_NAMES)[number]): Image[] {
-  const a = atlas.animations[name];
-  return Array.from({ length: a.frames }, (_, i) => crop(sheet, i * atlas.frame.w, a.row * atlas.frame.h, atlas.frame.w, atlas.frame.h));
+/** Os quadros da animação `name` nas folhas (as páginas) de um personagem, em pixels do quadro. */
+export function animationFrames(pages: readonly Image[], atlas: Atlas, name: (typeof ANIMATION_NAMES)[number]): Image[] {
+  return Array.from({ length: atlas.animations[name].frames }, (_, i) => {
+    const c = cellOf(atlas, name, i);
+    return crop(pages[c.page], c.x, c.y, atlas.frame.w, atlas.frame.h);
+  });
 }
 
 if (import.meta.main) {
@@ -132,13 +134,13 @@ if (import.meta.main) {
   const seen = new Set<string>();
   for (const c of list) {
     const atlas = allAtlases[c.atlas];
-    const sheet = await sheetOf(c.sheet);
-    idles.push(animationFrames(sheet, atlas, 'idle')[0]);
+    const pages = await Promise.all(c.sheets.map(sheetOf));
+    idles.push(animationFrames(pages, atlas, 'idle')[0]);
     idleAnchors.push(atlas.anchor);
     if (seen.has(c.model)) continue;
     seen.add(c.model);
     for (const name of ANIMATION_NAMES) {
-      const frames = animationFrames(sheet, atlas, name);
+      const frames = animationFrames(pages, atlas, name);
       write(`${c.model}-${name}.png`, contactSheet(frames, PREVIEW, frames.map(() => atlas.anchor)));
     }
   }

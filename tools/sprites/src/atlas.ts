@@ -39,8 +39,16 @@ export interface Atlas {
   head: { x: number; y: number; size: number };
   /** o retângulo do primeiro quadro do parado: o personagem inteiro na interface, sem o espaço do golpe e do pulo */
   stand: Box;
-  /** uma linha da folha por animação: a linha `row` (0 = idle), `frames` quadros, `fps`, e se dá a volta */
-  animations: Record<AnimationName, { row: number; frames: number; fps: number; loop: boolean }>;
+  /**
+   * cada animação: `frames` quadros, `fps`, e se dá a volta. Saindo de `layout`, `row` é a linha da folha única (0 =
+   * idle); depois de `paginate`, `page` é a folha (a página) e `row` a linha dela em que a animação começa
+   */
+  animations: Record<AnimationName, { row: number; frames: number; fps: number; loop: boolean; page?: number }>;
+  /**
+   * as folhas em que os quadros estão (depois de `paginate`): `w × h` pixels, `cols` quadros por linha. A página 0 é só o
+   * parado, numa linha; as outras têm as outras animações, cada uma começando numa linha nova e quebrando em `cols`
+   */
+  pages?: Page[];
   /** a quem dar o crédito da arte, ou null se não precisa */
   credit: string | null;
   /**
@@ -54,6 +62,17 @@ export interface Atlas {
    */
   scale?: number;
 }
+
+/** Uma página do atlas: o tamanho da folha em pixels e quantos quadros cabem numa linha. */
+export interface Page { w: number; h: number; cols: number }
+
+/**
+ * O maior lado de uma folha gerada, em pixels: 8192, o que toda placa de vídeo de computador aceita como textura, e o
+ * limite do WebGL por software (SwiftShader). Uma folha maior que o limite da placa não sobe para a GPU, e o Pixi, que
+ * desenha o telhado inteiro de uma vez, pinta de preto tudo o que estava no mesmo lote. Por isso as folhas são paginadas
+ * (`paginate`) em vez de crescerem.
+ */
+export const MAX_SHEET = 8192;
 
 /**
  * O que cada modelo decide: quantos quadros, a que velocidade, se dá a volta, e o crédito. `layout` confere os quadros
@@ -104,4 +123,67 @@ export function layout(
     credit: spec.credit,
   };
   return { sheet, atlas };
+}
+
+/**
+ * Corta a folha de `layout` (uma linha por animação, tão larga quanto a animação mais comprida) em **páginas** de até
+ * `max` pixels de lado, mudando só quadros inteiros de lugar (nenhum pixel muda):
+ *
+ * - a página 0 é **só o parado**, numa linha: é o que o seletor de personagem, o palco do pré-lobby e o rosto da
+ *   interface mostram, e o que o telhado carrega primeiro; pequena para decodificar;
+ * - as outras animações vão para a página 1 (e 2, 3… se não couberem numa), cada uma começando numa linha nova e
+ *   quebrando em `cols` quadros por linha. `cols` é o que deixa a página mais perto de quadrada (o menor lado maior),
+ *   e, empatando, a de menos área: uma folha quadrada cabe no limite e não gasta memória com a linha mais comprida.
+ *
+ * Joga erro se um parado não cabe numa linha, ou se uma animação sozinha não cabe numa página.
+ */
+export function paginate(sheet: Image, atlas: Atlas, max = MAX_SHEET): { pages: Image[]; atlas: Atlas } {
+  const { w, h } = atlas.frame;
+  if (w > max || h > max) throw new Error(`o quadro tem ${w}×${h} pixels, mais que ${max}`);
+  const idle = atlas.animations.idle;
+  if (idle.frames * w > max) throw new Error(`o parado tem ${idle.frames} quadros de ${w} pixels: ${idle.frames * w}, mais que ${max} numa linha`);
+  // as páginas das outras animações: enche uma enquanto o arranjo couber em `max`, depois abre outra
+  const plan = (names: readonly AnimationName[]) => {
+    let best: { cols: number; side: number; area: number } | null = null;
+    const most = Math.max(...names.map((n) => atlas.animations[n].frames));
+    for (let cols = 1; cols <= most && cols * w <= max; cols++) {
+      const lines = names.reduce((s, n) => s + Math.ceil(atlas.animations[n].frames / cols), 0);
+      if (lines * h > max) continue;
+      const side = Math.max(cols * w, lines * h), area = cols * w * lines * h;
+      if (!best || side < best.side || (side === best.side && area < best.area)) best = { cols, side, area };
+    }
+    return best;
+  };
+  const groups: AnimationName[][] = [];
+  for (const name of ANIMATION_NAMES.slice(1)) {
+    const last = groups.at(-1);
+    if (last && plan([...last, name])) last.push(name);
+    else if (plan([name])) groups.push([name]);
+    else throw new Error(`a animação ${name} (${atlas.animations[name].frames} quadros de ${w}×${h}) não cabe numa folha de ${max}×${max}`);
+  }
+  const pages: Page[] = [{ w: idle.frames * w, h, cols: idle.frames }];
+  const animations = { ...atlas.animations, idle: { ...idle, row: 0, page: 0 } } as Atlas['animations'];
+  for (const group of groups) {
+    const { cols } = plan(group)!;
+    let row = 0;
+    for (const name of group) {
+      animations[name] = { ...atlas.animations[name], row, page: pages.length };
+      row += Math.ceil(atlas.animations[name].frames / cols);
+    }
+    pages.push({ w: cols * w, h: row * h, cols });
+  }
+  const images = pages.map((p) => blank(p.w, p.h));
+  for (const name of ANIMATION_NAMES) {
+    const from = atlas.animations[name], to = animations[name], cols = pages[to.page!].cols;
+    for (let i = 0; i < from.frames; i++) {
+      blit(images[to.page!], crop(sheet, i * w, from.row * h, w, h), (i % cols) * w, (to.row + Math.floor(i / cols)) * h);
+    }
+  }
+  return { pages: images, atlas: { ...atlas, animations, pages } };
+}
+
+/** O canto do quadro `i` da animação `name` numa atlas paginada: a página e a posição nela, em pixels da folha. */
+export function cellOf(atlas: Atlas, name: AnimationName, i: number): { page: number; x: number; y: number } {
+  const a = atlas.animations[name], page = a.page ?? 0, cols = atlas.pages?.[page]?.cols ?? Infinity;
+  return { page, x: (i % cols) * atlas.frame.w, y: (a.row + Math.floor(i / cols)) * atlas.frame.h };
 }

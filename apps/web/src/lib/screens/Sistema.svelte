@@ -25,7 +25,7 @@
   import Ledge from '../panels/Ledge.svelte';
   import Swatch from '../panels/Swatch.svelte';
   import Anim from '../system/Anim.svelte';
-  import { frameAtTime, lengthOf } from '../system/anim';
+  import { frameAtTime, lengthOf, pageName, sheetOfPath } from '../system/anim';
   import Wave from '../system/Wave.svelte';
   import { agoText, ApiError, saveBytes, sizeText, systemApi, type AssetInfo, type AssetList } from '../system/api';
   import promptText from '../system/character-prompt.txt?raw';
@@ -38,6 +38,7 @@
   const SFX_ABOUT: Record<SfxName, string> = {
     jump: 'pulo: um blip curto que sobe', shove: 'empurrão: um baque de ruído grave', vote: 'voto: um sininho de duas notas',
     gotIt: 'acertei: um power-up feliz', turnEnd: 'fim da vez: uma cigarra grave e curta',
+    yourTurn: 'sua vez: dois toques agudos que sobem',
   };
   const PASS_KEY = 'guess.system.pass';
 
@@ -98,8 +99,8 @@
 
   /** o que é cada arquivo, em palavras */
   function about(path: string): string {
-    const char = CHARACTER_ART.findIndex((c) => pathOf(c.sheet) === path);
-    if (char >= 0) return `${displayName(CHARACTER_ART[char])}, personagem ${char + 1}`;
+    const char = sheetOfPath(path);
+    if (char) return `${displayName(CHARACTER_ART[char.n])}, personagem ${char.n + 1}: ${pageName(CHARACTER_ART[char.n].atlas, char.page)}`;
     if (path === pathOf(rooftopSheet)) return 'Os objetos do telhado';
     const sky = ROOFTOP.skylines.find((s) => pathOf(skylineUrl(s)) === path);
     if (sky) return `A cidade ao fundo, camada ${sky.layer}`;
@@ -198,11 +199,15 @@
   let now = $state(0);
   /** as folhas dos personagens já carregadas, pelo endereço com versão */
   let sheets = $state<Record<string, HTMLImageElement>>({});
+  /** as folhas de um personagem, uma por página do atlas (`undefined` a que ainda não carregou) */
+  const sheetsOf = (c: (typeof CHARACTER_ART)[number]) => c.sheets.map((s) => sheets[url(pathOf(s))]);
 
+  // o parado de todos (a fila do elenco, pequeno) e todas as folhas do escolhido; as outras só quando alguém o escolhe
   $effect(() => {
     if (!data) return;
-    for (const c of CHARACTER_ART) {
-      const src = url(pathOf(c.sheet));
+    const want = [...CHARACTER_ART.map((c) => c.sheets[0]), ...(CHARACTER_ART[picked] ?? CHARACTER_ART[0]).sheets];
+    for (const s of want) {
+      const src = url(pathOf(s));
       if (sheets[src]) continue;
       const img = new Image();
       img.onload = () => { sheets = { ...sheets, [src]: img }; };
@@ -324,7 +329,7 @@
               {#each CHARACTER_ART as o, i (i)}
                 {@const z = artScale(o.atlas) * LINEUP_PX}
                 <button class="gs-sys-cast" type="button" title="Ver as animações de {displayName(o)}" onclick={() => { picked = i; tab = 'personagens'; }}>
-                  <span class="gs-sys-cast-stage"><Anim sheet={sheets[url(pathOf(o.sheet))]} atlas={o.atlas} name="idle" {now} k={z} /></span>
+                  <span class="gs-sys-cast-stage"><Anim sheets={sheetsOf(o)} atlas={o.atlas} name="idle" {now} k={z} /></span>
                   <span class="gs-sys-cast-name">{displayName(o)}</span>
                   <span class="gs-sys-cast-size">{sizeOf(o.atlas)}×</span>
                 </button>
@@ -376,9 +381,9 @@
       {:else if tab === 'personagens'}
         {@const c = CHARACTER_ART[picked] ?? CHARACTER_ART[0]}
         {@const n = CHARACTER_ART.indexOf(c)}
-        {@const a = byPath.get(pathOf(c.sheet))}
+        {@const files = c.sheets.map((s) => byPath.get(pathOf(s)))}
         {@const k = artScale(c.atlas)}
-        {@const sheet = sheets[url(pathOf(c.sheet))]}
+        {@const pages = sheetsOf(c)}
         {@const an = c.atlas.animations[sel]}
         {@const frame = frameAtTime(c.atlas, sel, now)}
         <div class="gs-sys-split">
@@ -387,7 +392,7 @@
               <button class="gs-sys-pick" class:selected={i === n} type="button" aria-current={i === n} onclick={() => (picked = i)}>
                 <Swatch n={i} size={28} />
                 <span class="gs-sys-pick-name">{displayName(o)}</span>
-                {#if byPath.get(pathOf(o.sheet))?.overridden}<span class="ss-badge caution">trocado</span>{/if}
+                {#if o.sheets.some((s) => byPath.get(pathOf(s))?.overridden)}<span class="ss-badge caution">trocado</span>{/if}
                 <span class="gs-sys-pick-n">{String(i + 1).padStart(2, '0')}</span>
               </button>
             {/each}
@@ -397,7 +402,7 @@
             <div class="head gs-sys-row">
               <h2 class="gs-sys-h">{displayName(c)} <span class="gs-sys-muted">personagem {n + 1} · {sizeOf(c.atlas)}× um adulto</span></h2>
               <span class="gs-sys-grow"></span>
-              {@render facts(a)}
+              {#if files.some((f) => f?.overridden)}<span class="ss-badge caution">trocado</span>{/if}
             </div>
 
             <!-- o palco: a animação escolhida, grande, em cima da beirada do telhado -->
@@ -407,7 +412,7 @@
                 <span class="gs-sys-figures">{an.frames} quadros · {String(Math.round(an.fps * 10) / 10).replace('.', ',')} fps · {(lengthOf(c.atlas, sel) / 1000).toFixed(2).replace('.', ',')} s · {an.loop ? 'em loop' : 'uma vez'}</span>
               </div>
               <div class="gs-sys-stage-floor">
-                <Anim {sheet} atlas={c.atlas} name={sel} {now} k={scaleFor(c.atlas, STAGE_TALL)} {guides} {flip} />
+                <Anim sheets={pages} atlas={c.atlas} name={sel} {now} k={scaleFor(c.atlas, STAGE_TALL)} {guides} {flip} />
               </div>
               <div class="gs-sys-stage-ledge"><Ledge w={320} scale={4} /></div>
             </div>
@@ -430,7 +435,7 @@
               {#each ANIMS as name (name)}
                 {@const t = c.atlas.animations[name]}
                 <button class="gs-sys-tile" class:selected={name === sel} type="button" role="tab" aria-selected={name === sel} onclick={() => { sel = name; if (paused) now = 0.01; }}>
-                  <span class="gs-sys-tile-art"><Anim {sheet} atlas={c.atlas} {name} {now} k={scaleFor(c.atlas, TILE_TALL)} {flip} /></span>
+                  <span class="gs-sys-tile-art"><Anim sheets={pages} atlas={c.atlas} {name} {now} k={scaleFor(c.atlas, TILE_TALL)} {flip} /></span>
                   <span class="gs-sys-tile-name">{name === 'shove' ? 'shove' : name}</span>
                   <span class="gs-sys-tile-meta">{t.frames} · {String(Math.round(t.fps * 10) / 10).replace('.', ',')} fps</span>
                 </button>
@@ -461,8 +466,18 @@
                 {#if c.atlas.credit}<span class="ss-badge info">crédito: {c.atlas.credit}</span>{/if}
                 <span class="gs-sys-grow"></span>
                 <button class="ss-btn ghost" type="button" onclick={() => downloadAtlas(c.model, c.atlas)}>Baixar atlas</button>
-                {#if a}{@render actions(a)}{/if}
               </div>
+              <!-- uma folha por página do atlas: o parado numa linha, e as outras animações em grade (o atlas diz onde) -->
+              {#each files as f, p (p)}
+                {#if f}
+                  <div class="gs-sys-row">
+                    <span class="gs-sys-muted">Folha: {pageName(c.atlas, p)}</span>
+                    {@render facts(f)}
+                    <span class="gs-sys-grow"></span>
+                    {@render actions(f)}
+                  </div>
+                {/if}
+              {/each}
             </div>
           </section>
         </div>

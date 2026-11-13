@@ -364,7 +364,8 @@ function apply(g: GameState, actor: string, moderator: boolean, action: GameActi
     case 'vote': {
       if (g.phase !== 'playing') return 'wrongPhase';
       const vote = g.vote;
-      if (!vote || !vote.voters.includes(actor) || actor in vote.ballots) return 'invalid';
+      // dá para mudar o voto enquanto a votação está aberta (ADR 0008, emenda); o mesmo voto de novo não muda nada
+      if (!vote || !vote.voters.includes(actor)) return 'invalid';
       vote.ballots[actor] = action.yes;
       return null;
     }
@@ -429,9 +430,10 @@ function apply(g: GameState, actor: string, moderator: boolean, action: GameActi
     case 'playAgain': {
       if (!moderator) return 'notModerator';
       if (g.phase !== 'ended') return 'wrongPhase';
+      // quem está desconectado fica de fora (fantasma): não escreve nem espera post-it até voltar (`settle` o põe de volta)
       const late = Object.keys(g.characters).filter((id) => !g.order.includes(id) && !g.onlyModerate.includes(id));
       g.phase = 'lobby';
-      g.order = [...g.order, ...late];
+      g.order = [...g.order, ...late].filter((id) => ctx.online.has(id));
       g.customAuthors = false;
       g.authors = circle(g.order);
       g.postits = {};
@@ -578,10 +580,20 @@ function isPermutation(candidate: readonly string[], of: readonly string[]): boo
  *   jogando: todas acertaram ou desistiram. Sem nenhuma pessoa conectada que não seja falsa, não acaba (a sala espera).
  * A próxima vez é da próxima pessoa em `order` depois da dona atual, conectada, sem ter acertado nem desistido, e não
  * jogador falso; dá a volta. Começa com `turnMs` e o relógio correndo (a menos que o moderador tenha pausado).
+ * - no lobby, quem está conectado e ficou de fora da ordem sem ter escolhido só moderar (desconectado no "jogar de
+ *   novo") volta para o fim dela, como quem acaba de entrar.
  */
 export function settle(g: GameState, ctx: Ctx): { game: GameState; events: GameEvent[] } {
   const next = structuredClone(g);
   const events: GameEvent[] = [];
+  if (next.phase === 'lobby') {
+    const back = Object.keys(next.characters).filter((id) => ctx.online.has(id) && !next.order.includes(id) && !next.onlyModerate.includes(id));
+    if (back.length) {
+      next.order.push(...back);
+      next.customAuthors = false;
+      fixAuthors(next, events);
+    }
+  }
   // cada passo muda alguma coisa ou nada; repete até nada mudar (com folga contra um laço sem fim)
   for (let i = 0; i < 100 && next.phase === 'playing' && settleOnce(next, ctx, events); i++);
   return { game: next, events };

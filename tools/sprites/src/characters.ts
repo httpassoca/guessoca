@@ -3,7 +3,7 @@
  * hoje só o loiro), o esqueleto (uma por capa em `CAPES`, hoje só a vermelha) e os de sete folhas, na ordem de `PACKS`
  * (`packs.ts`). `index.ts` grava a lista em `apps/web/src/lib/sprites/characters.json`, que o cliente
  * (`apps/web/src/lib/sprites/characters.ts`) lê para achar a folha, o atlas e a cor de cada um; e grava cada folha em
- * `apps/web/public/sprites/char-N.<formato>` no lugar `N`.
+ * `apps/web/public/sprites/char-N-idle.<formato>` e `char-N-moves.<formato>` (`sheetFiles`) no lugar `N`.
  *
  * Como mudar:
  * - **Mais um personagem de sete folhas**: uma entrada em `PACKS` (`packs.ts`) e mais um em `CHARACTERS`
@@ -33,18 +33,34 @@ export interface CharacterEntry {
   name: string;
   /** a cor do personagem na interface, `#rrggbb` */
   color: string;
-  /** a folha, servida do `public`: `/sprites/char-N.png` (ou `.webp`, conforme `sheetFormat`) */
-  sheet: string;
+  /**
+   * as folhas (as páginas do atlas, `paginate` em `atlas.ts`), servidas do `public`: `/sprites/char-N-idle.png` (o
+   * parado) e `/sprites/char-N-moves.png` (o resto; `-moves-2`, `-moves-3`… se não couber numa), ou `.webp`, conforme
+   * `sheetFormat`
+   */
+  sheets: string[];
   /** o atlas do modelo: a chave em `atlases.json` */
   atlas: Model;
 }
 
-/** A lista, na ordem dos lugares: o herói, o esqueleto e os de sete folhas. */
-export function characters(): CharacterEntry[] {
+/**
+ * Os endereços das `pages` folhas do personagem `n`: a página 0 é o parado (`char-N-idle`), as outras o resto
+ * (`char-N-moves`, `char-N-moves-2`…). Nomes novos, e não os `char-N` de antes: uma troca antiga feita no `/sistema`
+ * (ADR 0009), com o desenho de uma folha só, não tem como cair por cima de uma página.
+ */
+export function sheetFiles(n: number, model: Model, pages: number): string[] {
+  return Array.from({ length: pages }, (_, p) => `/sprites/char-${n}-${p === 0 ? 'idle' : p === 1 ? 'moves' : `moves-${p}`}.${sheetFormat(model)}`);
+}
+
+/**
+ * A lista, na ordem dos lugares: o herói, o esqueleto e os de sete folhas. `pagesOf(model)` diz em quantas folhas o
+ * atlas daquele modelo foi cortado (o padrão, 2: o parado e o resto).
+ */
+export function characters(pagesOf: (model: Model) => number = () => 2): CharacterEntry[] {
   const list: Pick<CharacterEntry, 'model' | 'name' | 'color'>[] = [
     ...HAIRS.map((h) => ({ model: 'hero', name: h.name, color: `#${h.ramp[1]}` })),
     ...CAPES.map((c) => ({ model: 'skeleton', name: c.name, color: `#${c.ramp[1]}` })),
     ...PACKS.map((p) => ({ model: p.model, name: p.name, color: `#${p.color}` })),
   ];
-  return list.map((c, n) => ({ ...c, sheet: `/sprites/char-${n}.${sheetFormat(c.model)}`, atlas: c.model }));
+  return list.map((c, n) => ({ ...c, sheets: sheetFiles(n, c.model, pagesOf(c.model)), atlas: c.model }));
 }

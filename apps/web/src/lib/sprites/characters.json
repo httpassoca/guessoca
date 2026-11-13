@@ -3,210 +3,300 @@
     "model": "hero",
     "name": "loiro",
     "color": "#d9a441",
-    "sheet": "/sprites/char-0.png",
+    "sheets": [
+      "/sprites/char-0-idle.png",
+      "/sprites/char-0-moves.png"
+    ],
     "atlas": "hero"
   },
   {
     "model": "skeleton",
     "name": "vermelho",
     "color": "#982b2b",
-    "sheet": "/sprites/char-1.png",
+    "sheets": [
+      "/sprites/char-1-idle.png",
+      "/sprites/char-1-moves.png"
+    ],
     "atlas": "skeleton"
   },
   {
     "model": "kratos",
     "name": "kratos",
     "color": "#cdbfb4",
-    "sheet": "/sprites/char-2.webp",
+    "sheets": [
+      "/sprites/char-2-idle.webp",
+      "/sprites/char-2-moves.webp"
+    ],
     "atlas": "kratos"
   },
   {
     "model": "vorcaro",
     "name": "vorcaro",
     "color": "#6f8fc0",
-    "sheet": "/sprites/char-3.webp",
+    "sheets": [
+      "/sprites/char-3-idle.webp",
+      "/sprites/char-3-moves.webp"
+    ],
     "atlas": "vorcaro"
   },
   {
     "model": "orelha",
     "name": "orelha",
     "color": "#c57a3a",
-    "sheet": "/sprites/char-4.webp",
+    "sheets": [
+      "/sprites/char-4-idle.webp",
+      "/sprites/char-4-moves.webp"
+    ],
     "atlas": "orelha"
   },
   {
     "model": "bolsonaro",
     "name": "bolsonaro",
     "color": "#3f9b4a",
-    "sheet": "/sprites/char-5.webp",
+    "sheets": [
+      "/sprites/char-5-idle.webp",
+      "/sprites/char-5-moves.webp"
+    ],
     "atlas": "bolsonaro"
   },
   {
     "model": "knight",
     "name": "cavaleiro",
     "color": "#dfe3ee",
-    "sheet": "/sprites/char-6.webp",
+    "sheets": [
+      "/sprites/char-6-idle.webp",
+      "/sprites/char-6-moves.webp"
+    ],
     "atlas": "knight"
   },
   {
     "model": "oldsnake",
     "name": "old snake",
     "color": "#656a7c",
-    "sheet": "/sprites/char-7.webp",
+    "sheets": [
+      "/sprites/char-7-idle.webp",
+      "/sprites/char-7-moves.webp"
+    ],
     "atlas": "oldsnake"
   },
   {
     "model": "pinocchio",
     "name": "pinóquio",
     "color": "#5b4b8a",
-    "sheet": "/sprites/char-8.webp",
+    "sheets": [
+      "/sprites/char-8-idle.webp",
+      "/sprites/char-8-moves.webp"
+    ],
     "atlas": "pinocchio"
   },
   {
     "model": "eve",
     "name": "eve",
     "color": "#2bb8a3",
-    "sheet": "/sprites/char-9.webp",
+    "sheets": [
+      "/sprites/char-9-idle.webp",
+      "/sprites/char-9-moves.webp"
+    ],
     "atlas": "eve"
   },
   {
     "model": "katarina",
     "name": "katarina",
     "color": "#e0364f",
-    "sheet": "/sprites/char-10.webp",
+    "sheets": [
+      "/sprites/char-10-idle.webp",
+      "/sprites/char-10-moves.webp"
+    ],
     "atlas": "katarina"
   },
   {
     "model": "punisher",
     "name": "justiceiro",
     "color": "#9aa0aa",
-    "sheet": "/sprites/char-11.webp",
+    "sheets": [
+      "/sprites/char-11-idle.webp",
+      "/sprites/char-11-moves.webp"
+    ],
     "atlas": "punisher"
   },
   {
     "model": "mista",
     "name": "mista",
     "color": "#2f8fd0",
-    "sheet": "/sprites/char-12.webp",
+    "sheets": [
+      "/sprites/char-12-idle.webp",
+      "/sprites/char-12-moves.webp"
+    ],
     "atlas": "mista"
   },
   {
     "model": "starplatinum",
     "name": "star platinum",
     "color": "#8f5fd6",
-    "sheet": "/sprites/char-13.webp",
+    "sheets": [
+      "/sprites/char-13-idle.webp",
+      "/sprites/char-13-moves.webp"
+    ],
     "atlas": "starplatinum"
   },
   {
     "model": "josuke",
     "name": "josuke",
     "color": "#3b4a9e",
-    "sheet": "/sprites/char-14.webp",
+    "sheets": [
+      "/sprites/char-14-idle.webp",
+      "/sprites/char-14-moves.webp"
+    ],
     "atlas": "josuke"
   },
   {
     "model": "joker",
     "name": "joker",
     "color": "#d8243c",
-    "sheet": "/sprites/char-15.webp",
+    "sheets": [
+      "/sprites/char-15-idle.webp",
+      "/sprites/char-15-moves.webp"
+    ],
     "atlas": "joker"
   },
   {
     "model": "giorno",
     "name": "giorno",
     "color": "#e86aa6",
-    "sheet": "/sprites/char-16.webp",
+    "sheets": [
+      "/sprites/char-16-idle.webp",
+      "/sprites/char-16-moves.webp"
+    ],
     "atlas": "giorno"
   },
   {
     "model": "zed",
     "name": "zed",
     "color": "#b0343a",
-    "sheet": "/sprites/char-17.webp",
+    "sheets": [
+      "/sprites/char-17-idle.webp",
+      "/sprites/char-17-moves.webp"
+    ],
     "atlas": "zed"
   },
   {
     "model": "acolito",
     "name": "acólito",
     "color": "#d9d2c4",
-    "sheet": "/sprites/char-18.webp",
+    "sheets": [
+      "/sprites/char-18-idle.webp",
+      "/sprites/char-18-moves.webp"
+    ],
     "atlas": "acolito"
   },
   {
     "model": "guimas",
     "name": "guimas",
     "color": "#4a4a55",
-    "sheet": "/sprites/char-19.webp",
+    "sheets": [
+      "/sprites/char-19-idle.webp",
+      "/sprites/char-19-moves.webp"
+    ],
     "atlas": "guimas"
   },
   {
     "model": "jotaro",
     "name": "jotaro",
     "color": "#5a3fc0",
-    "sheet": "/sprites/char-20.webp",
+    "sheets": [
+      "/sprites/char-20-idle.webp",
+      "/sprites/char-20-moves.webp"
+    ],
     "atlas": "jotaro"
   },
   {
     "model": "miku",
     "name": "miku",
     "color": "#28cbd0",
-    "sheet": "/sprites/char-21.webp",
+    "sheets": [
+      "/sprites/char-21-idle.webp",
+      "/sprites/char-21-moves.webp"
+    ],
     "atlas": "miku"
   },
   {
     "model": "galodoido",
     "name": "galo doido",
     "color": "#e2b93b",
-    "sheet": "/sprites/char-22.webp",
+    "sheets": [
+      "/sprites/char-22-idle.webp",
+      "/sprites/char-22-moves.webp"
+    ],
     "atlas": "galodoido"
   },
   {
     "model": "jepstein",
     "name": "peffrey jepstein",
     "color": "#4f79b8",
-    "sheet": "/sprites/char-23.webp",
+    "sheets": [
+      "/sprites/char-23-idle.webp",
+      "/sprites/char-23-moves.webp"
+    ],
     "atlas": "jepstein"
   },
   {
     "model": "spikespiegel",
     "name": "spike spiegel",
     "color": "#3f8f6b",
-    "sheet": "/sprites/char-24.webp",
+    "sheets": [
+      "/sprites/char-24-idle.webp",
+      "/sprites/char-24-moves.webp"
+    ],
     "atlas": "spikespiegel"
   },
   {
     "model": "daftpunk",
     "name": "daft punk",
     "color": "#c9a227",
-    "sheet": "/sprites/char-25.webp",
+    "sheets": [
+      "/sprites/char-25-idle.webp",
+      "/sprites/char-25-moves.webp"
+    ],
     "atlas": "daftpunk"
   },
   {
     "model": "vaultboy",
     "name": "vault boy",
     "color": "#ee8f2b",
-    "sheet": "/sprites/char-26.webp",
+    "sheets": [
+      "/sprites/char-26-idle.webp",
+      "/sprites/char-26-moves.webp"
+    ],
     "atlas": "vaultboy"
   },
   {
     "model": "sekiro",
     "name": "sekiro",
     "color": "#8c4a2f",
-    "sheet": "/sprites/char-27.webp",
+    "sheets": [
+      "/sprites/char-27-idle.webp",
+      "/sprites/char-27-moves.webp"
+    ],
     "atlas": "sekiro"
   },
   {
     "model": "sanji",
     "name": "sanji",
     "color": "#e8c21a",
-    "sheet": "/sprites/char-28.webp",
+    "sheets": [
+      "/sprites/char-28-idle.webp",
+      "/sprites/char-28-moves.webp"
+    ],
     "atlas": "sanji"
   },
   {
     "model": "bladerunner",
     "name": "blade runner",
     "color": "#8aa0b4",
-    "sheet": "/sprites/char-29.webp",
+    "sheets": [
+      "/sprites/char-29-idle.webp",
+      "/sprites/char-29-moves.webp"
+    ],
     "atlas": "bladerunner"
   }
 ]

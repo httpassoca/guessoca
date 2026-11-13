@@ -11,7 +11,7 @@ O lugar onde uma turma se reúne para jogar. Qualquer pessoa cria uma sala e ent
 _Evitar_: lobby, partida, servidor, mesa
 
 **Turma** (`members`):
-As pessoas numa sala, de 2 até o limite escolhido (no máximo 8), conectadas ou não. Quem cai continua na turma até a sala morrer e volta com o mesmo token. "Jogar de novo com a mesma turma" leva todo mundo de volta ao lobby.
+As pessoas numa sala, de 2 até o limite escolhido (no máximo 8), conectadas ou não. Quem cai (ou fecha a aba, ou sai pelo menu) continua na turma até a sala morrer e volta ao mesmo lugar abrindo o link da sala no mesmo navegador: o token é por sala e por navegador, e duas abas na mesma sala são a mesma pessoa (a nova assume). De outro navegador é outra pessoa; não há "sou eu" para tomar um lugar. "Jogar de novo com a mesma turma" leva todo mundo de volta ao lobby; quem está desconectado nessa hora fica de fora, como fantasma, e volta para o fim da ordem se reaparecer ainda no lobby.
 _Evitar_: grupo, time, jogadores, party
 
 **Apelido** (`nickname`):
@@ -19,7 +19,7 @@ O nome que uma pessoa escolhe ao entrar na sala. Não há conta nem cadastro.
 _Evitar_: usuário, login, conta
 
 **Moderador** (`moderator`):
-Quem criou a sala; se sai, a pessoa mais antiga da sala assume. Pode tudo, a qualquer momento: marcar alguém como acertou ou não (passa por cima da votação e desfaz uma revelação), pular uma vez, pausar o relógio, reordenar a turma, expulsar, passar o papel de moderador e encerrar o jogo. Joga normalmente ou escolhe só moderar, como fantasma.
+Quem criou a sala; se sai, a pessoa mais antiga da sala assume, e quem recebe o papel (assim ou passado) é avisado. Pode tudo, a qualquer momento: marcar alguém como acertou ou não (passa por cima da votação e desfaz uma revelação), pular uma vez, pausar o relógio, reordenar a turma, expulsar (para sempre: quem foi expulso não volta àquela sala), passar o papel de moderador e encerrar o jogo. Joga normalmente ou escolhe só moderar, como fantasma.
 _Evitar_: host, admin, dono da sala, mestre
 
 **Fantasma** (`ghost`):
