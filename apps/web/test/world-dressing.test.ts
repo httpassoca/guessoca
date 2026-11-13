@@ -82,6 +82,72 @@ describe('os enfeites', () => {
   });
 });
 
+describe('a tralha dos telhados dos lados (issue #70)', () => {
+  const sides = DECOR.filter((d) => d.roof !== 1);
+  const CLUTTER = ['chair', 'plant', 'skylight', 'pipes', 'dish', 'cardboard', 'laundry-0', 'bowl'];
+
+  test('os dois telhados dos lados ganham tralha, e o do meio não', () => {
+    for (const roof of [0, 2]) expect(DECOR.filter((d) => d.roof === roof && CLUTTER.includes(d.frame)).length).toBeGreaterThanOrEqual(3);
+    expect(DECOR.filter((d) => d.roof === 1 && CLUTTER.includes(d.frame))).toHaveLength(0);
+    for (const name of CLUTTER) expect(sides.some((d) => d.frame === name)).toBe(true);
+  });
+
+  test('perto do ar-condicionado e da chaminé fica livre (só a tigela do gato)', () => {
+    const boxes = MAP.filter((p) => p.kind === 'box' && p.x0 < 500);
+    for (const d of DECOR.filter((x) => CLUTTER.includes(x.frame) && x.frame !== 'bowl')) {
+      const f = ROOFTOP.frames[d.frame];
+      const x0 = d.x - f.anchor.x, x1 = x0 + f.w;
+      for (const b of boxes) expect({ frame: d.frame, clear: x1 < b.x0 - 15 || x0 > b.x1 + 15 }).toEqual({ frame: d.frame, clear: true });
+    }
+    const bowl = DECOR.find((d) => d.frame === 'bowl')!;
+    const ac = MAP.find((p) => p.kind === 'box' && p.x0 === 120)!;
+    expect(Math.abs(bowl.x - ac.x1)).toBeLessThan(20);
+  });
+
+  test('o varal sai da torre e acaba antes da caixa-d\'água', () => {
+    const line = DECOR.find((d) => d.frame === 'laundry-0')!;
+    const mast = DECOR.find((d) => d.frame === 'mast' && d.roof === line.roof)!;
+    const tank = MAP.find((p) => p.kind === 'box' && p.x0 === 700)!;
+    expect(Math.abs(line.x - mast.x)).toBeLessThanOrEqual(4);
+    expect(line.x + ROOFTOP.frames['laundry-0'].w).toBeLessThanOrEqual(tank.x0 + 2);
+    expect(line.dy).toBeLessThan(ROOFTOP.frames.mast.h);
+    expect(ROOFTOP.frames['laundry-1'].w).toBe(ROOFTOP.frames['laundry-0'].w);
+  });
+
+  test('cada poça tem o reflexo do neon do mesmo tamanho', () => {
+    for (const d of DECOR.filter((x) => x.frame.startsWith('puddle-'))) {
+      const f = ROOFTOP.frames[d.frame], shine = ROOFTOP.frames[`${d.frame}-shine`];
+      expect(shine).toBeDefined();
+      expect([shine.w, shine.h]).toEqual([f.w, f.h]);
+    }
+  });
+});
+
+describe('as janelas e a cidade no atlas (issue #70)', () => {
+  test('cada fachada diz onde estão as janelas: o plano tem um andar por linha e uma baia por coluna', () => {
+    for (let i = 0; i < ROOFS.length; i++) {
+      const f = ROOFTOP.frames[facadeOf(i)];
+      const w = f.windows!;
+      expect(w.plan.length * w.floor).toBe(f.h);
+      expect(2 + w.plan[0].length * w.bay).toBe(f.w);
+      for (const row of w.plan) expect(row).toMatch(/^[dlbt.]+$/);
+      for (const k of ['d', 'l', 'b']) expect([ROOFTOP.frames[`win-${k}`].w, ROOFTOP.frames[`win-${k}`].h]).toEqual([w.w, w.h]);
+    }
+  });
+
+  test('as duas faixas da cidade têm umas janelas que piscam, dentro da faixa', () => {
+    for (const s of ROOFTOP.skylines) {
+      expect(s.twinkle.length).toBeGreaterThanOrEqual(6);
+      for (const t of s.twinkle) {
+        expect(t.x + t.w).toBeLessThanOrEqual(s.w);
+        expect(t.y + t.h).toBeLessThanOrEqual(s.h);
+        expect(t.on).toMatch(/^[0-9a-f]{6}$/);
+        expect(t.off).toMatch(/^[0-9a-f]{6}$/);
+      }
+    }
+  });
+});
+
 describe('o que pisca', () => {
   test('o neon falha de vez em quando, não o tempo todo', () => {
     const samples = Array.from({ length: 2000 }, (_, i) => neonFlicker(i * 37));

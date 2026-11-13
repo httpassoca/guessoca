@@ -4,6 +4,9 @@
  * vira o objeto do tamanho dela (ar-condicionado, chaminé, caixa-d'água); e os enfeites (antenas, letreiros de neon,
  * poças) ficam onde `dressing.ts` manda.
  *
+ * As janelas das fachadas acendem e apagam numa camada por cima delas (`windows.ts`, issue #70), e os letreiros BAR e
+ * 24H falham cada um do seu jeito (`ambient.ts`).
+ *
  * Ordem: `back` vai atrás dos corpos (as caixas vão até o fundo do telhado, então ninguém fica atrás delas: quem está na
  * frente cobre, e quem está em cima é desenhado depois, por cima); `front` (a mureta da frente) vai na frente dos
  * corpos, cobrindo os pés de quem encosta na beirada. Pixi; as contas são puras e testadas em `dressing.ts`.
@@ -24,7 +27,9 @@ import { MAP, project, type Camera, type Platform, type View } from '@guess/worl
 import { Container, Graphics, Sprite, Texture, TilingSprite } from 'pixi.js';
 import { ROOFTOP } from '../sprites/rooftop';
 import type { RooftopArt } from './art';
+import { barSign, sign24h } from './ambient';
 import { beaconOn, boxLooks, DECOR, decorAt, facadeOf, neonFlicker, ROOFS, roofRects, type BoxLook, type Decor } from './dressing';
+import { WindowLife } from './windows';
 
 /** a quina do prédio: o `k` da paleta do telhado (contorno, sombra funda) */
 const EDGE = 0x0c0a17;
@@ -40,7 +45,7 @@ interface DrawnDecor { d: Decor; sprite: Sprite }
 
 /** Os telhados, as caixas e os enfeites do `MAP`, em dois contêineres: atrás e na frente dos corpos. */
 export class Platforms {
-  /** enfeites de trás, tampos, muretas do fundo, fachadas, quinas, enfeites da fachada e do chão, caixas (nessa ordem) */
+  /** enfeites de trás, tampos, muretas do fundo, fachadas, quinas, janelas vivas, enfeites da fachada e do chão, caixas (nessa ordem) */
   readonly back = new Container();
   /** as muretas da frente */
   readonly front = new Container();
@@ -49,8 +54,10 @@ export class Platforms {
   private readonly boxes: { look: BoxLook; sprite: Sprite }[];
   private readonly edges = new Graphics();
   private readonly hotel: Texture[];
+  /** as janelas vivas e a luz da sirene, por cima das fachadas (`windows.ts`) */
+  private readonly windows: WindowLife;
 
-  constructor(art: RooftopArt) {
+  constructor(private readonly art: RooftopArt) {
     const tiling = (name: string) => new TilingSprite({ texture: art.tile(name) });
     const sprite = (name: string) => {
       const s = new Sprite(art.frame(name));
@@ -62,6 +69,7 @@ export class Platforms {
     this.roofs = ROOFS.map((roof, i) => ({ roof, top: tiling('roof-top'), ledge: tiling('ledge'), facade: tiling(facadeOf(i)), parapet: tiling('parapet') }));
     for (const d of DECOR) this.decor.push({ d, sprite: sprite(d.frame) });
     this.boxes = boxLooks(MAP).map((look) => ({ look, sprite: sprite(look.frame) }));
+    this.windows = new WindowLife(art);
 
     const layer = (ds: DrawnDecor[]) => ds.map((x) => x.sprite);
     const of = (l: Decor['layer']) => layer(this.decor.filter((x) => x.d.layer === l));
@@ -69,6 +77,7 @@ export class Platforms {
       ...of('back'),
       ...this.roofs.flatMap((r) => [r.top, r.ledge, r.facade]),
       this.edges,
+      this.windows,
       ...of('facade'),
       ...of('floor'),
       ...this.boxes.map((b) => b.sprite),
@@ -110,7 +119,12 @@ export class Platforms {
       // cada luz de torre pisca fora de fase com as outras: o x dela desloca o relógio (7 ms por unidade, no olho)
       if (d.frame === 'beacon') sprite.visible &&= beaconOn(now + d.x * 7);
       if (d.frame === 'sign-hotel') sprite.texture = this.hotel[flicker ? 1 : 0];
+      // o BAR zumbe, o 24H apaga inteiro de vez em quando, o varal balança (issue #70, `ambient.ts`)
+      else if (d.frame === 'sign-bar') sprite.texture = this.art.frame(barSign(now));
+      else if (d.frame === 'sign-24h') sprite.texture = this.art.frame(sign24h(now));
+      else if (d.frame === 'laundry-0') sprite.texture = this.art.frame(Math.floor(now / 900) % 3 === 0 ? 'laundry-1' : 'laundry-0');
     }
+    this.windows.update(cam, view, now);
     for (const { look, sprite } of this.boxes) {
       const at = look.place(cam, view);
       sprite.scale.set(s);

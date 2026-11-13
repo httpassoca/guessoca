@@ -13,7 +13,8 @@
  *
  * Camadas, de trás para a frente, dentro de `world`:
  *
- *     scenery [ backdrop, platforms.back ]   ← bloom (`film.scenery`)
+ *     scenery [ backdrop, platforms.back,    ← bloom (`film.scenery`)
+ *               rooflife ]                    respingos, poças, gotas, hélice, vapor (`rooflife.ts`)
  *     shadows                                 elipses no chão
  *     bodies                                  um sprite por corpo, ordenado por profundidade
  *     platforms.front                         a mureta da frente, cobre os pés na beirada
@@ -44,6 +45,7 @@ import { Celebration } from './celebration';
 import { Film } from './film';
 import { lobbyMatrix, moodStep } from './mood';
 import { Platforms } from './platforms';
+import { RoofLife } from './rooflife';
 import { emoteAnchor } from './view';
 import { Weather } from './weather';
 
@@ -101,6 +103,8 @@ export class Scene {
   private readonly scenery = new Container();
   private backdrop: Backdrop | null = null;
   private platforms: Platforms | null = null;
+  /** a chuva que encosta e os objetos que mexem (`rooflife.ts`, issue #70) */
+  private roofLife: RoofLife | null = null;
   private weather: Weather | null = null;
   private readonly film = new Film();
   private effects = effectsOn();
@@ -197,7 +201,8 @@ export class Scene {
     this.backdrop = new Backdrop(art);
     this.platforms = new Platforms(art);
     this.weather = new Weather(art);
-    this.scenery.addChild(this.backdrop, this.platforms.back);
+    this.roofLife = new RoofLife(art);
+    this.scenery.addChild(this.backdrop, this.platforms.back, this.roofLife);
     this.world.addChild(this.scenery, this.shadows, this.bodies, this.platforms.front, this.balloons, this.celebration, this.weather);
     this.applyEffects();
   }
@@ -212,8 +217,10 @@ export class Scene {
    */
   render(list: readonly SceneBody[], cam: Camera, view: View, now: number, lang: Lang) {
     const s = view.scale;
+    if (this.backdrop) this.backdrop.life.lobby = this.moodTarget === 1;
     this.backdrop?.update(cam, view, now);
     this.platforms?.update(cam, view, now);
+    this.roofLife?.update(list, cam, view, now);
     this.weather?.update(cam, view, now);
     if (this.effects) this.film.tick(now);
     this.stepMood(now);

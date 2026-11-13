@@ -127,7 +127,15 @@ html, body { margin: 0; min-height: 100%; background: var(--ss-bg); }
 .gs-gone .title { color: var(--ss-fg); font-size: var(--ss-size-h3); }
 
 /* o momento do pré-lobby: o personagem escolhido, grande, numa faixa de telhado */
-.gs-stage { width: 336px; flex: none; display: flex; flex-direction: column; align-items: center; }
+.gs-stage { position: relative; width: 336px; flex: none; display: flex; flex-direction: column; align-items: center; }
+/* atrás do personagem, discreto (issue #70): um pedaço da fachada do hotel sumindo no escuro, com as janelas vivas, e chuva fina */
+.gs-stage-facade { position: absolute; top: 56px; left: 50%; translate: -50% 0; image-rendering: pixelated; opacity: 0.55; pointer-events: none;
+  -webkit-mask-image: radial-gradient(closest-side, #000 45%, transparent); mask-image: radial-gradient(closest-side, #000 45%, transparent); }
+.gs-stage-rain { position: absolute; inset: 0 24px 40px; overflow: hidden; pointer-events: none;
+  -webkit-mask-image: linear-gradient(to bottom, transparent, #000 25%, #000 80%, transparent); mask-image: linear-gradient(to bottom, transparent, #000 25%, #000 80%, transparent); }
+.gs-stage-rain span { position: absolute; top: -24px; width: 1px; height: 16px; background: rgb(185 178 255 / 0.32); rotate: 12deg; animation: gs-stage-rain 1s linear infinite; }
+@keyframes gs-stage-rain { to { transform: translate(-80px, 380px); } }
+@media (prefers-reduced-motion: reduce) { .gs-stage-rain { display: none; } }
 /* a altura não muda (cabe o personagem mais alto, 70 unidades a 4 pixels, e o apelido): o chão fica parado e o personagem cresce de baixo para cima */
 .gs-stage-hero { position: relative; z-index: 1; height: 320px; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 12px; margin-bottom: -28px; }
 .gs-stage-tag { position: relative; z-index: 1; max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 0 8px; background: rgb(0 0 0 / 0.6);
