@@ -55,3 +55,19 @@ export function canSend(lastSent: number | null, now: number): boolean {
 export function snapShift(width: number): number {
   return width / 2 - Math.floor(width / 2);
 }
+
+/**
+ * O tamanho nativo da VT323, a fonte dos balões, px: ela é desenhada numa grade de 40 unidades por pixel em 1000 por
+ * eme, então a 25 px cada pixel dela é um pixel da tela (maiúscula de 14, x de 10, avanço de 10; acento até 20 acima
+ * da linha de base, perna até 4 abaixo). Fora de um múltiplo de 25 os pixels dela ficam desiguais e borram.
+ */
+export const CHAT_FONT_EM = 25;
+
+/**
+ * O tamanho da fonte do balão, px, na escala `scale` do telhado (`--gs-chat-px`): o múltiplo de `CHAT_FONT_EM` mais
+ * perto de um terço da escala, no mínimo 1. A grade da VT323 é bem mais fina que a do mundo, então o pixel dela não
+ * acompanha o do balão: a 1080p (escala 3) sai nativa, com a maiúscula de 14 px; de 5 para cima, dobra.
+ */
+export function chatFontPx(scale: number): number {
+  return CHAT_FONT_EM * Math.max(1, Math.round(scale / 3));
+}
