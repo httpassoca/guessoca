@@ -1,4 +1,4 @@
-import { CLOSE_KICKED, imageUrl, type BotView, type ClientMessage, type PlayerStats, type PostitView, type RoomError, type RoomInit, type RoomSnapshot, type ServerMessage, type StatName } from '@guess/protocol';
+import { CLOSE_KICKED, imageUrl, type BotView, type ClientMessage, type PlayerStats, type PostitView, type RoomError, type RoomInit, type RoomSnapshot, type ServerMessage } from '@guess/protocol';
 import {
   act, addMember, createGame, MAX_MEMBERS, nextDeadline, removeMember, revealed, settle, turnLeft, uniqueNickname,
   type Ctx, type GameAction, type GameEvent, type GameState,
@@ -62,7 +62,10 @@ export interface RoomState {
   funnyBots: boolean;
   /** os bots no telhado agora, como o adaptador informou (`bots`); vazio fora do jogo */
   bots: BotView[];
-  /** pessoa → o que fez no telhado neste jogo (ou no que acabou), como o adaptador contou (`stats`); zera quando um jogo começa */
+  /**
+   * pessoa → o que fez no telhado neste jogo (ou no que acabou). O adaptador conta por fora e escreve aqui antes de cada
+   * passo com o jogo rodando (issue #72); a sala só zera quando um jogo começa e tira quem é expulso
+   */
   stats: Record<string, PlayerStats>;
   game: GameState;
 }
@@ -76,10 +79,10 @@ export type RoomInput =
   /** o adaptador simula os bots (ADR 0005) e avisa quando a lista de quem está no telhado muda; não é atividade */
   | { kind: 'bots'; bots: BotView[] }
   /**
-   * o adaptador vê as quedas e os empurrões passarem (ADR 0005) e conta um a um; só vale com o jogo rodando, não é
-   * atividade e não manda snapshot: os números só aparecem no fim
+   * o adaptador viu alguém (`token`) no telhado: com o jogo rodando, é atividade (emenda do ADR 0005, issue #72); não
+   * manda snapshot. O adaptador avisa no máximo uma vez por minuto
    */
-  | { kind: 'stats'; add: { member: string; stat: StatName }[] };
+  | { kind: 'alive'; token: string };
 
 /** Uma mensagem para um token, ou a ordem de fechar o socket dele com este código. */
 export type Outgoing = { to: string; message: ServerMessage } | { to: string; close: number };
@@ -141,6 +144,7 @@ export function step(state: RoomState, input: RoomInput, now: number, opts: Step
 
   const before = fingerprint(s);
   const wasPlaying = s.game.phase === 'playing';
+  const progressBefore = progress(s.game);
   const member = (token: string) => s.members.find((m) => m.token === token);
   const byId = (id: string) => s.members.find((m) => m.id === id);
   const ctx = (): Ctx => ({ now, rng, online: onlineIds(s), fakes: new Set(s.members.filter((m) => m.fake).map((m) => m.id)) });
@@ -288,12 +292,8 @@ export function step(state: RoomState, input: RoomInput, now: number, opts: Step
       s.bots = input.bots.map((b) => ({ id: b.id, character: b.character, ...(b.scale !== undefined ? { scale: b.scale } : {}) }));
       break;
     }
-    case 'stats': {
-      if (s.game.phase !== 'playing') break;
-      for (const { member: id, stat } of input.add) {
-        if (!byId(id)) continue;
-        (s.stats[id] ??= { falls: 0, shoves: 0, shovedByPlayers: 0, shovedByBots: 0 })[stat]++;
-      }
+    case 'alive': {
+      if (s.game.phase === 'playing' && member(input.token)) touch();
       break;
     }
   }
@@ -304,6 +304,9 @@ export function step(state: RoomState, input: RoomInput, now: number, opts: Step
   events.push(...settled.events);
   writeForFakes(s, ctx(), rng, events);
   succeedModerator(s, now, events, ctx());
+  // o jogo andou (a vez mudou, uma votação abriu ou fechou, alguém acertou ou desistiu), mesmo sem ninguém pedir nada (o
+  // tempo da vez acabou): é atividade, e uma turma que joga não perde a sala no meio (issue #72)
+  if (progress(s.game) !== progressBefore) touch();
   // os bots só existem com o jogo rodando: quando ele acaba (ou volta ao lobby), somem na hora
   if (s.game.phase !== 'playing' && s.bots.length) s.bots = [];
   // um jogo novo conta do zero; os números do que acabou ficam até lá
@@ -321,6 +324,11 @@ export function step(state: RoomState, input: RoomInput, now: number, opts: Step
 /** O que todo mundo vê da sala; se não mudou, ninguém recebe snapshot novo. */
 function fingerprint(s: RoomState): string {
   return JSON.stringify([s.members.map((m) => [m.id, m.nickname, m.connected]), s.moderator, s.maxPlayers, s.funnyBots, s.bots, s.game]);
+}
+
+/** O andamento do jogo: de quem é a vez, quantas vezes cada um teve, a votação aberta, quem acertou e quem desistiu. */
+function progress(g: GameState): string {
+  return JSON.stringify([g.phase, g.turn?.owner ?? null, g.turns, g.vote?.claimer ?? null, g.got, g.gaveUp]);
 }
 
 /** Quem está online para o jogo: membros conectados, falsos inclusive. */

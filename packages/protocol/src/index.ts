@@ -6,9 +6,14 @@
 import { CHARACTERS, MAX_MEMBERS, MIN_PLAYERS, NICKNAME_MAX, POSTIT_MAX, TURN_MAX, TURN_MIN, TURN_STEP, type Phase } from '@guess/rules';
 import type { Anim } from '@guess/world';
 
-/** O cliente manda `ping` neste intervalo; o servidor derruba quem fica o dobro em silêncio (e o cliente derruba um socket que não responde nada por um intervalo inteiro). */
+/**
+ * O cliente manda `ping` neste intervalo (e o cliente derruba um socket que não responde nada por um intervalo inteiro).
+ * O servidor só derruba quem fica `SOCKET_IDLE_TIMEOUT` em silêncio: bem mais que o dobro, porque o Chrome segura os
+ * timers de uma aba escondida há mais de 5 minutos a um por minuto (o cliente pinga de um Worker, mas um navegador sem
+ * Worker, ou um cliente de antes dele, ainda cai nesse ritmo).
+ */
 export const PING_INTERVAL = 15_000;
-export const SOCKET_IDLE_TIMEOUT = 30_000;
+export const SOCKET_IDLE_TIMEOUT = 90_000;
 
 /**
  * Presença (ADR 0005): cada aba manda o próprio personagem no máximo uma vez por este intervalo (~15 por segundo), e o
@@ -87,9 +92,16 @@ export const CLOSE_ROOM_NOT_FOUND = 4404;
 export const CLOSE_ROOM_ENDED = 4410;
 export const CLOSE_REPLACED = 4409;
 export const CLOSE_KICKED = 4403;
+/** Mensagens (ou conexões) demais: o servidor fechou para se proteger; reconectar na hora só repetiria. */
+export const CLOSE_TOO_MANY = 4429;
 
-/** Uma mensagem de texto do cliente não passa disto. */
-const MESSAGE_MAX = 4096;
+/** Uma mensagem de texto do cliente não passa disto (unidades de UTF-16). */
+export const MESSAGE_MAX = 4096;
+/**
+ * O maior quadro que o servidor aceita no socket, em bytes: `MESSAGE_MAX` unidades de UTF-16 dão no máximo 3 bytes cada
+ * em UTF-8. Imagens não passam pelo socket (sobem por HTTP); acima disso o Bun fecha a conexão.
+ */
+export const SOCKET_MESSAGE_BYTES_MAX = 16 * 1024;
 
 // cliente → servidor
 export type ClientMessage =

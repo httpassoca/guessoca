@@ -14,6 +14,7 @@
   import { joinState, roomView } from '../room/view';
   import { navigate } from '../route.svelte';
   import { wsUrl } from '../rooms';
+  import { sharedWorkerClock } from '../room/ticker';
 
   /**
    * `/sala/CODE`: conecta como visitante e, antes de entrar na turma, pede apelido e um personagem livre. Quem acabou de
@@ -23,7 +24,8 @@
 
   // a rota recria esta tela a cada código novo (App faz {#key}); o código inicial basta
   const myToken = token(untrack(() => code));
-  const remote = new RemoteRoom({ url: wsUrl(), room: untrack(() => code), token: myToken });
+  // os timers da conexão (o ping) rodam num Worker: uma aba esquecida no fundo continua pingando e não perde o lugar
+  const remote = new RemoteRoom({ url: wsUrl(), room: untrack(() => code), token: myToken }, { clock: sharedWorkerClock() });
   let st = $state.raw<RemoteState>(remote.state);
   let nickname = $state(rememberedNickname());
   let character = $state<number | null>(rememberedCharacter());
@@ -53,7 +55,7 @@
   const gate = $derived(room ? joinState(room) : { full: false, late: false });
   const STATUS: Record<RemoteState['status'], MsgKey | null> = { idle: null, connecting: 'status.connecting', open: 'status.open', reconnecting: 'status.reconnecting', closed: null };
   const status = $derived.by(() => { const k = STATUS[st.status]; return k ? t(k) : ''; });
-  const GONE = { notFound: ['gone.notFound.title', 'gone.notFound.msg'], ended: ['gone.ended.title', 'gone.ended.msg'], replaced: ['gone.replaced.title', 'gone.replaced.msg'], kicked: ['gone.kicked.title', 'gone.kicked.msg'] } as const satisfies Record<NonNullable<ClosedReason>, [MsgKey, MsgKey]>;
+  const GONE = { notFound: ['gone.notFound.title', 'gone.notFound.msg'], ended: ['gone.ended.title', 'gone.ended.msg'], replaced: ['gone.replaced.title', 'gone.replaced.msg'], kicked: ['gone.kicked.title', 'gone.kicked.msg'], tooMany: ['gone.tooMany.title', 'gone.tooMany.msg'] } as const satisfies Record<NonNullable<ClosedReason>, [MsgKey, MsgKey]>;
 
   // sem personagem lembrado: o primeiro
   $effect(() => { if (room && !me && character === null) character = 0; });

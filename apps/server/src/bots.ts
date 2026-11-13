@@ -240,6 +240,8 @@ export class BotWorld {
     const before = this.bots.map((b) => b.id).join();
     const shoves: BotTick['shoves'] = [];
     this.players = [...players];
+    // quem já pode levar outro empurrão de bot não precisa mais estar aqui (o mapa não cresce sem fim)
+    for (const [id, at] of this.lastShoved) if (now - at >= BOT_SHOVE_PLAYER_MS) this.lastShoved.delete(id);
 
     if (ctx.enabled) {
       this.offSince = null;

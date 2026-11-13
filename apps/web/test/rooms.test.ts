@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { openRoom, peekRoom, roomCheck } from '../src/lib/rooms';
+import { openFailure, openRoom, peekRoom, roomCheck } from '../src/lib/rooms';
 
 const reply = (status: number, body: unknown) => async () => new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } });
 
@@ -18,6 +18,14 @@ describe('abrir uma sala', () => {
     let body: unknown;
     await openRoom({}, async (_url, init) => { body = JSON.parse(String(init?.body)); return reply(201, { code: 'WXYZ' })(); });
     expect(body).toEqual({});
+  });
+
+  test('salas demais (429) e servidor lotado (503) dizem por quê; o resto é "fora do ar"', async () => {
+    const why = async (status: number) => openRoom({}, reply(status, {})).then(() => null, openFailure);
+    expect(await why(429)).toBe('tooMany');
+    expect(await why(503)).toBe('full');
+    expect(await why(500)).toBe('down');
+    expect(openFailure(new TypeError('Failed to fetch'))).toBe('down');
   });
 
   test('servidor fora do ar ou resposta estranha é erro', async () => {

@@ -1,8 +1,10 @@
-import { BOT_ID_RE, CHAT_INTERVAL, CLOSE_KICKED, CLOSE_REPLACED, CLOSE_ROOM_ENDED, IMAGE_BYTES_MAX, isWebp, parseClientMessage, PRESENCE_INTERVAL, SOCKET_IDLE_TIMEOUT, type Presence, type RoomInit, type StatName } from '@guess/protocol';
+import { BOT_ID_RE, CHAT_INTERVAL, CLOSE_KICKED, CLOSE_REPLACED, CLOSE_ROOM_ENDED, CLOSE_TOO_MANY, IMAGE_BYTES_MAX, isWebp, parseClientMessage, PRESENCE_INTERVAL, SOCKET_IDLE_TIMEOUT, type PlayerStats, type Presence, type RoomInit, type StatName } from '@guess/protocol';
+import { FALL_Y, inShoveReach, RESPAWN_MS, SHOVE_COOLDOWN_MS } from '@guess/world';
 import { CHARACTERS } from '@guess/rules';
 import attackMs from './attacks.json';
 import { BotWorld, type Seen } from './bots';
 import type { ServerWebSocket } from 'bun';
+import { TokenBucket } from './limits';
 import type { Log } from './log';
 import { createRoom, referencedImages, ROOM_TTL, step, timerKey, type RoomInput, type RoomState } from './room';
 
@@ -19,6 +21,31 @@ export const IMAGES_PER_UPLOADER = 2;
  * um passo, ms; `chatInterval`: o mínimo entre duas falas da mesma pessoa.
  */
 export interface HostOptions { now?: number; ttl?: number; silence?: number; clock?: () => number; dev?: boolean; rng?: () => number; presenceInterval?: number; init?: RoomInit; botTick?: number; chatInterval?: number }
+
+/**
+ * O limite por socket (issue #72): toda mensagem menos a presença gasta uma ficha; cabem `MESSAGE_BURST` de uma vez e
+ * `MESSAGE_RATE` por segundo depois. Gente de verdade fica bem abaixo: o editor do post-it manda no máximo 10 por segundo,
+ * o empurrão uns 2, a fala 1. A que passa é descartada; quem segue estourando (`OVERFLOW_MAX` descartes, que voltam a
+ * `OVERFLOW_RATE` por segundo) é fechado com `CLOSE_TOO_MANY`. A presença tem um balde só dela, bem mais largo, contado
+ * antes de ler a mensagem (`ANY_BURST`, `ANY_RATE`, para todas): a aba manda ~15 por segundo, e uma enxurrada delas
+ * custaria o parser de cada uma.
+ */
+export const MESSAGE_BURST = 40;
+export const MESSAGE_RATE = 20;
+export const ANY_BURST = 120;
+export const ANY_RATE = 60;
+const OVERFLOW_MAX = 60;
+const OVERFLOW_RATE = 5;
+/** Quantas abas sem apelido (visitantes) uma sala aceita ao mesmo tempo; quem é da turma sempre entra. */
+export const VISITORS_MAX = 16;
+/** Com o jogo rodando, a presença de alguém da turma conta como atividade, no máximo uma vez por isto (emenda do ADR 0005). */
+export const PRESENCE_ACTIVITY_MS = 60_000;
+/**
+ * Empurrões de uma pessoa: o seguinte só vale `SHOVE_COOLDOWN_MS` menos esta folga (a rede pode juntar dois) depois do
+ * anterior; os alvos de um mesmo golpe saem no mesmo quadro e chegam dentro de `VOLLEY_MS`.
+ */
+const SHOVE_SLACK_MS = 150;
+const VOLLEY_MS = 100;
 
 /** De quanto em quanto tempo os bots engraçados dão um passo, ms (30 por segundo); a presença deles sai a cada dois passos. */
 export const BOT_TICK = 33;
@@ -42,7 +69,8 @@ interface StoredImage {
 
 export type AddImageResult = { ok: true; id: string } | { ok: false; error: 'notMember' | 'tooBig' | 'notWebp' };
 
-export interface SocketData { code: string; token: string }
+/** `ip`: de quem é o socket (o servidor conta quantos cada IP tem aberto). */
+export interface SocketData { code: string; token: string; ip: string }
 export type Socket = ServerWebSocket<SocketData>;
 
 /**
@@ -59,7 +87,12 @@ export type Socket = ServerWebSocket<SocketData>;
  * dá passos neles, manda a presença de cada um como a de uma pessoa, entrega os empurrões deles e avisa a sala quando a
  * lista de quem está no telhado muda. Fora disso não há laço nenhum.
  * As estatísticas do jogo (issue #59) saem do que já passa por aqui, sem mensagem nova: cada empurrão entregue e cada
- * presença que passa a piscar (uma queda) viram uma entrada `stats` da sala, que só conta com o jogo rodando.
+ * presença que cai abaixo de `FALL_Y` (uma queda) somam num contador daqui, só com o jogo rodando. Contar não passa pela
+ * sala (seria um `step()` por empurrão): os números entram no estado dela antes de cada passo com o jogo rodando, então
+ * o snapshot do fim os leva (issue #72).
+ * Limites (issue #72): cada socket tem um balde de mensagens (`MESSAGE_BURST`), a presença fora; o empurrão só vale no
+ * ritmo do empurrão e ao alcance de quem empurra, pelas últimas presenças; a sala aceita no máximo `VISITORS_MAX`
+ * visitantes.
  */
 export class RoomHost {
   state: RoomState;
@@ -85,6 +118,16 @@ export class RoomHost {
   private botTicks = 0;
   private readonly botSent = new Map<string, { raw: string; at: number; presence: Presence }>();
   private readonly botTick: number;
+  /** por pessoa: o que fez no telhado neste jogo (issue #59); vai para `state.stats` antes de cada passo da sala */
+  private counters: Record<string, PlayerStats> = {};
+  /** por token: o balde de toda mensagem, o dos pedidos (tudo menos a presença), o de descartes e quantas foram descartadas */
+  private readonly buckets = new Map<string, { any: TokenBucket; requests: TokenBucket; overflow: TokenBucket; dropped: number }>();
+  /** por token: o último golpe (quando começou e quem pegou) */
+  private readonly shoveVolleys = new Map<string, { at: number; targets: Set<string> }>();
+  /** por token: a hora da última queda contada */
+  private readonly fallAt = new Map<string, number>();
+  /** a última vez que uma presença contou como atividade */
+  private aliveAt = -Infinity;
 
   constructor(code: string, private readonly log: Log, private readonly onDead: (code: string) => void, opts: HostOptions = {}) {
     this.clock = opts.clock ?? Date.now;
@@ -101,8 +144,15 @@ export class RoomHost {
 
   get code() { return this.state.code; }
   get connections() { return this.sockets.size; }
+  /** o que cada pessoa fez no telhado no jogo que roda agora (vazio fora dele) */
+  get stats(): Record<string, PlayerStats> { return this.counters; }
 
   connect(ws: Socket) {
+    // visitantes demais (uma enxurrada de abas sem apelido): cada um recebe toda presença e todo snapshot
+    if (this.state.phase !== 'dead' && !this.memberByToken(ws.data.token) && !this.state.visitors.includes(ws.data.token) && this.state.visitors.length >= VISITORS_MAX) {
+      ws.close(CLOSE_TOO_MANY, 'visitantes demais');
+      return;
+    }
     const prev = this.sockets.get(ws.data.token);
     this.sockets.set(ws.data.token, ws);
     // mesma pessoa, socket novo (aba duplicada, ou voltou antes de o servidor notar a queda): o velho sai sem avisar a sala
@@ -122,8 +172,11 @@ export class RoomHost {
   disconnect(ws: Socket) { this.drop(ws); }
 
   message(ws: Socket, raw: string | Buffer) {
+    if (this.sockets.get(ws.data.token) !== ws) return; // já substituído, derrubado ou fechado por enxurrada
     this.resetSilence(ws);
+    if (!this.allow(ws, 'any')) return; // antes de ler: uma enxurrada de presenças não chega nem ao parser
     const message = parseClientMessage(typeof raw === 'string' ? raw : raw.toString());
+    if (message?.type !== 'presence' && !this.allow(ws, 'requests')) return;
     if (!message) { this.log('room.badMessage', { room: this.code, token: ws.data.token.slice(0, 8) }); return; }
     if (message.type === 'presence') { this.relayPresence(ws.data.token, message.presence); return; }
     if (message.type === 'shove') { this.routeShove(ws.data.token, message.target, message.dir); return; }
@@ -135,6 +188,28 @@ export class RoomHost {
       return;
     }
     this.apply({ kind: 'message', token: ws.data.token, message });
+  }
+
+  /**
+   * Gasta uma ficha do balde deste socket. Sem ficha, a mensagem é descartada; quem segue estourando é fechado com
+   * `CLOSE_TOO_MANY` e sai da sala como se tivesse caído. O log ganha uma linha quando começa e outra quando fecha.
+   */
+  private allow(ws: Socket, which: 'any' | 'requests'): boolean {
+    const now = this.clock();
+    const token = ws.data.token;
+    let b = this.buckets.get(token);
+    if (!b) {
+      b = { any: new TokenBucket(ANY_BURST, ANY_RATE, now), requests: new TokenBucket(MESSAGE_BURST, MESSAGE_RATE, now), overflow: new TokenBucket(OVERFLOW_MAX, OVERFLOW_RATE, now), dropped: 0 };
+      this.buckets.set(token, b);
+    }
+    if (b[which].take(now)) return true;
+    if (b.dropped++ === 0) this.log('room.flood', { room: this.code, token: token.slice(0, 8) });
+    if (!b.overflow.take(now)) {
+      this.log('room.flooded', { room: this.code, token: token.slice(0, 8), dropped: b.dropped });
+      this.drop(ws);
+      ws.close(CLOSE_TOO_MANY, 'mensagens demais');
+    }
+    return false;
   }
 
   /**
@@ -162,12 +237,23 @@ export class RoomHost {
   private relayPresence(token: string, presence: Presence) {
     if (!this.memberByToken(token)) return; // visitante (ainda sem apelido) não está no telhado
     let p = this.presences.get(token);
+    const before = p?.latest;
     if (!p) { p = { latest: presence, sentAt: -Infinity }; this.presences.set(token, p); }
-    // `blink` liga na queda e só desliga quando o pisca-pisca da volta acaba (`blinking`): passar a piscar é uma queda,
-    // uma vez só. A primeira presença depois de conectar não tem "antes" e não conta.
-    const fell = presence.blink && !p.latest.blink;
     p.latest = presence;
-    if (fell) this.count([token, 'falls']);
+    const now = this.clock();
+    // uma queda é passar para baixo da rua (`FALL_Y`): o corpo fica lá até voltar, e isso vale também para quem cai de
+    // novo ainda piscando da volta anterior (o `blink` nem desliga). A primeira presença depois de conectar não tem
+    // "antes" e não conta; e ninguém cai mais de uma vez por `RESPAWN_MS` (o tempo que se fica lá embaixo)
+    if (before && presence.y < FALL_Y && before.y >= FALL_Y && now - (this.fallAt.get(token) ?? -Infinity) >= RESPAWN_MS) {
+      this.fallAt.set(token, now);
+      this.count([token, 'falls']);
+    }
+    // com o jogo rodando, gente no telhado é gente jogando: a sala não morre por inatividade (uma vez por minuto)
+    if (this.playing() && now - this.aliveAt >= PRESENCE_ACTIVITY_MS) {
+      this.aliveAt = now;
+      this.apply({ kind: 'alive', token });
+      if (!this.memberByToken(token)) return;
+    }
     if (p.handle) return; // a mais recente sai quando o timer vencer
     const wait = p.sentAt + this.presenceInterval - this.clock();
     if (wait <= 0) { this.flushPresence(token); return; }
@@ -184,32 +270,56 @@ export class RoomHost {
     for (const [t, ws] of this.sockets) if (t !== token) ws.send(raw);
   }
 
+  /** Esquece tudo o que o host guarda deste token: presença, fala, balde, golpe e queda. */
   private forgetPresence(token: string) {
     const p = this.presences.get(token);
     if (p?.handle) clearTimeout(p.handle);
     this.presences.delete(token);
+    this.chats.delete(token);
+    this.buckets.delete(token);
+    this.shoveVolleys.delete(token);
+    this.fallAt.delete(token);
   }
 
-  /** Entrega o empurrão à aba de quem foi empurrado; é ela que se joga para trás (ADR 0005). */
+  private playing() { return this.state.phase !== 'dead' && this.state.game.phase === 'playing'; }
+
+  /**
+   * Entrega o empurrão à aba de quem foi empurrado; é ela que se joga para trás (ADR 0005). Só vale no ritmo do empurrão
+   * (`SHOVE_COOLDOWN_MS`, com folga; os alvos de um mesmo golpe passam juntos) e com o alvo ao alcance pelas últimas
+   * presenças (`inShoveReach`, com folga): quem está piscando (caído ou voltando) não é sólido e não leva.
+   */
   private routeShove(token: string, target: string, dir: 1 | -1) {
     const from = this.memberByToken(token);
-    if (from && BOT_ID_RE.test(target)) {
-      if (this.botWorld?.shoved(target, dir, from.id, this.clock())) this.count([token, 'shoves']);
+    if (!from) return;
+    const now = this.clock();
+    const v = this.shoveVolleys.get(token);
+    if (v && now - v.at < VOLLEY_MS && !v.targets.has(target)) v.targets.add(target);
+    else if (!v || now - v.at >= SHOVE_COOLDOWN_MS - SHOVE_SLACK_MS) this.shoveVolleys.set(token, { at: now, targets: new Set([target]) });
+    else return;
+    const me = this.presences.get(token)?.latest;
+    if (!me) return;
+    if (BOT_ID_RE.test(target)) {
+      const bot = this.botWorld?.bots.find((b) => b.id === target);
+      if (!bot || !inShoveReach(me, bot.body)) return;
+      if (this.botWorld?.shoved(target, dir, from.id, now)) this.count([token, 'shoves']);
       return;
     }
     const to = this.state.members.find((m) => m.id === target);
-    if (!from || !to || to === from || to.token === null) return;
+    if (!to || to === from || to.token === null) return;
     const ws = this.sockets.get(to.token);
-    if (!ws) return;
+    const there = this.presences.get(to.token)?.latest;
+    if (!ws || !there || there.blink || !inShoveReach(me, there)) return;
     ws.send(JSON.stringify({ type: 'shoved', by: from.id, dir }));
     this.count([token, 'shoves'], [to.token, 'shovedByPlayers']);
   }
 
-  /** Soma um em cada estatística (token de quem, qual), se o jogo está rodando; a sala guarda (`stats`). */
+  /** Soma um em cada estatística (token de quem, qual), se o jogo está rodando; fica aqui até o próximo passo da sala. */
   private count(...add: [token: string, stat: StatName][]) {
-    if (this.state.phase === 'dead' || this.state.game.phase !== 'playing') return;
-    const counted = add.flatMap(([token, stat]) => { const m = this.memberByToken(token); return m ? [{ member: m.id, stat }] : []; });
-    if (counted.length) this.apply({ kind: 'stats', add: counted });
+    if (!this.playing()) return;
+    for (const [token, stat] of add) {
+      const m = this.memberByToken(token);
+      if (m) (this.counters[m.id] ??= { falls: 0, shoves: 0, shovedByPlayers: 0, shovedByBots: 0 })[stat]++;
+    }
   }
 
   /**
@@ -232,8 +342,13 @@ export class RoomHost {
 
   private apply(input: RoomInput) {
     const now = this.clock();
+    // os números do telhado entram na sala antes do passo: se for o que acaba o jogo, o snapshot do fim já os leva
+    if (this.playing()) this.state = { ...this.state, stats: structuredClone(this.counters) };
     const { state, out, events } = step(this.state, input, now, { rng: this.rng });
     this.state = state;
+    // fora do jogo não se conta; quem saiu da turma (expulso) leva os números junto
+    if (!this.playing()) this.counters = {};
+    else for (const id of Object.keys(this.counters)) if (!state.members.some((m) => m.id === id)) delete this.counters[id];
     for (const o of out) {
       const ws = this.sockets.get(o.to);
       if (!ws) continue;

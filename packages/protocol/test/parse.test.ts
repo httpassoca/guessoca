@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 import { CHARACTERS } from '@guess/rules';
-import { CODE_RE, isWebp, parseClientMessage, parsePresence, parseRoomInit, TOKEN_RE, type Presence } from '../src';
+import { CODE_RE, isWebp, MESSAGE_MAX, SOCKET_MESSAGE_BYTES_MAX, parseClientMessage, parsePresence, parseRoomInit, TOKEN_RE, type Presence } from '../src';
 
 describe('parseClientMessage', () => {
   test('aceita as mensagens válidas', () => {
@@ -144,5 +144,17 @@ describe('pré-lobby: o corpo de criar a sala', () => {
     expect(parseClientMessage(JSON.stringify({ type: 'funnyBots', on: 'sim' }))).toBeNull();
     expect(parseClientMessage(JSON.stringify({ type: 'shove', target: 'b12', dir: -1 }))).toEqual({ type: 'shove', target: 'b12', dir: -1 });
     expect(parseClientMessage(JSON.stringify({ type: 'shove', target: 'x12', dir: -1 }))).toBeNull();
+  });
+});
+
+describe('tamanho de mensagem no socket', () => {
+  test('a maior mensagem que o parser aceita, em UTF-8, cabe no limite do socket', () => {
+    // a mensagem inteira tem até MESSAGE_MAX unidades de UTF-16; cada uma vira no máximo 3 bytes em UTF-8
+    const text = 'ã'.repeat(160); // um post-it no limite de caracteres que o parser deixa passar (POSTIT_MAX·4)
+    const write = JSON.stringify({ type: 'write', owner: 'm1', text, image: 'ab'.repeat(16) });
+    expect(parseClientMessage(write)).not.toBeNull();
+    expect(new TextEncoder().encode(write).length).toBeLessThan(SOCKET_MESSAGE_BYTES_MAX);
+    expect(MESSAGE_MAX * 3).toBeLessThanOrEqual(SOCKET_MESSAGE_BYTES_MAX);
+    expect(parseClientMessage('"' + 'x'.repeat(MESSAGE_MAX) + '"')).toBeNull();
   });
 });

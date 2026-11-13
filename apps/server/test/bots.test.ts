@@ -261,3 +261,14 @@ describe('bots engraçados', () => {
     }, 60_000);
   });
 });
+
+describe('bots: memória (issue #72)', () => {
+  test('quem um bot empurrou há mais que BOT_SHOVE_PLAYER_MS é esquecido: o mapa não cresce sem fim', () => {
+    const world = new BotWorld(lcg(1), { characters: CHARACTERS });
+    const last = (world as unknown as { lastShoved: Map<string, number> }).lastShoved;
+    for (let i = 0; i < 100; i++) last.set(`m${i}`, 0);
+    last.set('recente', BOT_SHOVE_PLAYER_MS);
+    world.tick(BOT_SHOVE_PLAYER_MS + 1, 0.033, [], { enabled: false, taken: new Set() });
+    expect([...last.keys()]).toEqual(['recente']);
+  });
+});

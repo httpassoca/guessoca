@@ -14,7 +14,7 @@
  */
 import { EMOTE_MS, EMOTES, type RoomSnapshot } from '@guess/protocol';
 import { attackMs, character } from '../sprites/characters';
-import { applyCheer, applyShove, blinking, createBody, followCamera, MAP, stepBody, type Body, type Camera, type WorldEvent } from '@guess/world';
+import { applyCheer, applyShove, blinking, canBeShoved, createBody, followCamera, MAP, stepBody, type Body, type Camera, type WorldEvent } from '@guess/world';
 import type { Lang } from '../i18n';
 import { isTextField, swallowsSpace, worldKey } from '../keys';
 import type { RemoteRoom, RemoteStatus } from '../room/remote';
@@ -44,6 +44,8 @@ export interface RuntimeOptions {
   onStatus?: (status: SceneStatus, detail?: string) => void;
   /** cada evento do meu corpo (pulo, empurrão, queda…), para os sons */
   onEvent?: (ev: WorldEvent) => void;
+  /** levei um empurrão que pegou (os que chegam atordoado, caído ou voltando são ignorados), para o som */
+  onShoved?: () => void;
 }
 
 /**
@@ -110,7 +112,13 @@ export class WorldRuntime {
     window.addEventListener('wheel', wheel, { passive: false });
     this.off.push(() => window.removeEventListener('wheel', wheel));
     listen('focusin', (e) => { if (isTextField(e.target as HTMLElement)) this.controls.releaseAll(); });
-    this.off.push(this.opts.remote.onShoved(({ dir }) => { if (this.body) this.body = applyShove(this.body, dir, performance.now()); }));
+    // um empurrão só pega em quem pode levar: atordoado por outro, caído ou voltando, ignora (uma enxurrada não prende ninguém)
+    this.off.push(this.opts.remote.onShoved(({ dir }) => {
+      const now = performance.now();
+      if (!this.body || !canBeShoved(this.body, now)) return;
+      this.body = applyShove(this.body, dir, now);
+      this.opts.onShoved?.();
+    }));
 
     // quem acerta comemora: sai da diferença entre snapshots, direto do `RemoteRoom` (o primeiro é só a base)
     const cheers = cheerTracker();
@@ -247,6 +255,8 @@ export class WorldRuntime {
       list.push({ id: me.id, character: me.character, x: body.x, y: body.y, z: body.z, facing: body.facing, anim: body.anim, animSince: body.animSince, emote, blink: this.blinks(body, now) });
     }
     for (const b of bodies) list.push(this.sceneBody(b, now));
+    // quem saiu do telhado (bots que foram embora, gente que saiu) não fica guardado
+    if (this.animOf.size > bodies.length) { const here = new Set(bodies.map((b) => b.id)); for (const id of this.animOf.keys()) if (!here.has(id)) this.animOf.delete(id); }
 
     if (this.scene) {
       this.scene.setRoom(room.code);
