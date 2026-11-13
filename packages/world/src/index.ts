@@ -434,6 +434,31 @@ export function shoveTargets(body: Body, others: readonly Other[]): string[] {
     .map((o) => o.id);
 }
 
+/**
+ * A folga do alcance do empurrão quando quem confere só tem as últimas presenças (o servidor): cada uma pode estar até
+ * um intervalo de presença e a rede atrás do que a aba de quem empurrou via, com os dois andando ou correndo.
+ */
+export const SHOVE_SLACK = { x: 48, y: 60, z: 24 } as const;
+
+/**
+ * Se um empurrão de quem está em `from` (virado para `facing`) pode ter alcançado quem está em `to`, com `SHOVE_SLACK`
+ * em cada eixo (também um pouco atrás: a presença de quem empurrou pode ter virado depois). Não olha se é sólido.
+ */
+export function inShoveReach(from: Vec3 & { facing: 1 | -1 }, to: Vec3): boolean {
+  const ahead = (to.x - from.x) * from.facing;
+  return (
+    ahead >= -SHOVE_SLACK.x &&
+    ahead <= SHOVE_REACH + BODY_RX + SHOVE_SLACK.x &&
+    Math.abs(to.z - from.z) <= SHOVE_DZ + SHOVE_SLACK.z &&
+    Math.abs(to.y - from.y) <= SHOVE_DY + SHOVE_SLACK.y
+  );
+}
+
+/** Se este corpo aceita um empurrão agora: não atordoado por outro, nem caído, nem piscando depois de voltar. */
+export function canBeShoved(body: Pick<Body, 'stunnedUntil' | 'respawnAt' | 'blinkUntil'>, now: number): boolean {
+  return now >= body.stunnedUntil && !blinking(body, now);
+}
+
 /** Este corpo foi empurrado por alguém virado para `dir`: é jogado para lá e para cima, atordoado, solto de cabeças. */
 export function applyShove(body: Body, dir: 1 | -1, now: number): Body {
   return {

@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'bun:test';
 import { CLOSE_KICKED, imageUrl, type ClientMessage } from '@guess/protocol';
 import { MAX_MEMBERS, TURN_DEFAULT, VOTE_MS } from '@guess/rules';
-import { FAKE_IDENTITIES, MODERATOR_GRACE, snapshotFor } from '../src/room';
+import { FAKE_IDENTITIES, MODERATOR_GRACE, snapshotFor, type RoomState } from '../src/room';
 import { Sim, T0 } from './sim';
 
 /** `n` pessoas na sala, t1…tn, apelidos P1…Pn, ids m1…mn; t1 é o moderador */
@@ -444,35 +444,27 @@ describe('sala: bots engraçados', () => {
 
 describe('sala: estatísticas do jogo (issue #59)', () => {
   const zero = { falls: 0, shoves: 0, shovedByPlayers: 0, shovedByBots: 0 };
+  /** o adaptador conta por fora (issue #72) e escreve os números no estado antes de cada passo, com o jogo rodando */
+  const counted = (s: ReturnType<typeof playing>, stats: RoomState['stats']) => { s.state = { ...s.state, stats }; };
 
-  test('o adaptador conta quedas e empurrões durante o jogo; não é atividade nem dispara snapshot; no fim, vão no snapshot', () => {
+  test('os números que o adaptador escreveu vão no snapshot só no fim; não são atividade', () => {
     const s = playing(2);
     const activity = s.state.lastActivity;
-    s.out = [];
-    s.feed({ kind: 'stats', add: [{ member: 'm1', stat: 'shoves' }, { member: 'm2', stat: 'shovedByPlayers' }] }, s.now + 5000);
-    s.feed({ kind: 'stats', add: [{ member: 'm2', stat: 'falls' }] });
-    s.feed({ kind: 'stats', add: [{ member: 'm2', stat: 'shovedByBots' }, { member: 'm2', stat: 'shovedByBots' }] });
-    s.feed({ kind: 'stats', add: [{ member: 'm9', stat: 'falls' }, { member: 'b1', stat: 'falls' }] }); // quem não é da turma não conta
-    expect(s.out).toEqual([]);
-    expect(s.state.lastActivity).toBe(activity);
-    expect(s.state.stats).toEqual({ m1: { ...zero, shoves: 1 }, m2: { ...zero, falls: 1, shovedByPlayers: 1, shovedByBots: 2 } });
+    counted(s, { m1: { ...zero, shoves: 1 }, m2: { ...zero, falls: 1, shovedByPlayers: 1, shovedByBots: 2 } });
     // com o jogo rodando o snapshot não leva os números: só no fim
     s.say('t1', { type: 'pause', on: true });
     expect(s.snapshotFor('t2')!.stats).toEqual({});
     s.say('t1', { type: 'endGame' });
     expect(s.game.phase).toBe('ended');
-    expect(s.snapshotFor('t2')!.stats).toEqual(s.state.stats);
-    expect(s.snapshotFor('t1')!.stats).toEqual(s.state.stats);
+    expect(s.snapshotFor('t2')!.stats).toEqual({ m1: { ...zero, shoves: 1 }, m2: { ...zero, falls: 1, shovedByPlayers: 1, shovedByBots: 2 } });
+    expect(s.snapshotFor('t1')!.stats).toEqual(s.snapshotFor('t2')!.stats);
+    expect(activity).toBeLessThanOrEqual(s.state.lastActivity);
   });
 
-  test('só conta com o jogo rodando, e um jogo novo começa do zero', () => {
-    const l = lobby(2);
-    l.feed({ kind: 'stats', add: [{ member: 'm1', stat: 'falls' }] });
-    expect(l.state.stats).toEqual({});
+  test('um jogo novo começa do zero', () => {
     const s = playing(2);
-    s.feed({ kind: 'stats', add: [{ member: 'm1', stat: 'falls' }] });
+    counted(s, { m1: { ...zero, falls: 1 } });
     s.say('t1', { type: 'endGame' });
-    s.feed({ kind: 'stats', add: [{ member: 'm1', stat: 'falls' }] }); // no fim, cair não conta mais
     expect(s.snapshotFor('t1')!.stats).toEqual({ m1: { ...zero, falls: 1 } });
     s.say('t1', { type: 'playAgain' });
     expect(s.game.phase).toBe('lobby');
@@ -483,11 +475,38 @@ describe('sala: estatísticas do jogo (issue #59)', () => {
     expect(s.state.stats).toEqual({});
   });
 
-  test('quem chegou com o jogo rodando (fantasma) também conta; quem é expulso leva os números junto', () => {
+  test('quem é expulso leva os números junto', () => {
     const s = playing(2);
     s.enter('t3', 'P3');
-    s.feed({ kind: 'stats', add: [{ member: 'm3', stat: 'falls' }, { member: 'm2', stat: 'falls' }] });
+    counted(s, { m3: { ...zero, falls: 1 }, m2: { ...zero, falls: 1 } });
     s.say('t1', { type: 'kick', member: 'm2' });
     expect(s.state.stats).toEqual({ m3: { ...zero, falls: 1 } });
+  });
+});
+
+describe('sala: atividade com o jogo rodando (issue #72)', () => {
+  test('a vez mudar sozinha (o tempo dela acabou) conta como atividade', () => {
+    const s = playing(2);
+    const before = s.state.lastActivity;
+    const owner = s.game.turn!.owner;
+    s.fire('game');
+    expect(s.game.turn!.owner).not.toBe(owner);
+    expect(s.state.lastActivity).toBeGreaterThan(before);
+    expect(s.state.lastActivity).toBe(s.timer('death')!.at - s.state.ttl);
+  });
+
+  test('o adaptador avisa que alguém da turma está no telhado: com o jogo rodando é atividade; no lobby, não', () => {
+    const s = playing(2);
+    s.out = [];
+    const t = s.now + 30_000;
+    s.feed({ kind: 'alive', token: 't1' }, t);
+    expect(s.state.lastActivity).toBe(t);
+    expect(s.out).toEqual([]);
+    s.feed({ kind: 'alive', token: 'desconhecido' }, t + 10_000);
+    expect(s.state.lastActivity).toBe(t);
+    const l = lobby(2);
+    const at = l.state.lastActivity;
+    l.feed({ kind: 'alive', token: 't1' }, l.now + 30_000);
+    expect(l.state.lastActivity).toBe(at);
   });
 });
