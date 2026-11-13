@@ -1,6 +1,6 @@
 # Native Bun WebSocket, with images over plain HTTP
 
-Clients talk to the server over Bun's built-in WebSocket and the browser's own WebSocket, with a small JSON protocol in `@guess/protocol`, a ping every fifteen seconds, a server that drops a socket silent for thirty, and a reconnect loop written by us. Reconnection already has game meaning (a person returns to their place in the turma with the same tab token), so a library's reconnect would sit on top of ours anyway; trucossoca made the same call (its ADR 0002) and it held up.
+Clients talk to the server over Bun's built-in WebSocket and the browser's own WebSocket, with a small JSON protocol in `@guess/protocol`, a ping every fifteen seconds, a server that drops a socket silent for thirty, and a reconnect loop written by us. Reconnection already has game meaning (a person returns to their place in the turma with the same token, kept per room in the browser, ADR 0003), so a library's reconnect would sit on top of ours anyway; trucossoca made the same call (its ADR 0002) and it held up.
 
 Post-it images do not travel on the socket. The author's browser shrinks the image to WebP and sends it with a `POST` to the room; the server answers with an id, and the next snapshot carries a URL that every browser loads with a plain `<img>`. Snapshots stay small text, and the browser's image cache does the rest.
 

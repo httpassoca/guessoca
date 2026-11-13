@@ -190,7 +190,19 @@ describe('acertei e votação', () => {
     s.refuse('f', { type: 'vote', yes: true }, 'invalid');
     s.refuse('a', { type: 'vote', yes: true }, 'invalid');
     s.do('b', { type: 'vote', yes: false });
-    s.refuse('b', { type: 'vote', yes: true }, 'invalid');
+  });
+
+  test('o voto muda até a votação fechar; o mesmo voto de novo não faz nada', () => {
+    const s = new Sim('a', 'b', 'c', 'd');
+    s.start();
+    s.do('a', { type: 'claim' });
+    s.do('b', { type: 'vote', yes: false });
+    expect(s.do('b', { type: 'vote', yes: true })).toEqual([]);
+    expect(s.game.vote!.ballots).toEqual({ b: true });
+    expect(s.do('b', { type: 'vote', yes: true })).toEqual([]);
+    s.do('c', { type: 'vote', yes: false });
+    expect(s.do('d', { type: 'vote', yes: false })).toContainEqual({ type: 'voted', owner: 'a', yes: false, yesVotes: 1, noVotes: 2 });
+    s.refuse('b', { type: 'vote', yes: false }, 'invalid'); // fechou
   });
 
   test('votar sem votação aberta é recusado', () => {
@@ -496,6 +508,41 @@ describe('jogar de novo', () => {
     expect(s.game.authors).toEqual(circle(['b', 'c', 'd']));
     expect(s.game.turnMs).toBe(90_000);
     expect(s.game.paused).toBe(false);
+  });
+
+  test('quem está desconectado fica de fora (fantasma), e ninguém escreve para ele nem espera o post-it dele', () => {
+    const s = playing('a', 'b', 'c', 'd');
+    s.drop('c');
+    s.do('a', { type: 'endGame' });
+    s.do('a', { type: 'playAgain' });
+    expect(s.game.order).toEqual(['a', 'b', 'd']);
+    expect(s.game.authors).toEqual(circle(['a', 'b', 'd']));
+    expect(Object.keys(s.game.postits).sort()).toEqual(['a', 'b', 'd']);
+    expect(s.game.characters.c).toBeDefined(); // continua na turma
+  });
+
+  test('quem estava de fora e volta ainda no lobby entra de novo no fim da ordem', () => {
+    const s = playing('a', 'b', 'c', 'd');
+    s.drop('c');
+    s.do('a', { type: 'endGame' });
+    s.do('a', { type: 'playAgain' });
+    s.writeAll();
+    s.back('c');
+    expect(s.game.order).toEqual(['a', 'b', 'd', 'c']);
+    expect(s.game.authors).toEqual(circle(['a', 'b', 'd', 'c']));
+    expect(Object.keys(s.game.postits).sort()).toEqual(['a', 'b', 'c', 'd']);
+    expect(s.game.postits.c).toEqual({ text: '', image: null, ready: false });
+  });
+
+  test('o fantasma que volta com o jogo rodando continua fantasma', () => {
+    const s = playing('a', 'b', 'c');
+    s.drop('c');
+    s.do('a', { type: 'endGame' });
+    s.do('a', { type: 'playAgain' });
+    s.writeAll();
+    s.do('a', { type: 'start' });
+    s.back('c');
+    expect(s.game.order).toEqual(['a', 'b']);
   });
 
   test('a ordem nova segue a antiga, mesmo reordenada no jogo', () => {

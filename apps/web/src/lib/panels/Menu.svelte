@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Confirm from '../hud/Confirm.svelte';
   import EffectsSwitch from '../hud/EffectsSwitch.svelte';
   import Kbd from '../hud/Kbd.svelte';
   import LangSwitch from '../hud/LangSwitch.svelte';
@@ -8,14 +9,15 @@
   import { setSoundSettings, soundSettings } from '../sound/player';
   import { MIXERS, type Mixer } from '../sound/settings';
 
-  /** O menu (Esc, ou ≡ no canto): idioma, som (um volume para os sons do mapa, outro para os do jogo, e o mudo; lembrados pelo navegador), efeitos de tela, atalhos, o crédito e sair para o início. */
+  /** O menu (Esc, ou ≡ no canto): idioma, som (um volume para os sons do mapa, outro para os do jogo, e o mudo; lembrados pelo navegador), efeitos de tela, atalhos, o crédito e sair para o início (com confirmação: o lugar fica guardado). */
   let { code, onclose }: { code: string; onclose: () => void } = $props();
   let sound = $state(soundSettings());
   const MIXER_LABEL = { map: 'menu.soundMap', game: 'menu.soundGame' } as const;
   function setVolume(mixer: Mixer, volume: number) { sound[mixer] = volume; setSoundSettings({ [mixer]: volume }); }
   function setMuted(muted: boolean) { sound.muted = muted; setSoundSettings({ muted }); }
   let back = $state<HTMLButtonElement>();
-  $effect(() => { back?.focus(); });
+  // o foco vai para o Voltar sem rolar o menu até ele: em telas baixas, o menu abre no topo (título e idioma)
+  $effect(() => { back?.focus({ preventScroll: true }); });
 </script>
 
 <div class="gs-backdrop" role="presentation" onclick={(e) => { if (e.target === e.currentTarget) onclose(); }}>
@@ -57,10 +59,11 @@
           <li><span>{t('keys.chat')}</span><Kbd keys={['Enter']} /></li>
         </ul>
       </div>
+      <p class="gs-hint">{t('menu.leaveHint')}</p>
       <p class="gs-credit">{t('credit.character')}</p>
     </div>
     <div class="gs-float-foot">
-      <button class="ss-btn ghost" type="button" onclick={() => navigate('/')}>{t('menu.leave')}</button>
+      <Confirm label={t('menu.leave')} onconfirm={() => navigate('/')} />
       <button class="ss-btn" type="button" bind:this={back} onclick={onclose}>{t('menu.back')} <Kbd keys={['Esc']} /></button>
     </div>
   </div>

@@ -20,6 +20,11 @@ describe('fala: o texto limpo', () => {
     expect(cleanChat('\u0000​  \n')).toBe('');
   });
 
+  test('mantém o emoji de várias partes (o junta-emoji U+200D fica)', () => {
+    for (const e of ['👨\u200d👩\u200d👧', '🏳\ufe0f\u200d🌈', '👩🏽\u200d💻']) expect(cleanChat(`oi ${e}`)).toBe(`oi ${e}`);
+    expect(cleanChat('a\u200d\u200d\u200db')).toBe('a\u200db'); // em fila, vira um só
+  });
+
   test('não é HTML: as marcas ficam como texto', () => {
     expect(cleanChat('<b>oi</b> &amp;')).toBe('<b>oi</b> &amp;');
   });

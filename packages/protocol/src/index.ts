@@ -31,13 +31,15 @@ export const CHAT_INTERVAL = 1000;
 
 /**
  * O texto de uma fala como vai para a tela: só texto, numa linha. Tira os caracteres de controle e de formatação
- * (inclusive os que invertem a direção do texto), junta os espaços (quebras de linha viram espaço), apara as pontas e
+ * (inclusive os que invertem a direção do texto; o junta-emoji U+200D fica, um só em fila), junta os espaços (quebras de linha viram espaço), apara as pontas e
  * corta em `CHAT_MAX` caracteres (pontos de código, para não partir um emoji no meio). Vazio = não há o que falar.
  */
 export function cleanChat(raw: string): string {
   const s = raw.normalize('NFC')
     .replace(/[\p{Cc}\p{Zl}\p{Zp}]+/gu, ' ')
-    .replace(/[\p{Cf}\p{Co}\p{Cs}\p{Cn}]+/gu, '')
+    // o junta-emoji (U+200D) fica, senão 👨‍👩‍👧 e 🏳️‍🌈 se desmancham; o resto da formatação (inversão de direção, zero-width…) sai
+    .replace(/(?:(?!\u200d)[\p{Cf}\p{Co}\p{Cs}\p{Cn}])+/gu, '')
+    .replace(/\u200d{2,}/gu, '\u200d')
     .replace(/\s+/gu, ' ')
     .trim();
   return [...s].slice(0, CHAT_MAX).join('').trimEnd();
@@ -144,6 +146,13 @@ export type ClientMessage =
   /** uma fala; passa por fora da sala, repassada a todo mundo (não é atividade). O texto já sai limpo do parser (`cleanChat`) */
   | { type: 'chat'; text: string }
   | { type: 'ping' };
+
+/**
+ * `GET /api/rooms/CODE?token=T`: uma olhada na sala antes de entrar, para o início avisar na hora (código errado, sala
+ * cheia, jogo já começado). `member`: o token já é da turma (volta ao lugar, mesmo com a sala cheia). Sala que não
+ * existe: 404.
+ */
+export interface RoomPeek { phase: Phase; members: number; maxPlayers: number; member: boolean }
 
 /** Por que um pedido foi recusado: a sala já tem `MAX_MEMBERS`; ou o pedido não vale agora (fora da vez, fase errada, não é moderador…). */
 export type RoomError = 'roomFull' | 'refused';

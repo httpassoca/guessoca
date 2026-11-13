@@ -44,7 +44,8 @@ packages/protocol  mensagens cliente ↔ servidor (@guess/protocol): todas as a�
 
 apps/server        Bun.serve: `/health`, `POST /api/rooms` (corpo JSON do pré-lobby, `{ turnMs, maxPlayers, onlyModerate }`, até
                    1 KB; o que falta ou não vale fica no padrão) → `{ code }`, `POST /api/rooms/CODE/images?token=T` (WebP até
-                   300 KB → `{ id }`; 404/403/413/415), `GET /api/rooms/CODE/images/ID`, cliente estático com fallback SPA,
+                   300 KB → `{ id }`; 404/403/413/415), `GET /api/rooms/CODE/images/ID`, `GET /api/rooms/CODE?token=T` (uma olhada
+                   antes de entrar: fase, turma, limite e se o token já é da turma; 404 sem sala), cliente estático com fallback SPA,
                    WebSocket em `/ws?room=CODE&token=T`. `dev` (fora de produção) aceita jogadores falsos
   src/room.ts        máquina de estado da sala, pura: `step(state, input, now, { rng })` → estado novo, mensagens e
                      fechamentos por token, eventos para o log; timers como dado (morte em 10 min sem ação de alguém da
@@ -72,7 +73,7 @@ apps/server        Bun.serve: `/health`, `POST /api/rooms` (corpo JSON do pré-l
 
 apps/web           Vite + Svelte 5 + PixiJS v8 + dssoca
   src/lib/route.ts         rotas: `/` início, `/sala/CODE`; `route.svelte.ts` é a rota reativa e `navigate`
-  src/lib/identity.ts      token e bloco por aba (sessionStorage); apelido e último personagem por navegador (localStorage)
+  src/lib/identity.ts      token por sala e por navegador, apelido e último personagem (localStorage); bloco por aba (sessionStorage)
   src/lib/i18n.ts          a tabela de tradução (pt-BR padrão, en-US), tipada para as duas terem as mesmas chaves
   src/lib/room/remote.ts   `RemoteRoom`: conecta com o token, aplica os snapshots, manda as ações, pinga, reconecta com espera
                            crescente até 10 s, e para de vez em 4404/4410/4409/4403 dizendo por quê
@@ -80,6 +81,7 @@ apps/web           Vite + Svelte 5 + PixiJS v8 + dssoca
                            desistir ou votar, os post-its como posso vê-los, o ranking, a contagem regressiva
   src/lib/room/stats.ts    as estatísticas do fim do jogo: do snapshot para as linhas da tabela (uma por pessoa) e os destaques
   src/lib/image.ts         a imagem do post-it: reduz a 512 px, WebP baixando a qualidade até caber, sobe por POST
+  src/lib/hints.ts         as dicas de primeira vez (o cartão das teclas no telhado), lembradas por navegador (localStorage)
   src/lib/effects.ts       "efeitos de tela" (os filtros de filme) ligados ou não, por navegador (localStorage)
   src/lib/sprites/         os atlas gerados (`characters.json`, `atlases.json`, `emotes.json`, `rooftop.json`),
                            `characters.ts`, que diz de que modelo é cada personagem, a folha, a cor e onde está cada quadro
@@ -104,11 +106,12 @@ apps/web           Vite + Svelte 5 + PixiJS v8 + dssoca
   src/lib/sound/           os efeitos sonoros: sfx (cinco sons como parâmetros do sfxr, gerados com o jsfxr; nenhum arquivo de
                            áudio), room (os sons da sala tirados da diferença entre snapshots: votação, acertou, fim de vez),
                            settings (volume e mudo por navegador) e player (um AudioContext, ligado na primeira interação)
-  src/lib/keys.ts          Tab = passar, N = bloco, Esc = menu, Enter = falar (fora de campo de texto)
-  src/lib/panels/          Room (o telhado atrás de tudo, a barra, a coluna da fase que recolhe, teclado), TurnBar (vez e votação
-                           no alto), Roster (a tira de post-its embaixo), Lobby (ordem arrastável, autores, personagens, tamanho da vez), Writing
+  src/lib/keys.ts          Tab = passar (fora da vez, com o foco solto, nada), N = bloco, Esc = menu, Enter = falar (fora de campo de texto)
+  src/lib/panels/          Room (o telhado atrás de tudo, a barra, a coluna da fase que recolhe, teclado), TurnBar (vez, quem vem
+                           depois, pausa e votação no alto), Roster (a tira de post-its embaixo), Lobby (ordem arrastável, autores, personagens, tamanho da vez), Writing
                            e PostitEditor (ao vivo, imagem, Pronto, moderador escreve os vazios), Playing (vez, votação, ranking),
-                           ModPanel, Ended, Stats (as estatísticas do jogo, na coluna do fim), Notepad, Menu, Chat (o campo da
+                           ModPanel, Ended, Stats (as estatísticas do jogo, na coluna do fim), EndCard
+                           (o cartão do fim, no meio), RowMenu (o ⋯ do moderador numa linha da turma), Notepad, Menu, Chat (o campo da
                            fala, no canto de baixo à direita)
   src/lib/screens/         Home (abrir sala, entrar com código, crédito) e Sala (apelido, depois o jogo; sala inexistente,
                            encerrada ou expulso)

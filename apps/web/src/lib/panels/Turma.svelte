@@ -6,6 +6,7 @@
   import { t } from '../i18n.svelte';
   import type { GameRequest } from '../room/remote';
   import { moveBy, type Progress, type RoomView, type TurmaRow } from '../room/view';
+  import RowMenu from './RowMenu.svelte';
   import Swatch from './Swatch.svelte';
   import Who from './Who.svelte';
 
@@ -14,8 +15,8 @@
    * pessoa escreve (o alvo, o rosto e o nome; o moderador troca o alvo numa lista, com três ou mais na turma) e em que pé está (o lápis escrevendo, o lápis parado, o pronto), e o
    * post-it dela ao vivo (o meu "?"); no jogo, o post-it, o estado (na vez, acertou, desistiu) e
    * quantas vezes já teve a vez (`N×`, pequeno). O moderador tem, por
-   * linha, ↑ ↓, passar a moderação e expulsar; no jogo, também marcar acertou ou não. Todo ícone se explica no tooltip
-   * do dssoca. Os fantasmas vêm à parte, embaixo.
+   * linha, ↑ ↓, passar a moderação e expulsar; no jogo, só ✓ e ✗ (marcar acertou ou não) ficam à mostra, e o resto vai
+   * para o ⋯ da linha (`RowMenu`). Todo ícone se explica no tooltip do dssoca. Os fantasmas vêm à parte, embaixo.
    */
   let { v, room, send }: { v: RoomView; room: RoomSnapshot; send: (r: GameRequest) => void } = $props();
 
@@ -37,7 +38,7 @@
   const move = (id: string, d: -1 | 1) => send({ type: 'order', order: moveBy(ids, id, d) });
 </script>
 
-{#snippet iconBtn(icon: 'up' | 'down' | 'check' | 'undo', label: string, disabled: boolean, onclick: () => void)}
+{#snippet iconBtn(icon: 'up' | 'down' | 'check' | 'wrong', label: string, disabled: boolean, onclick: () => void)}
   <Tooltip text={label}>
     <button class="ss-btn ghost gs-icon-btn" type="button" {disabled} aria-label={label} {onclick}><Icon name={icon} /></button>
   </Tooltip>
@@ -82,13 +83,24 @@
             <span class="act">
               {#if !lobby && !ended}
                 {@render iconBtn('check', t('mod.markRightName', { name }), r.status === 'got', () => send({ type: 'mark', member: r.member.id, right: true }))}
-                {@render iconBtn('undo', t('mod.markWrongName', { name }), r.status === 'playing', () => send({ type: 'mark', member: r.member.id, right: false }))}
+                {@render iconBtn('wrong', t('mod.markWrongName', { name }), r.status === 'playing', () => send({ type: 'mark', member: r.member.id, right: false }))}
+                <RowMenu label={t('mod.more', { name })}>
+                  {#snippet children(close)}
+                    <button class="ss-btn ghost gs-sm" type="button" disabled={i === 0} onclick={() => { move(r.member.id, -1); close(); }}><Icon name="up" />{t('order.upShort')}</button>
+                    <button class="ss-btn ghost gs-sm" type="button" disabled={i === v.turma.length - 1} onclick={() => { move(r.member.id, 1); close(); }}><Icon name="down" />{t('order.downShort')}</button>
+                    {#if r.member.id !== room.you}
+                      <Confirm label={t('mod.handOver')} small onconfirm={() => { send({ type: 'handOver', member: r.member.id }); close(); }} />
+                      <Confirm label={t('mod.kick')} small onconfirm={() => { send({ type: 'kick', member: r.member.id }); close(); }} />
+                    {/if}
+                  {/snippet}
+                </RowMenu>
+              {:else}
+                {#if !ended}
+                  {@render iconBtn('up', t('order.up', { name }), i === 0, () => move(r.member.id, -1))}
+                  {@render iconBtn('down', t('order.down', { name }), i === v.turma.length - 1, () => move(r.member.id, 1))}
+                {/if}
+                {@render modActions(r.member.id, name)}
               {/if}
-              {#if !ended}
-                {@render iconBtn('up', t('order.up', { name }), i === 0, () => move(r.member.id, -1))}
-                {@render iconBtn('down', t('order.down', { name }), i === v.turma.length - 1, () => move(r.member.id, 1))}
-              {/if}
-              {@render modActions(r.member.id, name)}
             </span>
           {/if}
         </div>
