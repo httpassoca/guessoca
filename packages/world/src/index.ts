@@ -50,6 +50,8 @@ export const SHOVE_DY = 30;
 export const SHOVE_VX = 260;
 export const SHOVE_VY = 160;
 export const SHOVE_STUN_MS = 400;
+/** a comemoração de quem acertou: lançado para cima a isto, px/s; o pico fica em CHEER_VY² / 2·GRAVITY ≈ 112 px (o pulo: 50) */
+export const CHEER_VY = 450;
 /**
  * o menor tempo entre dois empurrões da mesma pessoa, ms. É também quanto dura a animação `shove` de um personagem cujo
  * ataque é mais curto que isto (herói 7 quadros a 16 fps = 438 ms, esqueleto 5 a 12 = 417 ms): segura o último quadro.
@@ -443,6 +445,16 @@ export function applyShove(body: Body, dir: 1 | -1, now: number): Body {
     riding: null,
     stunnedUntil: now + SHOVE_STUN_MS,
   };
+}
+
+/**
+ * Este corpo acertou e comemora: é lançado para cima uma vez, solto do chão e de cabeças. Só a velocidade para cima
+ * muda (vale no ar e atordoado; não atordoa, e o teclado continua valendo no ar). Caído na rua, esperando voltar, não
+ * é lançado.
+ */
+export function applyCheer(body: Body): Body {
+  if (body.respawnAt !== null) return body;
+  return { ...body, vy: CHEER_VY, grounded: false, riding: null };
 }
 
 /** Onde se volta depois de cair: no meio (em x e em z) do topo mais alto entre os telhados (`kind: 'roof'`) do meio do mapa. */

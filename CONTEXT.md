@@ -88,9 +88,21 @@ _Evitar_: avatar, boneco, skin, sprite (é o desenho), herói
 J empurra quem está na frente, que é jogado para trás e pode cair do telhado. Cair na rua faz o personagem piscar e voltar em 1,5 s na plataforma mais alta do meio. Cair não muda nada no jogo.
 _Evitar_: ataque, soco, golpe, hit
 
+**Comemoração** (`cheer`):
+Quando um acerto é confirmado (pela votação ou pelo moderador), a turma inteira vê confete em volta do personagem de quem acertou por uns 2 s, e ele é lançado para o alto uma vez. Desistir e errar não têm comemoração.
+_Evitar_: festa, animação de vitória, efeito
+
+**Estatísticas** (`stats`):
+O que cada pessoa da turma fez no telhado durante um jogo, contado pelo servidor e mostrado no fim: quedas, empurrões dados (em gente ou em bot) e empurrões levados, da turma e dos bots, ao lado das vezes que jogou. Os destaques apontam quem mais caiu, quem mais empurrou e a vítima preferida dos bots. Só contam com o jogo rodando, zeram quando outro começa, não mudam nada no jogo nem contam como atividade. Bots não têm linha.
+_Evitar_: placar, pontuação, score, conquistas
+
 **Emote** (`emote`):
 Um balão de pixel sobre a cabeça por uns 2 s: `?`, `!`, `haha` e "eu?".
 _Evitar_: reação, emoji, fala
+
+**Fala** (`chat`):
+Uma mensagem curta, de até 60 caracteres, escrita no campo do canto de baixo à direita (Enter foca, Enter manda). Não fica guardada nem em lista: vira um balão de pixel perto do personagem de quem falou, da família dos balões dos emotes, que todo mundo vê por 3 a 6 s conforme o tamanho; uma fala nova da mesma pessoa troca a anterior. Uma por segundo por pessoa. Fala quem tem personagem, no lobby, no jogo e no fim; bot não fala. Passa por fora do estado da sala e não conta como atividade.
+_Evitar_: mensagem, chat (em português), histórico, log
 
 **Presença** (`presence`):
 Onde o personagem de uma pessoa está, como se move e o que anima. Sai de cada aba umas quinze vezes por segundo e chega às outras por fora do estado da sala; não conta como atividade.

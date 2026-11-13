@@ -1,4 +1,4 @@
-import { BOT_ID_RE, CLOSE_KICKED, CLOSE_REPLACED, CLOSE_ROOM_ENDED, IMAGE_BYTES_MAX, isWebp, parseClientMessage, PRESENCE_INTERVAL, SOCKET_IDLE_TIMEOUT, type Presence, type RoomInit } from '@guess/protocol';
+import { BOT_ID_RE, CHAT_INTERVAL, CLOSE_KICKED, CLOSE_REPLACED, CLOSE_ROOM_ENDED, IMAGE_BYTES_MAX, isWebp, parseClientMessage, PRESENCE_INTERVAL, SOCKET_IDLE_TIMEOUT, type Presence, type RoomInit, type StatName } from '@guess/protocol';
 import { CHARACTERS } from '@guess/rules';
 import attackMs from './attacks.json';
 import { BotWorld, type Seen } from './bots';
@@ -16,9 +16,9 @@ export const IMAGES_PER_UPLOADER = 2;
  * mandar nada antes de ser derrubado (os testes apressam os dois). `clock`: a hora (os testes fixam); `dev`: a sala
  * aceita jogadores falsos; `rng`: o sorteio da sala; `presenceInterval`: o mínimo entre duas presenças repassadas da mesma
  * pessoa; `init`: o que o pré-lobby escolheu ao criar a sala; `botTick`: de quanto em quanto tempo os bots engraçados dão
- * um passo, ms.
+ * um passo, ms; `chatInterval`: o mínimo entre duas falas da mesma pessoa.
  */
-export interface HostOptions { now?: number; ttl?: number; silence?: number; clock?: () => number; dev?: boolean; rng?: () => number; presenceInterval?: number; init?: RoomInit; botTick?: number }
+export interface HostOptions { now?: number; ttl?: number; silence?: number; clock?: () => number; dev?: boolean; rng?: () => number; presenceInterval?: number; init?: RoomInit; botTick?: number; chatInterval?: number }
 
 /** De quanto em quanto tempo os bots engraçados dão um passo, ms (30 por segundo); a presença deles sai a cada dois passos. */
 export const BOT_TICK = 33;
@@ -53,9 +53,13 @@ export type Socket = ServerWebSocket<SocketData>;
  * sem fechar o socket não chega de outro jeito; o `idleTimeout` do Bun é a rede de segurança abaixo deste.
  * Presença e empurrão (ADR 0005) não entram na sala: o host repassa a presença de cada membro aos outros no máximo uma
  * vez por `presenceInterval`, guardando só a mais recente, e entrega o empurrão só a quem foi empurrado.
+ * A fala (chat) também passa por fora: o host a repassa na hora a todo mundo, inclusive a quem falou, no máximo uma por
+ * `chatInterval` por pessoa (as a mais são descartadas); não guarda nenhuma e não conta como atividade.
  * Os bots engraçados (`bots.ts`, emenda do ADR 0005) são simulados aqui: com a opção ligada e o jogo rodando, um laço
  * dá passos neles, manda a presença de cada um como a de uma pessoa, entrega os empurrões deles e avisa a sala quando a
  * lista de quem está no telhado muda. Fora disso não há laço nenhum.
+ * As estatísticas do jogo (issue #59) saem do que já passa por aqui, sem mensagem nova: cada empurrão entregue e cada
+ * presença que passa a piscar (uma queda) viram uma entrada `stats` da sala, que só conta com o jogo rodando.
  */
 export class RoomHost {
   state: RoomState;
@@ -71,6 +75,9 @@ export class RoomHost {
   private readonly presenceInterval: number;
   /** por token: a última presença recebida, quando a última foi repassada e o timer da próxima, se a janela ainda não abriu */
   private readonly presences = new Map<string, { latest: Presence; sentAt: number; handle?: ReturnType<typeof setTimeout> }>();
+  private readonly chatInterval: number;
+  /** por token: quando a última fala foi repassada */
+  private readonly chats = new Map<string, number>();
   /** os bots engraçados: o mundo deles, o laço, a hora do último passo e a última presença mandada de cada um */
   private botWorld: BotWorld | null = null;
   private botTimer: ReturnType<typeof setInterval> | undefined;
@@ -86,6 +93,7 @@ export class RoomHost {
     this.silence = opts.silence ?? SOCKET_IDLE_TIMEOUT;
     this.presenceInterval = opts.presenceInterval ?? PRESENCE_INTERVAL;
     this.botTick = opts.botTick ?? BOT_TICK;
+    this.chatInterval = opts.chatInterval ?? CHAT_INTERVAL;
     this.state = createRoom(code, now, { ttl: opts.ttl ?? ROOM_TTL, dev: opts.dev ?? false, init: opts.init });
     this.syncTimers(now);
     log('room.created', { room: code });
@@ -119,6 +127,7 @@ export class RoomHost {
     if (!message) { this.log('room.badMessage', { room: this.code, token: ws.data.token.slice(0, 8) }); return; }
     if (message.type === 'presence') { this.relayPresence(ws.data.token, message.presence); return; }
     if (message.type === 'shove') { this.routeShove(ws.data.token, message.target, message.dir); return; }
+    if (message.type === 'chat') { this.relayChat(ws.data.token, message.text); return; }
     // a imagem de um post-it tem de ter subido antes: a sala só guarda o id, e um id sem bytes seria um buraco na tela
     if (message.type === 'write' && message.image !== null && !this.images.has(message.image)) {
       ws.send(JSON.stringify({ type: 'error', error: 'refused' }));
@@ -154,7 +163,11 @@ export class RoomHost {
     if (!this.memberByToken(token)) return; // visitante (ainda sem apelido) não está no telhado
     let p = this.presences.get(token);
     if (!p) { p = { latest: presence, sentAt: -Infinity }; this.presences.set(token, p); }
+    // `blink` liga na queda e só desliga quando o pisca-pisca da volta acaba (`blinking`): passar a piscar é uma queda,
+    // uma vez só. A primeira presença depois de conectar não tem "antes" e não conta.
+    const fell = presence.blink && !p.latest.blink;
     p.latest = presence;
+    if (fell) this.count([token, 'falls']);
     if (p.handle) return; // a mais recente sai quando o timer vencer
     const wait = p.sentAt + this.presenceInterval - this.clock();
     if (wait <= 0) { this.flushPresence(token); return; }
@@ -180,10 +193,38 @@ export class RoomHost {
   /** Entrega o empurrão à aba de quem foi empurrado; é ela que se joga para trás (ADR 0005). */
   private routeShove(token: string, target: string, dir: 1 | -1) {
     const from = this.memberByToken(token);
-    if (from && BOT_ID_RE.test(target)) { this.botWorld?.shoved(target, dir, from.id, this.clock()); return; }
+    if (from && BOT_ID_RE.test(target)) {
+      if (this.botWorld?.shoved(target, dir, from.id, this.clock())) this.count([token, 'shoves']);
+      return;
+    }
     const to = this.state.members.find((m) => m.id === target);
     if (!from || !to || to === from || to.token === null) return;
-    this.sockets.get(to.token)?.send(JSON.stringify({ type: 'shoved', by: from.id, dir }));
+    const ws = this.sockets.get(to.token);
+    if (!ws) return;
+    ws.send(JSON.stringify({ type: 'shoved', by: from.id, dir }));
+    this.count([token, 'shoves'], [to.token, 'shovedByPlayers']);
+  }
+
+  /** Soma um em cada estatística (token de quem, qual), se o jogo está rodando; a sala guarda (`stats`). */
+  private count(...add: [token: string, stat: StatName][]) {
+    if (this.state.phase === 'dead' || this.state.game.phase !== 'playing') return;
+    const counted = add.flatMap(([token, stat]) => { const m = this.memberByToken(token); return m ? [{ member: m.id, stat }] : []; });
+    if (counted.length) this.apply({ kind: 'stats', add: counted });
+  }
+
+  /**
+   * Repassa a fala a todo mundo da sala, inclusive a quem falou (o balão sobre o próprio personagem é este eco). Só fala
+   * quem é da turma e tem personagem (visitante não tem onde pôr o balão); a que chega antes de `chatInterval` da
+   * anterior da mesma pessoa é descartada.
+   */
+  private relayChat(token: string, text: string) {
+    const from = this.memberByToken(token);
+    if (!from || this.state.phase === 'dead' || !(from.id in this.state.game.characters)) return;
+    const now = this.clock();
+    if (now - (this.chats.get(token) ?? -Infinity) < this.chatInterval) return;
+    this.chats.set(token, now);
+    const raw = JSON.stringify({ type: 'chat', member: from.id, text });
+    for (const ws of this.sockets.values()) ws.send(raw);
   }
 
   /** Os bytes de uma imagem da sala, se existe. */
@@ -254,9 +295,17 @@ export class RoomHost {
     const taken = new Set(Object.values(this.state.game.characters));
     const enabled = this.state.funnyBots;
     const r = world.tick(now, dt, players, { enabled, taken });
+    const hit: [string, StatName][] = [];
     for (const s of r.shoves) {
       const to = this.state.members.find((m) => m.id === s.target);
-      if (to?.token) this.sockets.get(to.token)?.send(JSON.stringify({ type: 'shoved', by: s.by, dir: s.dir }));
+      const ws = to?.token ? this.sockets.get(to.token) : undefined;
+      if (!to?.token || !ws) continue;
+      ws.send(JSON.stringify({ type: 'shoved', by: s.by, dir: s.dir }));
+      hit.push([to.token, 'shovedByBots']);
+    }
+    if (hit.length) {
+      this.count(...hit);
+      if (this.botWorld !== world) return;
     }
     if (r.rosterChanged) {
       for (const id of [...this.botSent.keys()]) if (!world.bots.some((b) => b.id === id)) this.botSent.delete(id);

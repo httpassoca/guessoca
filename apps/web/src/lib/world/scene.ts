@@ -18,6 +18,7 @@
  *     bodies                                  um sprite por corpo, ordenado por profundidade
  *     platforms.front                         a mureta da frente, cobre os pés na beirada
  *     balloons                                balões dos emotes, sempre por cima dos corpos
+ *     celebration                             o confete de quem acertou (`celebration.ts`)
  *     weather                                 neblina da frente e chuva
  *   world inteiro                             ← aberração RGB + CRT (`film.world`)
  *   (HTML por cima do canvas: post-its e painéis, fora dos filtros)
@@ -39,6 +40,7 @@ import emoteAtlas from '../sprites/emotes.json';
 import { artScale, CHARACTER_ART, character, frameIndex } from '../sprites/characters';
 import { loadRooftopArt } from './art';
 import { Backdrop } from './backdrop';
+import { Celebration } from './celebration';
 import { Film } from './film';
 import { lobbyMatrix, moodStep } from './mood';
 import { Platforms } from './platforms';
@@ -111,6 +113,7 @@ export class Scene {
   private readonly shadows = new Container();
   private readonly bodies = new Container({ sortableChildren: true });
   private readonly balloons = new Container();
+  private readonly celebration = new Celebration();
   private readonly drawn = new Map<string, Drawn>();
   /** quadros por personagem, animação e índice (cada personagem no atlas do seu modelo) */
   private readonly frames: Texture[][][] = [];
@@ -195,9 +198,12 @@ export class Scene {
     this.platforms = new Platforms(art);
     this.weather = new Weather(art);
     this.scenery.addChild(this.backdrop, this.platforms.back);
-    this.world.addChild(this.scenery, this.shadows, this.bodies, this.platforms.front, this.balloons, this.weather);
+    this.world.addChild(this.scenery, this.shadows, this.bodies, this.platforms.front, this.balloons, this.celebration, this.weather);
     this.applyEffects();
   }
+
+  /** `id` acertou agora: confete em volta dele por uns 2 s, seguindo de onde ele estiver. */
+  celebrate(id: string, now: number) { this.celebration.start(id, now); }
 
   /**
    * Desenha um quadro: `list` em unidades do mundo, `cam`/`view` como em `project` (a escala inteira de `view` amplia
@@ -211,6 +217,7 @@ export class Scene {
     this.weather?.update(cam, view, now);
     if (this.effects) this.film.tick(now);
     this.stepMood(now);
+    this.celebration.update((id) => list.find((b) => b.id === id), cam, view, now);
 
     const seen = new Set<string>();
     // quem está mais ao fundo primeiro; empate pelo id, para não piscar a ordem

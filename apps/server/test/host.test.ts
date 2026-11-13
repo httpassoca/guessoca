@@ -358,3 +358,95 @@ describe('host: bots engraçados (emenda do ADR 0005)', () => {
     host.dispose();
   });
 });
+
+describe('host: estatísticas do jogo (issue #59)', () => {
+  const zero = { falls: 0, shoves: 0, shovedByPlayers: 0, shovedByBots: 0 };
+  const pres = (blink: boolean, x = 100): Presence => ({ x, y: 0, z: 40, vx: 0, vy: 0, vz: 0, facing: 1, anim: 'idle', emote: null, blink });
+  /** Zé (m1, moderador) e Dita (m2) com o jogo começado; `bots`: com os bots engraçados ligados (e o relógio de verdade) */
+  function playingTwo(bots = false) {
+    let now = 1_000_000;
+    const clock = { advance: (ms: number) => { now += ms; } };
+    const host = new RoomHost('ABCD', silentLog, () => {}, bots ? { botTick: 5, rng: lcg(3) } : { clock: () => now });
+    const a = fakeSocket('token-a'), b = fakeSocket('token-b');
+    host.connect(a); say(host, a, { type: 'join', nickname: 'Zé' });
+    host.connect(b); say(host, b, { type: 'join', nickname: 'Dita' });
+    say(host, a, { type: 'shuffleAuthors' });
+    for (const [ws, me] of [[a, 'm1'], [b, 'm2']] as const) {
+      const owner = Object.keys(host.state.game.authors).find((o) => host.state.game.authors[o] === me)!;
+      say(host, ws, { type: 'write', owner, text: 'Batman', image: null });
+    }
+    if (bots) say(host, a, { type: 'funnyBots', on: true });
+    say(host, a, { type: 'start' });
+    expect(host.state.game.phase).toBe('playing');
+    return { host, a, b, clock };
+  }
+
+  test('um empurrão entregue conta para quem deu e para quem levou; os que não chegam a ninguém não contam', () => {
+    const { host, a, b } = playingTwo();
+    say(host, a, { type: 'shove', target: 'm2', dir: 1 });
+    say(host, a, { type: 'shove', target: 'm2', dir: -1 });
+    say(host, b, { type: 'shove', target: 'm1', dir: 1 });
+    say(host, a, { type: 'shove', target: 'm1', dir: 1 }); // em si mesmo
+    say(host, a, { type: 'shove', target: 'm9', dir: 1 }); // em ninguém
+    say(host, a, { type: 'shove', target: 'b1', dir: 1 }); // num bot que não existe
+    host.disconnect(b);
+    say(host, a, { type: 'shove', target: 'm2', dir: 1 }); // em quem caiu da sala: não é entregue
+    expect(host.state.stats).toEqual({ m1: { ...zero, shoves: 2, shovedByPlayers: 1 }, m2: { ...zero, shoves: 1, shovedByPlayers: 2 } });
+    host.dispose();
+  });
+
+  test('uma queda é a presença passar a piscar: conta uma vez por queda, por mais presenças que cheguem piscando', () => {
+    const { host, a, b, clock } = playingTwo();
+    const activity = host.state.lastActivity;
+    say(host, a, { type: 'presence', presence: pres(true) }); // a primeira presença já piscando: não há "antes", não conta
+    say(host, a, { type: 'presence', presence: pres(false) });
+    for (let i = 0; i < 30; i++) { clock.advance(66); say(host, a, { type: 'presence', presence: pres(true, 100 + i) }); } // caído e voltando
+    say(host, a, { type: 'presence', presence: pres(false) });
+    say(host, a, { type: 'presence', presence: pres(true) }); // caiu de novo
+    say(host, b, { type: 'presence', presence: pres(false) });
+    expect(host.state.stats).toEqual({ m1: { ...zero, falls: 2 } });
+    expect(host.state.lastActivity).toBe(activity);
+    // quem cai da sala e volta piscando não ganha uma queda a mais
+    host.disconnect(b);
+    host.connect(b);
+    say(host, b, { type: 'presence', presence: pres(true) });
+    expect(host.state.stats.m2).toBeUndefined();
+    host.dispose();
+  });
+
+  test('fora do jogo nada conta; no fim, o snapshot de todo mundo leva os números', () => {
+    const { host, a, b } = hostWithTwo();
+    say(host, a, { type: 'shove', target: 'm2', dir: 1 });
+    say(host, b, { type: 'presence', presence: pres(false) });
+    say(host, b, { type: 'presence', presence: pres(true) });
+    expect(host.state.stats).toEqual({});
+    host.dispose();
+
+    const p = playingTwo();
+    say(p.host, p.a, { type: 'shove', target: 'm2', dir: 1 });
+    say(p.host, p.b, { type: 'presence', presence: pres(false) });
+    say(p.host, p.b, { type: 'presence', presence: pres(true) });
+    say(p.host, p.a, { type: 'endGame' });
+    const last = received(p.b).filter((m) => m.type === 'snapshot').at(-1)!;
+    expect(last.type === 'snapshot' && last.snapshot.stats).toEqual({ m1: { ...zero, shoves: 1 }, m2: { ...zero, falls: 1, shovedByPlayers: 1 } });
+    p.host.dispose();
+  });
+
+  test('o empurrão de um bot numa pessoa conta como levado dos bots; o de uma pessoa num bot, como dado, se acertou', async () => {
+    const { host, a, b } = playingTwo(true);
+    // um mundo de bots de mentira no lugar do sorteado: um passo dele empurra Dita uma vez; só o bot b1 se deixa empurrar
+    let shoves = [{ target: 'm2', by: 'b1', dir: 1 as const }, { target: 'm9', by: 'b1', dir: 1 as const }];
+    const fake = {
+      bots: [], roster: () => [], presence: () => pres(false),
+      tick: () => { const r = { shoves, rosterChanged: false }; shoves = []; return r; },
+      shoved: (id: string) => id === 'b1',
+    };
+    (host as unknown as { botWorld: unknown }).botWorld = fake;
+    for (let i = 0; i < 200 && !host.state.stats.m2; i++) await sleep(5);
+    say(host, a, { type: 'shove', target: 'b1', dir: 1 });
+    say(host, a, { type: 'shove', target: 'b2', dir: 1 }); // este bot não levou (piscando, chegando ou não existe)
+    expect(host.state.stats).toEqual({ m1: { ...zero, shoves: 1 }, m2: { ...zero, shovedByBots: 1 } });
+    expect(received(b).filter((m) => m.type === 'shoved')).toEqual([{ type: 'shoved', by: 'b1', dir: 1 }]);
+    host.dispose();
+  });
+});

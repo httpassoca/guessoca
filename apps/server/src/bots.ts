@@ -178,32 +178,36 @@ export class BotWorld {
     };
   }
 
-  /** Alguém (`by`, pessoa ou bot) empurrou este bot para o lado `dir`. */
-  shoved(id: string, dir: 1 | -1, by: string, now: number) {
+  /** Alguém (`by`, pessoa ou bot) empurrou este bot para o lado `dir`. Devolve se o empurrão pegou. */
+  shoved(id: string, dir: 1 | -1, by: string, now: number): boolean {
     const bot = this.bots.find((b) => b.id === id);
-    if (!bot || blinking(bot.body, now) || bot.doing === 'arrive') return;
-    if (bot.boss) { this.bossShoved(bot, dir, by, now); return; }
+    if (!bot || blinking(bot.body, now) || bot.doing === 'arrive') return false;
+    if (bot.boss) return this.bossShoved(bot, dir, by, now);
     bot.body = applyShove(bot.body, dir, now);
     bot.grudge = by;
     bot.emote = { name: 'exclaim', since: now };
-    if (bot.doing === 'leave') return;
+    if (bot.doing === 'leave') return true;
     const byBot = this.bots.some((b) => b.id === by);
     if (byBot) {
       // bot contra bot: devolve ou sai correndo
       if (this.rng() < 0.6) this.start(bot, 'fight', now, by, 4000 + this.rng() * 5000);
       else this.start(bot, 'flee', now, by, 1500 + this.rng() * 2500);
-      return;
+      return true;
     }
     if (bot.temper === 'revenge') { bot.comebacks = Math.max(bot.comebacks, 1); this.start(bot, 'revenge', now, by, 9000 + this.rng() * 6000); }
     else if (bot.temper === 'leave') this.leave(bot, now);
     else this.start(bot, 'flee', now, by, 2000 + this.rng() * 3000);
+    return true;
   }
 
-  /** O chefão levou um empurrão: perde um ponto; ainda de pé, cambaleia e reage; no último, voa para fora e some. */
-  private bossShoved(bot: Bot, dir: 1 | -1, by: string, now: number) {
+  /**
+   * O chefão levou um empurrão: perde um ponto; ainda de pé, cambaleia e reage; no último, voa para fora e some.
+   * Devolve se o empurrão pegou (o de um bot, cedo demais ou no último ponto, ele nem sente).
+   */
+  private bossShoved(bot: Bot, dir: 1 | -1, by: string, now: number): boolean {
     const byBot = this.bots.some((o) => o.id === by);
     if (byBot) {
-      if (bot.hp <= 1 || now - bot.botHitAt < BOSS_BOT_HIT_MS) return;
+      if (bot.hp <= 1 || now - bot.botHitAt < BOSS_BOT_HIT_MS) return false;
       bot.botHitAt = now;
     }
     bot.grudge = by;
@@ -214,17 +218,18 @@ export class BotWorld {
       bot.exit = 'blink';
       this.start(bot, 'leave', now, null, BOSS_OUT_MS);
       bot.body = { ...applyShove(bot.body, dir, now), vx: dir * BOSS_OUT_VX, vy: BOSS_OUT_VY, stunnedUntil: now + BOSS_OUT_MS, blinkUntil: now + BOSS_OUT_MS };
-      return;
+      return true;
     }
     // um tranco curto; na beirada, só o pulinho (não cai por isso)
     const b = bot.body;
     const edge = groundAt(this.platforms, b.x + dir * BOSS_FLINCH_ROOM, b.z) === null;
     bot.body = { ...b, vx: edge ? 0 : dir * BOSS_FLINCH_VX, vy: BOSS_FLINCH_VY, vz: 0, grounded: false, riding: null, stunnedUntil: now + BOSS_FLINCH_MS };
-    if (bot.doing === 'leave') return;
+    if (bot.doing === 'leave') return true;
     // vai atrás de quem bateu (andando), ou só encara
     if (byBot) this.start(bot, 'fight', now, by, 4000 + this.rng() * 5000);
     else if (this.rng() < 0.7) this.start(bot, 'revenge', now, by, 9000 + this.rng() * 6000);
     else this.start(bot, 'stare', now, by, 4000 + this.rng() * 5000);
+    return true;
   }
 
   /**

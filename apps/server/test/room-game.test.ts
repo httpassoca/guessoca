@@ -90,7 +90,7 @@ describe('sala: mensagens de jogo', () => {
     const snap = snapshotFor(s.state, 't2', T0 + 13_000);
     expect(snap).toMatchObject({
       phase: 'playing', you: 'm2', moderator: 'm1', dev: false, order: ['m1', 'm2', 'm3'],
-      authors: { m2: 'm1', m3: 'm2', m1: 'm3' }, turnMs: TURN_DEFAULT, paused: false, got: [], gaveUp: [],
+      authors: { m2: 'm1', m3: 'm2', m1: 'm3' }, turnMs: TURN_DEFAULT, paused: false, got: [], gaveUp: [], turns: { m1: 1 },
       turn: { owner: 'm1', left: TURN_DEFAULT - 10_000, running: false },
       vote: { claimer: 'm1', voters: ['m2', 'm3'], voted: ['m2'], left: VOTE_MS - 3_000, yours: false },
     });
@@ -439,5 +439,55 @@ describe('sala: bots engraçados', () => {
     s.say('t1', { type: 'endGame' });
     expect(s.game.phase).toBe('ended');
     expect(s.snapshotFor('t2')!.bots).toEqual([]);
+  });
+});
+
+describe('sala: estatísticas do jogo (issue #59)', () => {
+  const zero = { falls: 0, shoves: 0, shovedByPlayers: 0, shovedByBots: 0 };
+
+  test('o adaptador conta quedas e empurrões durante o jogo; não é atividade nem dispara snapshot; no fim, vão no snapshot', () => {
+    const s = playing(2);
+    const activity = s.state.lastActivity;
+    s.out = [];
+    s.feed({ kind: 'stats', add: [{ member: 'm1', stat: 'shoves' }, { member: 'm2', stat: 'shovedByPlayers' }] }, s.now + 5000);
+    s.feed({ kind: 'stats', add: [{ member: 'm2', stat: 'falls' }] });
+    s.feed({ kind: 'stats', add: [{ member: 'm2', stat: 'shovedByBots' }, { member: 'm2', stat: 'shovedByBots' }] });
+    s.feed({ kind: 'stats', add: [{ member: 'm9', stat: 'falls' }, { member: 'b1', stat: 'falls' }] }); // quem não é da turma não conta
+    expect(s.out).toEqual([]);
+    expect(s.state.lastActivity).toBe(activity);
+    expect(s.state.stats).toEqual({ m1: { ...zero, shoves: 1 }, m2: { ...zero, falls: 1, shovedByPlayers: 1, shovedByBots: 2 } });
+    // com o jogo rodando o snapshot não leva os números: só no fim
+    s.say('t1', { type: 'pause', on: true });
+    expect(s.snapshotFor('t2')!.stats).toEqual({});
+    s.say('t1', { type: 'endGame' });
+    expect(s.game.phase).toBe('ended');
+    expect(s.snapshotFor('t2')!.stats).toEqual(s.state.stats);
+    expect(s.snapshotFor('t1')!.stats).toEqual(s.state.stats);
+  });
+
+  test('só conta com o jogo rodando, e um jogo novo começa do zero', () => {
+    const l = lobby(2);
+    l.feed({ kind: 'stats', add: [{ member: 'm1', stat: 'falls' }] });
+    expect(l.state.stats).toEqual({});
+    const s = playing(2);
+    s.feed({ kind: 'stats', add: [{ member: 'm1', stat: 'falls' }] });
+    s.say('t1', { type: 'endGame' });
+    s.feed({ kind: 'stats', add: [{ member: 'm1', stat: 'falls' }] }); // no fim, cair não conta mais
+    expect(s.snapshotFor('t1')!.stats).toEqual({ m1: { ...zero, falls: 1 } });
+    s.say('t1', { type: 'playAgain' });
+    expect(s.game.phase).toBe('lobby');
+    expect(s.snapshotFor('t1')!.stats).toEqual({});
+    writeAll(s);
+    s.say('t1', { type: 'start' });
+    expect(s.game.phase).toBe('playing');
+    expect(s.state.stats).toEqual({});
+  });
+
+  test('quem chegou com o jogo rodando (fantasma) também conta; quem é expulso leva os números junto', () => {
+    const s = playing(2);
+    s.enter('t3', 'P3');
+    s.feed({ kind: 'stats', add: [{ member: 'm3', stat: 'falls' }, { member: 'm2', stat: 'falls' }] });
+    s.say('t1', { type: 'kick', member: 'm2' });
+    expect(s.state.stats).toEqual({ m3: { ...zero, falls: 1 } });
   });
 });

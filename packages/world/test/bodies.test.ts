@@ -1,6 +1,10 @@
 import { describe, expect, test } from 'bun:test';
 import {
+  applyCheer,
   applyShove,
+  CHEER_VY,
+  GRAVITY,
+  JUMP_V,
   BODY_H,
   BODY_RX,
   BODY_RZ,
@@ -185,5 +189,46 @@ describe('empurrão', () => {
     expect(kinds(r)).toEqual(['land']);
     expect(r.body).toMatchObject({ y: 0, grounded: true, vx: 0 });
     expect(r.body.x).toBeGreaterThan(60 + 60);
+  });
+});
+
+describe('a comemoração de quem acertou', () => {
+  /** a altura do pico de um lançamento a `v`, px */
+  const peak = (v: number) => (v * v) / (2 * GRAVITY);
+
+  test('é lançado para cima, solto do chão e da cabeça, sem atordoar nem mudar para onde ia', () => {
+    const b = { ...bodyAt(100, 10), riding: 'c', vx: 80, vz: -20 };
+    expect(applyCheer(b)).toMatchObject({ vy: CHEER_VY, grounded: false, riding: null, vx: 80, vz: -20, stunnedUntil: 0, x: 100, y: 0, z: 10 });
+    expect(b.vy).toBe(0);
+  });
+
+  test('sobe bem mais que o pulo normal e pousa onde a física mandar', () => {
+    expect(peak(CHEER_VY)).toBeGreaterThan(2 * peak(JUMP_V));
+    const r = run(applyCheer(bodyAt(60, 10)), {}, 2);
+    near(Math.max(...r.trace.map((t) => t.y)), peak(CHEER_VY), 6);
+    expect(kinds(r)).toEqual(['land']);
+    expect(r.body).toMatchObject({ x: 60, y: 0, grounded: true });
+  });
+
+  test('vale no ar, mesmo caindo', () => {
+    const falling = { ...bodyAt(60, 10, { y: 30 }), vy: -200 };
+    const r = run(applyCheer(falling), {}, 0.3);
+    expect(Math.max(...r.trace.map((t) => t.y))).toBeGreaterThan(30 + 60);
+  });
+
+  test('vale atordoado, e o atordoamento continua', () => {
+    const hit = applyShove(bodyAt(60, 10), 1, T0);
+    expect(applyCheer(hit)).toMatchObject({ vy: CHEER_VY, vx: SHOVE_VX, stunnedUntil: T0 + SHOVE_STUN_MS });
+  });
+
+  test('dá para andar no ar durante o salto', () => {
+    const r = run(applyCheer(bodyAt(60, 10)), { right: true }, 0.5);
+    expect(r.body.x).toBeGreaterThan(60 + 30);
+    expect(r.body.grounded).toBe(false);
+  });
+
+  test('caído na rua, esperando voltar: nada acontece', () => {
+    const fallen = { ...bodyAt(60, 10), respawnAt: T0 + 1000 };
+    expect(applyCheer(fallen)).toBe(fallen);
   });
 });
