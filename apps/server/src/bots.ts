@@ -20,8 +20,8 @@
  * `BOSS_BOT_HIT_MS`). Os primeiros só o fazem cambalear (um tranco curto que nunca o tira do telhado) e ele costuma ir
  * atrás de quem bateu; o último o joga longe e ele some de vez. Só anda, não sai do telhado em que caiu, não é
  * desajeitado (se cair mesmo assim, volta) e só faz o que está em `BOSS_ACTIONS`: passeia, segue, encara, empurra. O
- * sossego e a limpa do diretor não o levam: sai na hora dele (um ou dois minutos), no último empurrão, ou fugindo com
- * os outros quando a opção é desligada. O corpo dele é mais alto e mais largo para os outros (`Other.h`, `Other.wide`),
+ * sossego e a limpa do diretor não o levam: sai na hora dele (de um minuto e meio a dois e meio, `BOSS_STAY_MIN_MS`),
+ * no último empurrão, ou fugindo com os outros quando a opção é desligada. O corpo dele é mais alto e mais largo para os outros (`Other.h`, `Other.wide`),
  * não mais fundo. Numa sala de desenvolvimento o primeiro acontecimento é um chefão (`bossFirst`).
  */
 import { BOSS_SCALE, BOTS_MAX, EMOTE_MS, type BotView, type EmoteName, type Presence } from '@guess/protocol';
@@ -36,7 +36,15 @@ export const BOT_SHOVE_PLAYER_MS = 20_000;
 export const BOTS_FLEE_MS = 6000;
 
 /** Quantos empurrões o chefão aguenta: o último o joga para fora. */
-export const BOSS_HP = 6;
+export const BOSS_HP = 18;
+/**
+ * Quanto tempo o chefão fica se ninguém o derruba, ms, contado de quando cai do céu: sorteado entre os dois. Dezoito
+ * empurrões pedem tempo: uma pessoa sozinha, alinhando de novo depois de cada tranco, dá um a cada um ou dois segundos
+ * (o ataque trava de 0,45 a 1,2 s), uns 20 a 40 s ao todo, e a turma costuma levar um tempo para notar que ele chegou
+ * no meio de uma vez. O mínimo cobre um empurrão a cada três segundos mais meio minuto até chegarem nele (é o teste).
+ */
+export const BOSS_STAY_MIN_MS = 90_000;
+export const BOSS_STAY_MAX_MS = 150_000;
 /** a que distância em x o chefão e outro corpo se encostam, em vezes a de dois corpos comuns: a média das duas larguras */
 const BOSS_WIDE = (1 + BOSS_SCALE) / 2;
 /** onde o chefão para ao lado de quem segue, encara ou vai empurrar: logo além de onde encosta (ainda ao alcance do empurrão) */
@@ -44,6 +52,7 @@ const BOSS_NEAR = 2 * BODY_RX * BOSS_WIDE + 3;
 /**
  * O empurrão de outro bot no chefão conta no máximo uma vez a cada isto, ms (os outros ele nem sente), e nunca é o
  * último: quem o derruba é sempre uma pessoa. Sem isto, dois bots brigando com ele o tiram do telhado em segundos.
+ * Com dezoito pontos, cada um desses é um gomo pequeno da barra; mesmo numa briga longa, o fim é de uma pessoa.
  */
 export const BOSS_BOT_HIT_MS = 5000;
 /**
@@ -355,7 +364,7 @@ export class BotWorld {
     else if (kind === 'invasion') this.spawn(now, Math.min(room, int(7, BOTS_MAX)), taken, () => now + 20_000 + this.rng() * 20_000);
     else if (kind === 'clones') this.spawn(now, Math.min(room, int(3, 6)), taken, life, { same: this.character(taken) });
     // o chefão fica pouco: de 50 a 110 s
-    else if (kind === 'boss') this.spawn(now, 1, taken, () => now + 50_000 + this.rng() * 60_000, { same: this.opts.bossCharacter, boss: true });
+    else if (kind === 'boss') this.spawn(now, 1, taken, () => now + BOSS_STAY_MIN_MS + this.rng() * (BOSS_STAY_MAX_MS - BOSS_STAY_MIN_MS), { same: this.opts.bossCharacter, boss: true });
 
     // calmo, demora mais; caótico, vem logo; sempre com muita folga para os dois lados
     this.nextEventAt = now + (48_000 - 34_000 * m) * (0.4 + this.rng() * 1.4);

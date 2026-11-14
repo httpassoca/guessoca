@@ -425,7 +425,7 @@ export class TalkBrain {
       case 'fell': return 'Você acabou de cair do telhado e voltou. Reaja.';
       case 'otherFell': return `${who} acabou de cair do telhado. Comente.`;
       case 'arrived': return 'Você acabou de chegar ao telhado. Diga algo ao chegar.';
-      case 'boss': return 'Você acabou de cair do céu como o chefão gigante (aguenta seis empurrões). Anuncie sua chegada, ameaçador e engraçado.';
+      case 'boss': return 'Você acabou de cair do céu como o chefão gigante (aguenta dezoito empurrões). Anuncie sua chegada, ameaçador e engraçado.';
       case 'bossSeen': return `O chefão ${who} acabou de cair do céu. Reaja.`;
       case 'game': {
         const what = { turn: `começou a vez de ${who}`, claim: `${who} disse que acertou e a turma está votando`, guessed: `${who} acertou quem é`, missed: `a turma votou que ${who} errou`, gaveUp: `${who} desistiu e viu o próprio post-it` }[i.game as 'turn'];
