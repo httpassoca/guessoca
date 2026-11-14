@@ -1,5 +1,6 @@
 <script lang="ts">
   import type { RoomSnapshot } from '@guess/protocol';
+  import { Tooltip } from 'dssoca';
   import Confirm from '../hud/Confirm.svelte';
   import Icon from '../hud/Icon.svelte';
   import Kbd from '../hud/Kbd.svelte';
@@ -17,7 +18,8 @@
    * Com o jogo pausado, uma faixa embaixo da barra diz isso (o moderador continua dali). Com a coluna recolhida, o
    * moderador tem um atalho para ela ao lado da barra ("Moderação", P): as ferramentas dele moram lá.
    * O voto muda até a votação fechar (ADR 0008, emenda): o botão do voto dado fica marcado. Quem virou fantasma vê a marca
-   * no lugar de Acertei / Desistir, e um "Voltar a jogar" que desvira.
+   * no lugar de Acertei / Desistir, e um "Voltar a jogar" que desvira; quem joga tem, ao lado de Desistir, o fantasminha
+   * que vira fantasma (a coluna, onde também está, fica recolhida no jogo).
    */
   let { v, room, send, turnLeft, voteLeft, sideOpen, onmod }: {
     v: RoomView; room: RoomSnapshot; send: (r: GameRequest) => void; turnLeft: number; voteLeft: number; sideOpen: boolean; onmod: () => void;
@@ -48,6 +50,12 @@
             <button class="ss-btn" type="button" disabled={!v.canSkip} onclick={() => send({ type: 'skip' })}>{t('play.skip')} <Kbd keys={['Tab']} /></button>
           {/if}
           <Confirm label={t('play.giveUp')} disabled={!v.canGiveUp} onconfirm={() => send({ type: 'giveUp' })} />
+          {#if v.me}
+            {@const me = v.me}
+            <Tooltip text={t('ghost.turnOn')}>
+              <button class="ss-btn ghost gs-icon-btn" type="button" aria-label={t('ghost.turnOn')} onclick={() => send({ type: 'ghost', member: me.id, on: true })}><Icon name="ghost" /></button>
+            </Tooltip>
+          {/if}
         </span>
       {:else if v.done}
         <span class="gs-hint">{t('play.youAreDone')}</span>

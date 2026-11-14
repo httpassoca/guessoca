@@ -91,7 +91,7 @@
           {#if v.isModerator}
             <span class="act">
               {#if !lobby && !ended}
-                {@render iconBtn('check', t('mod.markRightName', { name }), r.status === 'got', () => send({ type: 'mark', member: r.member.id, right: true }))}
+                {@render iconBtn('check', t('mod.markRightName', { name }), r.status === 'got' || r.ghosted, () => send({ type: 'mark', member: r.member.id, right: true }))}
                 {@render iconBtn('wrong', t('mod.markWrongName', { name }), r.status === 'playing', () => send({ type: 'mark', member: r.member.id, right: false }))}
                 <RowMenu label={t('mod.more', { name })}>
                   {#snippet children(close)}
@@ -146,7 +146,6 @@
                 <span class="writes">{t('turma.writesNobody')}</span>
               {/if}
             {:else if r.card?.turn}<span class="gs-tag turn">{t('play.turnBadge')}</span>
-            {:else if r.ghosted}<span class="gs-tag"><Icon name="ghost" size={14} />{t('badge.ghost')}</span>
             {:else if r.status === 'got'}<span class="gs-tag good">{t('play.gotBadge', { place: r.place ?? '' })}</span>
             {:else if r.status === 'gaveUp'}<span class="gs-tag">{t('rank.gaveUp')}</span>{/if}
           </span>
