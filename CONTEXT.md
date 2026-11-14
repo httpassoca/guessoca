@@ -71,7 +71,7 @@ A ordem em que as pessoas acertaram; quem desistiu fica no fim, na ordem em que 
 _Evitar_: placar, pontuação, classificação, score
 
 **Bloco** (`notepad`):
-As anotações de cada pessoa durante o jogo. Pessoais, por aba; ninguém mais vê.
+As anotações de cada pessoa durante o jogo. Pessoais, por aba; ninguém mais vê. O tamanho dele (a alça no canto) é lembrado pelo navegador.
 _Evitar_: notas, chat, caderno
 
 ### Telhado

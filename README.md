@@ -85,7 +85,7 @@ apps/server        Bun.serve: `/health`, `POST /api/rooms` (corpo JSON do pré-l
 
 apps/web           Vite + Svelte 5 + PixiJS v8 + dssoca
   src/lib/route.ts         rotas: `/` início, `/sala/CODE`; `route.svelte.ts` é a rota reativa e `navigate`
-  src/lib/identity.ts      token por sala e por navegador, apelido e último personagem (localStorage); bloco por aba (sessionStorage)
+  src/lib/identity.ts      token por sala e por navegador, apelido, último personagem e tamanho do bloco (localStorage); bloco por aba (sessionStorage)
   src/lib/i18n.ts          a tabela de tradução (pt-BR padrão, en-US), tipada para as duas terem as mesmas chaves
   src/lib/room/remote.ts   `RemoteRoom`: conecta com o token, aplica os snapshots, manda as ações, pinga, reconecta com espera
                            crescente até 10 s, e para de vez em 4404/4410/4409/4403 dizendo por quê
@@ -134,7 +134,7 @@ apps/web           Vite + Svelte 5 + PixiJS v8 + dssoca
                            depois, pausa e votação no alto), Roster (a tira de post-its embaixo), Lobby (ordem arrastável, autores, personagens, tamanho da vez), Writing
                            e PostitEditor (ao vivo, imagem, Pronto, moderador escreve os vazios), Playing (vez, votação, ranking),
                            ModPanel, Ended, Stats (as estatísticas do jogo, na coluna do fim), EndCard
-                           (o cartão do fim, no meio), RowMenu (o ⋯ do moderador numa linha da turma), Notepad, Menu, Chat (o campo da
+                           (o cartão do fim, no meio), RowMenu (o ⋯ do moderador numa linha da turma), Notepad (com a alça do tamanho no canto de cima à direita), Menu, Chat (o campo da
                            fala, no canto de baixo à direita), BossBar (a barra de vida do chefão, embaixo, entre o bloco e a fala)
   src/lib/screens/         Home (abrir sala, entrar com código, crédito) e Sala (apelido, depois o jogo; sala inexistente,
                            encerrada ou expulso)

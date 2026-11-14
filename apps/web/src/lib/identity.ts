@@ -2,7 +2,7 @@
  * Quem esta aba é para o servidor, e o que o navegador lembra entre visitas (ADR 0003). O token é por sala e por
  * navegador (localStorage, emenda do ADR 0003): sobrevive a refresh, queda de rede, fechar a aba e fechar o navegador;
  * duas abas na mesma sala são a mesma pessoa (a nova assume, a velha mostra "outra aba assumiu").
- * O apelido, o último personagem e o zoom do telhado são lembrados pelo navegador inteiro (localStorage); o bloco (o texto e se está
+ * O apelido, o último personagem, o zoom do telhado e o tamanho do bloco são lembrados pelo navegador inteiro (localStorage); o bloco (o texto e se está
  * minimizado), a coluna recolhida e a entrada automática de quem acabou de criar a sala, só pela aba.
  */
 import { TOKEN_RE } from '@guess/protocol';
@@ -13,6 +13,7 @@ const NICKNAME_KEY = 'guess.nickname';
 const CHARACTER_KEY = 'guess.character';
 const NOTEPAD_KEY = 'guess.notepad.';
 const NOTEPAD_MIN_KEY = 'guess.notepadMin';
+const NOTEPAD_SIZE_KEY = 'guess.notepadSize';
 const SIDE_KEY = 'guess.sideCollapsed';
 const AUTO_JOIN_KEY = 'guess.autoJoin';
 const ZOOM_KEY = 'guess.zoom';
@@ -97,6 +98,20 @@ export const rememberNotepad = (code: string, text: string) => rememberNotepadIn
 /** Bloco minimizado (só a aba presa embaixo) nesta aba. */
 export const notepadMinimizedIn = (store: MaybeStore) => read(store, NOTEPAD_MIN_KEY) === '1';
 export const rememberNotepadMinimizedIn = (store: MaybeStore, on: boolean) => write(store, NOTEPAD_MIN_KEY, on ? '1' : '0');
+/** O tamanho que a pessoa deu ao bloco neste navegador (`{ w, h }` em px), ou null: o padrão (nada guardado, ou lixo). */
+export function notepadSizeIn(store: MaybeStore): { w: number; h: number } | null {
+  let raw: unknown;
+  try { raw = JSON.parse(read(store, NOTEPAD_SIZE_KEY) || 'null'); } catch { return null; }
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
+  const { w, h } = raw as { w?: unknown; h?: unknown };
+  const ok = (n: unknown): n is number => Number.isInteger(n) && (n as number) > 0 && (n as number) <= 10_000;
+  return ok(w) && ok(h) ? { w, h } : null;
+}
+/** Guarda o tamanho do bloco; null volta ao padrão. */
+export const rememberNotepadSizeIn = (store: MaybeStore, size: { w: number; h: number } | null) =>
+  write(store, NOTEPAD_SIZE_KEY, size ? JSON.stringify({ w: size.w, h: size.h }) : '');
+export const rememberedNotepadSize = () => notepadSizeIn(local());
+export const rememberNotepadSize = (size: { w: number; h: number } | null) => rememberNotepadSizeIn(local(), size);
 /** A coluna da sala recolhida nesta aba. */
 export const sideCollapsedIn = (store: MaybeStore) => read(store, SIDE_KEY) === '1';
 export const rememberSideCollapsedIn = (store: MaybeStore, on: boolean) => write(store, SIDE_KEY, on ? '1' : '0');
