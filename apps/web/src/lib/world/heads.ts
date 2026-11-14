@@ -17,6 +17,8 @@ export interface Head {
   card: PostitCard | null;
   /** um bot engraçado: o personagem dele, cujo nome é a etiqueta (`nickname` fica vazio); null = uma pessoa */
   bot: number | null;
+  /** virou fantasma: a etiqueta fica translúcida, como o corpo */
+  ghost: boolean;
 }
 
 /** As etiquetas de quem tem personagem, na ordem da turma. */
@@ -25,8 +27,8 @@ export function heads(room: RoomSnapshot, v: RoomView): Head[] {
   return [
     ...room.members
       .filter((m) => m.character !== null)
-      .map((m) => ({ id: m.id, nickname: m.nickname, mine: m.id === room.you, card: cards.get(m.id) ?? null, bot: null })),
+      .map((m) => ({ id: m.id, nickname: m.nickname, mine: m.id === room.you, card: cards.get(m.id) ?? null, bot: null, ghost: !!m.ghosted })),
     // os bots engraçados: só o nome do personagem, sem post-it
-    ...(room.bots ?? []).map((b) => ({ id: b.id, nickname: '', mine: false, card: null, bot: b.character })),
+    ...(room.bots ?? []).map((b) => ({ id: b.id, nickname: '', mine: false, card: null, bot: b.character, ghost: false })),
   ];
 }

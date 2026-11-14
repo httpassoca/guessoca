@@ -303,6 +303,22 @@ describe('host: presença e empurrão (por fora da sala, ADR 0005)', () => {
     expect([...received(a), ...received(b)].filter((m) => m.type === 'shoved')).toEqual([]);
     host.dispose();
   });
+
+  test('fantasma atravessa: não empurra nem é empurrado', () => {
+    const { host, a, b, clock } = hostWithTwo();
+    say(host, a, { type: 'presence', presence: { ...at(120), facing: -1 } });
+    say(host, b, { type: 'presence', presence: { ...at(100), facing: 1 } });
+    say(host, b, { type: 'ghost', member: 'm2', on: true });
+    a.sent.length = 0; b.sent.length = 0;
+    say(host, a, { type: 'shove', target: 'm2', dir: -1 });
+    say(host, b, { type: 'shove', target: 'm1', dir: 1 });
+    expect([...received(a), ...received(b)].filter((m) => m.type === 'shoved')).toEqual([]);
+    say(host, b, { type: 'ghost', member: 'm2', on: false });
+    clock.advance(SHOVE_COOLDOWN_MS);
+    say(host, a, { type: 'shove', target: 'm2', dir: -1 });
+    expect(received(b).filter((m) => m.type === 'shoved')).toEqual([{ type: 'shoved', by: 'm1', dir: -1 }]);
+    host.dispose();
+  });
 });
 
 describe('host: bots engraçados (emenda do ADR 0005)', () => {

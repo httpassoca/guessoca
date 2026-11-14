@@ -101,7 +101,8 @@ Client rendering, `apps/web/src/lib/world/` (Pixi files have no automated tests;
 | `view.ts` | Pure: integer scale, ground line, post-it and emote anchor heights. |
 | `declutter.ts` | Pure: lifts overlapping post-its so the one behind sits above. |
 | `heads.ts` | Pure: what each head tag shows. |
-| `crowd.ts` | Pure: the other bodies (interpolated presence, fake players' fixed spots). |
+| `crowd.ts` | Pure: the other bodies (interpolated presence, fake players' fixed spots); a ghost is never solid. |
+| `ghost.ts` | Pure: how a ghost is drawn (ADR 0010). No new pixels: `scene.ts` multiplies the sprite's alpha by `GHOST_ALPHA`, tints it `GHOST_TINT` (ice blue) and lifts it a few whole world pixels above the ground (`ghostLift`, a slow bob); the shadow stays on the ground, fainter. |
 | `runtime.ts` | The rAF loop: steps physics, sends presence, calls `Scene.render`, positions HTML post-its. |
 
 HTML art, `apps/web/src/lib/panels/`: `Hero.svelte` (a character's idle in a CSS background from its `-idle` sheet, the same window for every model), `Swatch.svelte` (the head box as a coloured square), `Stage.svelte` (the chosen character at 4× on a strip of roof in the pre-lobby), `Ledge.svelte` (that strip, drawn from `rooftop.png` on a canvas), `CharacterPicker.svelte` (the eight buttons).

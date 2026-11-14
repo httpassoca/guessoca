@@ -22,6 +22,8 @@ export interface CrowdBody extends Vec3 {
   bot: boolean;
   /** quantas vezes maior é desenhado: 1, ou a escala do chefão dos bots engraçados */
   scale: number;
+  /** virou fantasma: translúcido, e ninguém esbarra nele (anda, fala e faz emote como todo mundo) */
+  ghost: boolean;
 }
 
 /**
@@ -61,25 +63,28 @@ export function crowd(
     const fakeIndex = m.fake ? fakes++ : -1;
     if (m.id === room.you || m.character === null || !m.connected) continue;
     if (m.fake) {
-      out.push({ id: m.id, character: m.character, ...fakeSpot(fakeIndex, platforms), vx: 0, vy: 0, vz: 0, facing: fakeIndex % 2 === 0 ? -1 : 1, anim: 'idle', emote: null, blink: false, fake: true, bot: false, scale: 1 });
+      out.push({ id: m.id, character: m.character, ...fakeSpot(fakeIndex, platforms), vx: 0, vy: 0, vz: 0, facing: fakeIndex % 2 === 0 ? -1 : 1, anim: 'idle', emote: null, blink: false, fake: true, bot: false, scale: 1, ghost: !!m.ghosted });
       continue;
     }
     const track = trackOf(m.id);
     if (!track) continue;
     const p = samplePresence(track, now);
-    out.push({ id: m.id, character: m.character, x: p.x, y: p.y, z: p.z, vx: p.vx, vy: p.vy, vz: p.vz, facing: p.facing, anim: p.anim, emote: p.emote, blink: p.blink, fake: false, bot: false, scale: 1 });
+    out.push({ id: m.id, character: m.character, x: p.x, y: p.y, z: p.z, vx: p.vx, vy: p.vy, vz: p.vz, facing: p.facing, anim: p.anim, emote: p.emote, blink: p.blink, fake: false, bot: false, scale: 1, ghost: !!m.ghosted });
   }
   // os bots engraçados: como uma pessoa, pela presença que o servidor manda; o chefão vem com a escala dele
   for (const b of room.bots ?? []) {
     const track = trackOf(b.id);
     if (!track) continue;
     const p = samplePresence(track, now);
-    out.push({ id: b.id, character: b.character, x: p.x, y: p.y, z: p.z, vx: p.vx, vy: p.vy, vz: p.vz, facing: p.facing, anim: p.anim, emote: p.emote, blink: p.blink, fake: false, bot: true, scale: b.scale ?? 1 });
+    out.push({ id: b.id, character: b.character, x: p.x, y: p.y, z: p.z, vx: p.vx, vy: p.vy, vz: p.vz, facing: p.facing, anim: p.anim, emote: p.emote, blink: p.blink, fake: false, bot: true, scale: b.scale ?? 1, ghost: false });
   }
   return out;
 }
 
-/** Para a física: sólido quem não está piscando (caído ou voltando); o chefão é mais alto e mais largo (em x). */
-export function othersOf(bodies: readonly CrowdBody[]): Other[] {
-  return bodies.map((b) => ({ id: b.id, x: b.x, y: b.y, z: b.z, vx: b.vx, vy: b.vy, vz: b.vz, solid: !b.blink, ...(b.scale !== 1 ? { h: BODY_H * b.scale, wide: (1 + b.scale) / 2 } : {}) }));
+/**
+ * Para a física: sólido quem não está piscando (caído ou voltando) nem é fantasma; o chefão é mais alto e mais largo
+ * (em x). `me.ghost`: eu sou o fantasma, e atravesso todo mundo (sem esbarrar, empurrar nem subir em cabeça).
+ */
+export function othersOf(bodies: readonly CrowdBody[], me: { ghost?: boolean } = {}): Other[] {
+  return bodies.map((b) => ({ id: b.id, x: b.x, y: b.y, z: b.z, vx: b.vx, vy: b.vy, vz: b.vz, solid: !b.blink && !b.ghost && !me.ghost, ...(b.scale !== 1 ? { h: BODY_H * b.scale, wide: (1 + b.scale) / 2 } : {}) }));
 }

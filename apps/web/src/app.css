@@ -174,6 +174,10 @@ html, body { margin: 0; min-height: 100%; background: var(--ss-bg); }
 .gs-who { display: inline-flex; align-items: center; gap: 8px; min-width: 0; flex: 1 0 auto; }
 .gs-who .name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .gs-who.off { opacity: 0.5; }
+/* quem virou fantasma: o fantasminha antes do nome e o nome apagado, em itálico (no telhado, o corpo fica translúcido) */
+.gs-who.ghosted .name { color: var(--ss-fg-muted); font-style: italic; }
+.gs-ghost-title { display: inline-flex; align-items: center; gap: 6px; }
+.gs-ghost-mark { display: inline-grid; place-items: center; flex: none; color: var(--ss-fg-muted); }
 .gs-section h4, .gs-section .gs-sub { display: flex; align-items: baseline; gap: 8px; margin: 0 0 8px; font: 500 var(--ss-ui-md)/20px var(--ss-font-body); color: var(--ss-fg); }
 .gs-members { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 4px; }
 .gs-members li { display: flex; align-items: center; gap: 8px; min-height: 28px; font-size: var(--ss-ui-md); }
@@ -231,6 +235,8 @@ html, body { margin: 0; min-height: 100%; background: var(--ss-bg); }
 .gs-turma > li { display: flex; gap: 8px; padding: 4px 4px 4px 0; font-size: var(--ss-ui-md); }
 .gs-turma > li.turn { background: color-mix(in srgb, var(--ss-fg) 5%, transparent); box-shadow: inset 2px 0 0 var(--ss-accent); }
 .gs-turma > li.off { opacity: 0.55; }
+.gs-turma > li.ghosted .gs-chip { opacity: 0.6; }
+.gs-tag .ss-icon { vertical-align: -3px; margin-right: 4px; }
 .gs-turma .pos { flex: none; width: 24px; color: var(--ss-fg-faint); font: 400 var(--ss-ui-sm)/28px var(--ss-font-mono); font-variant-numeric: tabular-nums; text-align: right; }
 .gs-turma .main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
 .gs-turma .top { display: flex; align-items: center; gap: 8px; min-width: 0; min-height: 28px; }
@@ -379,6 +385,9 @@ html, body { margin: 0; min-height: 100%; background: var(--ss-bg); }
 .gs-head .turn .tip { border-color: var(--ss-accent); }
 .gs-head .turn .tag { background: var(--ss-accent); color: var(--ss-fg-on-primary); }
 .gs-head .done .tip { opacity: 0.8; }
+/* quem virou fantasma: o post-it e o apelido translúcidos, como o corpo (o balão de fala continua inteiro, para ler) */
+.gs-head .ghost .tip, .gs-head .ghost .tag { opacity: 0.55; }
+.gs-head .ghost .tag { font-style: italic; }
 
 /*
  * o balão de fala: da família dos balões dos emotes (papel branco, contorno escuro de 1 pixel com os cantos cortados,

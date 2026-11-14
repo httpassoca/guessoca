@@ -510,3 +510,36 @@ describe('sala: atividade com o jogo rodando (issue #72)', () => {
     expect(l.state.lastActivity).toBe(at);
   });
 });
+
+describe('sala: fantasma', () => {
+  test('a própria pessoa vira fantasma e todo mundo vê; a vez dela é pulada', () => {
+    const s = playing(3);
+    s.say('t2', { type: 'ghost', member: 'm2', on: true });
+    const seen = s.snapshotFor('t1')!.members.find((m) => m.id === 'm2')!;
+    expect(seen.ghosted).toBe(true);
+    expect(seen.ghost).toBe(true);
+    expect(s.snapshotFor('t1')!.order).toEqual(['m1', 'm2', 'm3']); // continua na ordem, com o post-it guardado
+    s.say('t1', { type: 'skip' });
+    expect(s.game.turn?.owner).toBe('m3');
+  });
+
+  test('o moderador põe e tira qualquer pessoa; os outros, só a si mesmos', () => {
+    const s = playing(3);
+    s.say('t1', { type: 'ghost', member: 'm3', on: true });
+    expect(s.game.ghosted).toEqual(['m3']);
+    expectRefused(s, 't2', { type: 'ghost', member: 'm3', on: false });
+    expectRefused(s, 't2', { type: 'ghost', member: 'm1', on: true });
+    s.say('t3', { type: 'ghost', member: 'm3', on: false });
+    expect(s.game.ghosted).toEqual([]);
+    const back = s.snapshotFor('t1')!.members.find((m) => m.id === 'm3')!;
+    expect(back.ghosted).toBeUndefined(); // só vai quando é true
+    expect(back.ghost).toBe(false);
+  });
+
+  test('o post-it do fantasma continua escondido dele', () => {
+    const s = playing(3);
+    s.say('t2', { type: 'ghost', member: 'm2', on: true });
+    expect(s.snapshotFor('t2')!.postits.m2.text).toBeNull();
+    expect(s.snapshotFor('t1')!.postits.m2.text).toBe('quem é m2');
+  });
+});

@@ -66,6 +66,27 @@ describe('a turma no telhado', () => {
   });
 });
 
+describe('fantasmas no telhado', () => {
+  const room = {
+    you: 'm1',
+    members: [member('m1', 'Zé', { character: 0 }), member('m2', 'Ana', { character: 1, ghost: true, ghosted: true }), member('m3', 'Bia', { character: 2 })],
+  };
+  const tracks = new Map<string, PresenceTrack>([['m2', pushPresence(undefined, p({ x: 50 }), 0)], ['m3', pushPresence(undefined, p({ x: 80 }), 0)]]);
+  const bodies = crowd(room, (id) => tracks.get(id), 100, MAP);
+
+  test('quem virou fantasma aparece (anda, fala, faz emote), marcado como fantasma', () => {
+    expect(bodies.map((b) => [b.id, b.ghost])).toEqual([['m2', true], ['m3', false]]);
+  });
+
+  test('o fantasma não é sólido: não se esbarra, não se empurra e não se sobe na cabeça dele', () => {
+    expect(othersOf(bodies).map((o) => [o.id, o.solid])).toEqual([['m2', false], ['m3', true]]);
+  });
+
+  test('sendo eu o fantasma, atravesso todo mundo', () => {
+    expect(othersOf(bodies, { ghost: true }).every((o) => !o.solid)).toBe(true);
+  });
+});
+
 describe('os bots engraçados no telhado', () => {
   const room = { you: 'm1', members: [member('m1', 'Eu', { character: 0 })], bots: [{ id: 'b1', character: 4 }, { id: 'b2', character: 26, scale: 2 }, { id: 'b3', character: 5 }] };
   const tracks = new Map<string, PresenceTrack>([['b1', pushPresence(undefined, p({ x: 30 }), 0)], ['b2', pushPresence(undefined, p({ x: 60 }), 0)]]);

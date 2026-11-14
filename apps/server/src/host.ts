@@ -313,11 +313,12 @@ export class RoomHost {
   /**
    * Entrega o empurrão à aba de quem foi empurrado; é ela que se joga para trás (ADR 0005). Só vale no ritmo do empurrão
    * (`SHOVE_COOLDOWN_MS`, com folga; os alvos de um mesmo golpe passam juntos) e com o alvo ao alcance pelas últimas
-   * presenças (`inShoveReach`, com folga): quem está piscando (caído ou voltando) não é sólido e não leva.
+   * presenças (`inShoveReach`, com folga): quem está piscando (caído ou voltando) não é sólido e não leva. Fantasma
+   * atravessa: não empurra (nem bot) e não leva.
    */
   private routeShove(token: string, target: string, dir: 1 | -1) {
     const from = this.memberByToken(token);
-    if (!from) return;
+    if (!from || this.ghosted(from.id)) return;
     const now = this.clock();
     const v = this.shoveVolleys.get(token);
     if (v && now - v.at < VOLLEY_MS && !v.targets.has(target)) v.targets.add(target);
@@ -332,13 +333,16 @@ export class RoomHost {
       return;
     }
     const to = this.state.members.find((m) => m.id === target);
-    if (!to || to === from || to.token === null) return;
+    if (!to || to === from || to.token === null || this.ghosted(to.id)) return;
     const ws = this.sockets.get(to.token);
     const there = this.presences.get(to.token)?.latest;
     if (!ws || !there || there.blink || !inShoveReach(me, there)) return;
     ws.send(JSON.stringify({ type: 'shoved', by: from.id, dir }));
     this.count([token, 'shoves'], [to.token, 'shovedByPlayers']);
   }
+
+  /** Virou fantasma (`game.ghosted`): atravessa os outros, e os bots não o veem. */
+  private ghosted(id: string) { return this.state.phase !== 'dead' && this.state.game.ghosted.includes(id); }
 
   /** Soma um em cada estatística (token de quem, qual), se o jogo está rodando; fica aqui até o próximo passo da sala. */
   private count(...add: [token: string, stat: StatName][]) {
@@ -388,7 +392,7 @@ export class RoomHost {
       for (const m of this.state.members) {
         if (!(m.id in g.characters)) continue;
         const p = m.token ? this.presences.get(m.token)?.latest : undefined;
-        const state = g.got.includes(m.id) ? 'guessed' : g.gaveUp.includes(m.id) ? 'gaveUp' : g.order.includes(m.id) ? 'playing' : 'ghost';
+        const state = g.ghosted.includes(m.id) ? 'ghost' : g.got.includes(m.id) ? 'guessed' : g.gaveUp.includes(m.id) ? 'gaveUp' : g.order.includes(m.id) ? 'playing' : 'ghost';
         figures.push({ id: m.id, name: m.nickname, character: g.characters[m.id], x: p?.x ?? NaN, z: p?.z ?? NaN, bot: false, state });
       }
     }
@@ -499,7 +503,8 @@ export class RoomHost {
     const players: Seen[] = [];
     for (const [token, p] of this.presences) {
       const m = this.memberByToken(token);
-      if (m) players.push({ id: m.id, x: p.latest.x, y: p.latest.y, z: p.latest.z, vx: p.latest.vx, vy: p.latest.vy, vz: p.latest.vz, solid: !p.latest.blink });
+      // fantasma não existe para os bots: não é alvo, não é obstáculo, não leva empurrão
+      if (m && !this.ghosted(m.id)) players.push({ id: m.id, x: p.latest.x, y: p.latest.y, z: p.latest.z, vx: p.latest.vx, vy: p.latest.vy, vz: p.latest.vz, solid: !p.latest.blink });
     }
     const taken = new Set(Object.values(this.state.game.characters));
     const enabled = this.state.funnyBots;

@@ -34,4 +34,12 @@ describe('o que vai sobre cada cabeça', () => {
     const h = heads(s, roomView(s));
     expect(h.filter((x) => x.card?.turn).map((x) => x.id)).toEqual(['m2']);
   });
+
+  test('quem virou fantasma no jogo leva o post-it guardado e a marca de fantasma', () => {
+    const ghostly = [member('m1', 'Zé', { character: 0 }), member('m2', 'Ana', { character: 1, ghost: true, ghosted: true })];
+    const s = snapshot({ members: ghostly, order: ['m1', 'm2'], phase: 'playing', postits: { m1: postit('m2', { text: null }), m2: postit('m1', { text: 'Pelé' }) } });
+    const h = heads(s, roomView(s));
+    expect(h.map((x) => [x.id, x.ghost])).toEqual([['m1', false], ['m2', true]]);
+    expect(h[1].card?.text).toBe('Pelé');
+  });
 });

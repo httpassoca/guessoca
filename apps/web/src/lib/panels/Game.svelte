@@ -6,6 +6,7 @@
   import type { GameRequest } from '../room/remote';
   import { endStats } from '../room/stats';
   import type { RoomView } from '../room/view';
+  import GhostSwitch from './GhostSwitch.svelte';
   import Stats from './Stats.svelte';
   import Turma from './Turma.svelte';
 
@@ -26,6 +27,8 @@
     <div class="gs-sec-head"><h3>{t('end.title')}</h3></div>
     <p class="gs-hint">{v.isModerator ? t('end.hint') : t('end.waitModerator')}</p>
   </section>
+{:else if v.isGhosted && v.isPlayer}
+  <p class="gs-banner">{t('ghost.ghostedBanner')}</p>
 {:else if v.isGhost}
   <p class="gs-banner">{t('ghost.banner')}</p>
 {/if}
@@ -34,6 +37,8 @@
   <div class="gs-sec-head"><h3>{ended ? t('end.postits') : t('play.postits')}</h3></div>
   <Turma {v} {room} {send} />
 </section>
+
+<GhostSwitch {v} {send} />
 
 {#if stats}
   <section class="gs-block gs-sec">

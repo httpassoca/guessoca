@@ -16,7 +16,8 @@
    *
    * Com o jogo pausado, uma faixa embaixo da barra diz isso (o moderador continua dali). Com a coluna recolhida, o
    * moderador tem um atalho para ela ao lado da barra ("Moderação", P): as ferramentas dele moram lá.
-   * O voto muda até a votação fechar (ADR 0008, emenda): o botão do voto dado fica marcado.
+   * O voto muda até a votação fechar (ADR 0008, emenda): o botão do voto dado fica marcado. Quem virou fantasma vê a marca
+   * no lugar de Acertei / Desistir, e um "Voltar a jogar" que desvira.
    */
   let { v, room, send, turnLeft, voteLeft, sideOpen, onmod }: {
     v: RoomView; room: RoomSnapshot; send: (r: GameRequest) => void; turnLeft: number; voteLeft: number; sideOpen: boolean; onmod: () => void;
@@ -35,7 +36,12 @@
       {:else}
         <span class="gs-hint">{t('play.noTurn')}</span>
       {/if}
-      {#if v.isPlayer && !v.done}
+      {#if v.isGhosted}
+        <span class="acts">
+          <span class="gs-tag"><Icon name="ghost" size={14} />{t('badge.ghost')}</span>
+          {#if v.me}{@const me = v.me}<button class="ss-btn gs-sm" type="button" onclick={() => send({ type: 'ghost', member: me.id, on: false })}>{t('ghost.back')}</button>{/if}
+        </span>
+      {:else if v.isPlayer && !v.done}
         <span class="acts">
           {#if v.turn?.mine}
             <button class="ss-btn primary" type="button" disabled={!v.canClaim} onclick={() => send({ type: 'claim' })}>{t('play.claim')}</button>
