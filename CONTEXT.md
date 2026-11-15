@@ -23,8 +23,12 @@ Quem criou a sala; se sai, a pessoa mais antiga da sala assume, e quem recebe o 
 _Evitar_: host, admin, dono da sala, mestre
 
 **Fantasma** (`ghost`):
-Pessoa na sala que não joga o jogo em andamento: quem chegou depois do começo, ou o moderador que escolheu só moderar. Vê todos os post-its, anda pelo telhado e entra no próximo jogo. Não vota.
-_Evitar_: espectador, observador, viewer, spectator
+Pessoa na sala que não joga agora: quem chegou depois do começo, o moderador que escolheu só moderar, ou quem **virou fantasma** (`ghosted`). Não vota.
+_Evitar_: espectador, observador, viewer, spectator, AFK, ausente
+
+**Virar fantasma** (`ghost`, quem virou: `ghosted`):
+Ficar na sala sem jogar, por estar longe do teclado, só olhando ou só de bobeira (ADR 0010). Qualquer pessoa vira e desvira a si mesma, em qualquer fase; o moderador vira e desvira qualquer outra (por exemplo, quem saiu da frente do computador), e quem ele pôs como fantasma desvira sozinho quando volta, sem trava. Continua fantasma até desvirar, de um jogo para o outro. No lobby, quem virou sai da ordem (o círculo dos autores fecha sem ele, e os post-its que mudam de autor são apagados, como quando alguém entra ou sai) e não escreve; desvirando, volta para o fim dela. No jogo, quem virou continua na ordem, com o post-it guardado e escondido dele como sempre (virar fantasma nunca revela nada): a vez dele é pulada (se era a dele, passa na hora), não vota (se votava, o voto sai; se tinha pedido "acertei", a votação cai sem resultado e a vez passa), não acerta, não desiste e não segura o fim do jogo; quem já tinha acertado continua no ranking. Desvirando no meio do jogo, volta às vezes na próxima volta (a votação já aberta continua sem ele). Se todo mundo vira fantasma, o jogo espera sem vez, como quando todo mundo cai. No "jogar de novo", quem virou fica de fora até desvirar. No telhado, o personagem fica translúcido, azulado e flutuando um pouco, e atravessa os outros: ninguém esbarra, empurra ou sobe na cabeça dele, e ele também não; os bots engraçados não o veem. Anda, fala e faz emote normalmente.
+_Evitar_: AFK, ausente, pausar, espectar
 
 **Fase** (`phase`):
 Em que ponto a sala está: **lobby** (`lobby`), a turma se junta, acerta a ordem e escreve os post-its, até o moderador começar; **jogo** (`playing`), as vezes correm; **fim** (`ended`), tudo revelado: o ranking e todos os post-its à mostra, até o moderador jogar de novo.
@@ -51,7 +55,7 @@ _Evitar_: foto, anexo, upload, avatar
 ### Jogo
 
 **Vez** (`turn`):
-O tempo de uma pessoa perguntar, na ordem da turma. Dura 60 s por padrão; o moderador escolhe de 30 s a 3 min, de 15 em 15 s. As perguntas e respostas acontecem em voz alta, fora do jogo (no Discord); o jogo só mede o tempo. Tab passa a própria vez. A vez de quem está desconectado é pulada.
+O tempo de uma pessoa perguntar, na ordem da turma. Dura 60 s por padrão; o moderador escolhe de 30 s a 3 min, de 15 em 15 s. As perguntas e respostas acontecem em voz alta, fora do jogo (no Discord); o jogo só mede o tempo. Tab passa a própria vez. A vez de quem está desconectado ou virou fantasma é pulada.
 _Evitar_: turno, rodada, round, rodada de perguntas
 
 **Acertei** (`claim`):
@@ -67,11 +71,11 @@ A pessoa revela o próprio post-it e vai para o fim do ranking.
 _Evitar_: render-se, pular (pular é passar a vez), forfeit
 
 **Ranking** (`ranking`):
-A ordem em que as pessoas acertaram; quem desistiu fica no fim, na ordem em que desistiu. O jogo acaba quando toda pessoa conectada acertou ou desistiu.
+A ordem em que as pessoas acertaram; quem desistiu fica no fim, na ordem em que desistiu. O jogo acaba quando toda pessoa conectada que joga (sem contar fantasmas) acertou ou desistiu.
 _Evitar_: placar, pontuação, classificação, score
 
 **Bloco** (`notepad`):
-As anotações de cada pessoa durante o jogo. Pessoais, por aba; ninguém mais vê.
+As anotações de cada pessoa durante o jogo. Pessoais, por aba; ninguém mais vê. O tamanho dele (a alça no canto) é lembrado pelo navegador.
 _Evitar_: notas, chat, caderno
 
 ### Telhado
@@ -81,7 +85,7 @@ O mundo sempre ligado: entrar na sala põe a pessoa no telhado. Lobby, jogo e fi
 _Evitar_: mapa, fase, level, cenário, cena
 
 **Personagem** (`character`):
-O corpo de cada pessoa no telhado. São trinta, um de cada modelo: o herói (loiro), o cavaleiro esqueleto (de capa vermelha) e os que o dono foi mandando, de gente conhecida de jogos e quadrinhos a um cachorro e a dois do próprio Guimas. A lista, na ordem dos lugares, é `PACKS` em `tools/sprites/src/packs.ts`. Cada pessoa escolhe um, e duas pessoas podem usar o mesmo. Os corpos são sólidos: não se atravessa um grupo, pula-se por cima, e dá para ficar na cabeça de alguém e ser carregado.
+O corpo de cada pessoa no telhado. São trinta, um de cada modelo: o herói (loiro), o cavaleiro esqueleto (de capa vermelha) e os que o dono foi mandando, de gente conhecida de jogos e quadrinhos a um cachorro e a dois do próprio Guimas. A lista, na ordem dos lugares, é `PACKS` em `tools/sprites/src/packs.ts`. Cada pessoa escolhe um, e duas pessoas podem usar o mesmo. Os corpos são sólidos (menos o de quem virou fantasma, que atravessa e é atravessado): não se atravessa um grupo, pula-se por cima, e dá para ficar na cabeça de alguém e ser carregado.
 _Evitar_: avatar, boneco, skin, sprite (é o desenho), herói
 
 **Empurrão** (`shove`):
@@ -123,9 +127,9 @@ Pessoa inventada para testar sozinho, só em localhost ou com `?dev`, nunca em p
 _Evitar_: bot (é outra coisa: o bot engraçado), NPC, IA, dummy
 
 **Bot engraçado** (`funnyBot`):
-Personagem que ninguém controla e que aparece no telhado com o jogo rodando, se o moderador ligou a opção: anda, segue, sobe na cabeça, imita, empurra e é empurrado, para distrair e fazer rir. Não é da turma, não tem post-it nem vez, e o que faz no telhado não depende do jogo (só a fala de um **bot que fala** sabe da vez e de quem acertou). O nome sobre a cabeça é o do personagem. Quantos vêm, quando e o que fazem é sorteado, até quinze de uma vez; quando o jogo acaba, somem. De vez em quando (é raro) vem um **chefão** (`boss`): a versão gigante de um personagem, desenhada com o dobro do tamanho, um por vez. Cai do céu no telhado em que há mais gente e não sai dele, só anda, segue e encara as pessoas e às vezes empurra. Aguenta dezoito empurrões: os dezessete primeiros só o fazem cambalear, o último o joga longe e ele não volta (o de outro bot conta pouco e nunca é o último). Se ninguém o derruba, vai embora sozinho em um minuto e meio a dois e meio. Enquanto ele está no telhado, todo mundo vê a **barra de vida** dele embaixo da tela: o nome do personagem e um gomo por empurrão que ainda aguenta (o servidor conta). Quando o derrubam, um **raio** cai num prédio da cidade, em toda aba ao mesmo tempo; indo embora sozinho ou caindo, não.
+Personagem que ninguém controla e que aparece no telhado com o jogo rodando, se o moderador ligou a opção: anda, segue, sobe na cabeça, imita, empurra e é empurrado, para distrair e fazer rir (quem virou fantasma ele nem vê). Não é da turma, não tem post-it nem vez, e o que faz no telhado não depende do jogo (só a fala de um **bot que fala** sabe da vez e de quem acertou). O nome sobre a cabeça é o do personagem. Quantos vêm, quando e o que fazem é sorteado, até quinze de uma vez; quando o jogo acaba, somem. De vez em quando (é raro) vem um **chefão** (`boss`): a versão gigante de um personagem, desenhada com o dobro do tamanho, um por vez. Cai do céu no telhado em que há mais gente e não sai dele, só anda, segue e encara as pessoas e às vezes empurra. Aguenta dezoito empurrões: os dezessete primeiros só o fazem cambalear, o último o joga longe e ele não volta (o de outro bot conta pouco e nunca é o último). Se ninguém o derruba, vai embora sozinho em um minuto e meio a dois e meio. Enquanto ele está no telhado, todo mundo vê a **barra de vida** dele embaixo da tela: o nome do personagem e um gomo por empurrão que ainda aguenta (o servidor conta). Quando o derrubam, um **raio** cai num prédio da cidade, em toda aba ao mesmo tempo; indo embora sozinho ou caindo, não.
 _Evitar_: NPC, IA, jogador falso (esse é da turma e só existe para testar); para o chefão: boss fight, gigante, miniboss
 
 **Bot que fala** (`talkable`):
-Um bot engraçado que, ao chegar, tirou a sorte de falar (três em cada dez; o chefão também). Fala pela **fala** de sempre, num balão sobre a cabeça, em personagem e na língua em que a turma escreve (português, se não der para saber), e o que diz vem de um modelo de linguagem (o Groq), nunca de frase pronta: sem o modelo, ou com o orçamento do dia gasto, fica calado. Sabe quem é (o **retrato** do personagem, `persona`), de quem é a vez, quem já acertou ou desistiu, quem está perto e de que personagem, o que acabou de acontecer e o chat recente; nunca sabe o post-it de ninguém. Fala quando tem uma **vontade** (`intent`): responder a quem o chamou pelo nome ou falou perto, reagir a um empurrão, a uma queda, ao jogo andar, ao chefão, a outro bot que fala, ou puxar assunto num silêncio, nessa ordem de preferência, e pouco: no máximo umas duas falas por minuto na sala.
+Um bot engraçado que, ao chegar, tirou a sorte de falar (três em cada dez; o chefão também). Fala pela **fala** de sempre, num balão sobre a cabeça, em personagem e na língua em que a turma escreve (português, se não der para saber), e o que diz vem de um modelo de linguagem (o Groq), nunca de frase pronta: sem o modelo, ou com o orçamento do dia gasto, fica calado. Sabe quem é (o **retrato** do personagem, `persona`), de quem é a vez, quem já acertou, desistiu ou virou fantasma, quem está perto e de que personagem, o que acabou de acontecer e o chat recente; nunca sabe o post-it de ninguém. Fala quando tem uma **vontade** (`intent`): responder a quem o chamou pelo nome ou falou perto, reagir a um empurrão, a uma queda, ao jogo andar, ao chefão, a outro bot que fala, ou puxar assunto num silêncio, nessa ordem de preferência, e pouco: no máximo umas duas falas por minuto na sala.
 _Evitar_: IA, chatbot, NPC, assistente

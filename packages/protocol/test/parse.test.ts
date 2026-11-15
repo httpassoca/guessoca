@@ -92,6 +92,14 @@ describe('parseClientMessage: o jogo', () => {
     expect(p({ type: 'swapAuthors', a: 'm1', b: 'm2' })).toBeNull(); // não existe mais
     expect(p({ type: 'startWriting' })).toBeNull();
   });
+
+  test('fantasma: um membro (a própria pessoa ou outra) e ligar ou desligar', () => {
+    expect(p({ type: 'ghost', member: 'm3', on: true })).toEqual({ type: 'ghost', member: 'm3', on: true });
+    expect(p({ type: 'ghost', member: 'm1', on: false, extra: 1 })).toEqual({ type: 'ghost', member: 'm1', on: false });
+    expect(p({ type: 'ghost', member: 'b3', on: true })).toBeNull(); // bot não é da turma
+    expect(p({ type: 'ghost', member: 'm3', on: 'sim' })).toBeNull();
+    expect(p({ type: 'ghost', on: true })).toBeNull();
+  });
 });
 
 describe('isWebp', () => {

@@ -174,6 +174,10 @@ html, body { margin: 0; min-height: 100%; background: var(--ss-bg); }
 .gs-who { display: inline-flex; align-items: center; gap: 8px; min-width: 0; flex: 1 0 auto; }
 .gs-who .name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .gs-who.off { opacity: 0.5; }
+/* quem virou fantasma: o fantasminha antes do nome e o nome apagado, em itálico (no telhado, o corpo fica translúcido) */
+.gs-who.ghosted .name { color: var(--ss-fg-muted); font-style: italic; }
+.gs-ghost-title { display: inline-flex; align-items: center; gap: 6px; }
+.gs-ghost-mark { display: inline-grid; place-items: center; flex: none; color: var(--ss-fg-muted); }
 .gs-section h4, .gs-section .gs-sub { display: flex; align-items: baseline; gap: 8px; margin: 0 0 8px; font: 500 var(--ss-ui-md)/20px var(--ss-font-body); color: var(--ss-fg); }
 .gs-members { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 4px; }
 .gs-members li { display: flex; align-items: center; gap: 8px; min-height: 28px; font-size: var(--ss-ui-md); }
@@ -231,6 +235,8 @@ html, body { margin: 0; min-height: 100%; background: var(--ss-bg); }
 .gs-turma > li { display: flex; gap: 8px; padding: 4px 4px 4px 0; font-size: var(--ss-ui-md); }
 .gs-turma > li.turn { background: color-mix(in srgb, var(--ss-fg) 5%, transparent); box-shadow: inset 2px 0 0 var(--ss-accent); }
 .gs-turma > li.off { opacity: 0.55; }
+.gs-turma > li.ghosted .gs-chip { opacity: 0.6; }
+.gs-tag .ss-icon { vertical-align: -3px; margin-right: 4px; }
 .gs-turma .pos { flex: none; width: 24px; color: var(--ss-fg-faint); font: 400 var(--ss-ui-sm)/28px var(--ss-font-mono); font-variant-numeric: tabular-nums; text-align: right; }
 .gs-turma .main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
 .gs-turma .top { display: flex; align-items: center; gap: 8px; min-width: 0; min-height: 28px; }
@@ -379,6 +385,9 @@ html, body { margin: 0; min-height: 100%; background: var(--ss-bg); }
 .gs-head .turn .tip { border-color: var(--ss-accent); }
 .gs-head .turn .tag { background: var(--ss-accent); color: var(--ss-fg-on-primary); }
 .gs-head .done .tip { opacity: 0.8; }
+/* quem virou fantasma: o post-it e o apelido translúcidos, como o corpo (o balão de fala continua inteiro, para ler) */
+.gs-head .ghost .tip, .gs-head .ghost .tag { opacity: 0.55; }
+.gs-head .ghost .tag { font-style: italic; }
 
 /*
  * o balão de fala: da família dos balões dos emotes (papel branco, contorno escuro de 1 pixel com os cantos cortados,
@@ -442,7 +451,19 @@ html, body { margin: 0; min-height: 100%; background: var(--ss-bg); }
 
 /* o bloco: preso embaixo ao lado da coluna; minimizado, uma aba que sobe um pouco com o mouse em cima */
 .gs-notepad { position: absolute; z-index: 11; bottom: var(--gs-edge); display: flex; flex-direction: column; gap: 12px; padding: 12px 16px 16px; }
-.gs-notepad textarea { width: 100%; box-sizing: border-box; }
+.gs-notepad .ss-textarea { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+:is(.gs-screen, .gs-room) .gs-notepad .ss-textarea .control { flex: 1; min-height: 0; box-sizing: border-box; }
+:is(.gs-screen, .gs-room) .gs-notepad textarea { width: 100%; height: 100%; min-height: 0; box-sizing: border-box; resize: none; }
+/* a alça do tamanho: as bordas de cima e da direita, e o canto entre elas com um degrau de pixels */
+.gs-notepad-edge, .gs-notepad-grip { position: absolute; z-index: 1; touch-action: none; }
+.gs-notepad-edge.top { top: -4px; left: 0; right: 16px; height: 8px; cursor: ns-resize; }
+.gs-notepad-edge.right { top: 16px; bottom: 0; right: -4px; width: 8px; cursor: ew-resize; }
+.gs-notepad-grip { top: -4px; right: -4px; width: 20px; height: 20px; cursor: nesw-resize; color: var(--ss-fg-faint); }
+.gs-notepad-grip::before { content: ''; position: absolute; top: 6px; right: 6px; width: 2px; height: 2px; background: currentColor;
+  box-shadow: -4px 0 currentColor, -8px 0 currentColor, 0 4px currentColor, -4px 4px currentColor, 0 8px currentColor; }
+.gs-notepad-grip:hover, .gs-notepad.resizing .gs-notepad-grip { color: var(--ss-fg); }
+.gs-notepad.resizing { border-color: var(--ss-line-strong); }
+.gs-notepad.resizing, .gs-notepad.resizing * { user-select: none; }
 .gs-notepad-tab { all: unset; position: absolute; z-index: 11; bottom: 0; box-sizing: border-box; display: inline-flex; align-items: flex-start; gap: 8px; height: 48px; padding: 12px 12px 0;
   background: var(--gs-float-bg); color: var(--ss-fg); border: 1px solid var(--gs-float-line); border-bottom: 0; -webkit-backdrop-filter: var(--gs-float-blur); backdrop-filter: var(--gs-float-blur);
   font: 500 var(--ss-ui-md)/16px var(--ss-font-body); cursor: pointer; transform: translateY(8px);

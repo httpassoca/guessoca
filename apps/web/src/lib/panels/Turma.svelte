@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { RoomSnapshot } from '@guess/protocol';
+  import type { MemberView, RoomSnapshot } from '@guess/protocol';
   import { Tooltip } from 'dssoca';
   import Confirm from '../hud/Confirm.svelte';
   import Icon from '../hud/Icon.svelte';
@@ -16,7 +16,9 @@
    * post-it dela ao vivo (o meu "?"); no jogo, o post-it, o estado (na vez, acertou, desistiu) e
    * quantas vezes já teve a vez (`N×`, pequeno). O moderador tem, por
    * linha, ↑ ↓, passar a moderação e expulsar; no jogo, só ✓ e ✗ (marcar acertou ou não) ficam à mostra, e o resto vai
-   * para o ⋯ da linha (`RowMenu`). Todo ícone se explica no tooltip do dssoca. Os fantasmas vêm à parte, embaixo.
+   * para o ⋯ da linha (`RowMenu`). Todo ícone se explica no tooltip do dssoca. Os fantasmas vêm à parte, embaixo. Quem
+   * virou fantasma no meio do jogo continua aqui, com o fantasminha e a marca "fantasma"; o moderador põe e tira os
+   * outros de fantasma pela linha (o fantasminha no lobby e no fim, o ⋯ no jogo).
    */
   let { v, room, send }: { v: RoomView; room: RoomSnapshot; send: (r: GameRequest) => void } = $props();
 
@@ -38,14 +40,21 @@
   const move = (id: string, d: -1 | 1) => send({ type: 'order', order: moveBy(ids, id, d) });
 </script>
 
-{#snippet iconBtn(icon: 'up' | 'down' | 'check' | 'wrong', label: string, disabled: boolean, onclick: () => void)}
+{#snippet iconBtn(icon: 'up' | 'down' | 'check' | 'wrong' | 'ghost', label: string, disabled: boolean, onclick: () => void)}
   <Tooltip text={label}>
     <button class="ss-btn ghost gs-icon-btn" type="button" {disabled} aria-label={label} {onclick}><Icon name={icon} /></button>
   </Tooltip>
 {/snippet}
 
-{#snippet modActions(id: string, name: string)}
+{#snippet ghostBtn(m: MemberView)}
+  {@render iconBtn('ghost', t(m.ghosted ? 'mod.unghostName' : 'mod.ghostName', { name: m.nickname }), false, () => send({ type: 'ghost', member: m.id, on: !m.ghosted }))}
+{/snippet}
+
+{#snippet modActions(m: MemberView)}
+  {@const id = m.id}
+  {@const name = m.nickname}
   {#if v.isModerator && id !== room.you}
+    {@render ghostBtn(m)}
     <Confirm icon="crown" label={t('mod.handOverTo', { name })} onconfirm={() => send({ type: 'handOver', member: id })} />
     <Confirm icon="kick" label={t('mod.kickName', { name })} onconfirm={() => send({ type: 'kick', member: id })} />
   {/if}
@@ -71,7 +80,7 @@
 <ol class="gs-turma">
   {#each v.turma as r, i (r.member.id)}
     {@const name = r.member.nickname}
-    <li class:turn={r.card?.turn} class:off={!r.member.connected} class:done={r.status !== 'playing'}>
+    <li class:turn={r.card?.turn} class:off={!r.member.connected} class:done={r.status !== 'playing'} class:ghosted={r.ghosted}>
       <span class="pos">{r.pos}</span>
       <div class="main">
         <div class="top">
@@ -82,13 +91,14 @@
           {#if v.isModerator}
             <span class="act">
               {#if !lobby && !ended}
-                {@render iconBtn('check', t('mod.markRightName', { name }), r.status === 'got', () => send({ type: 'mark', member: r.member.id, right: true }))}
+                {@render iconBtn('check', t('mod.markRightName', { name }), r.status === 'got' || r.ghosted, () => send({ type: 'mark', member: r.member.id, right: true }))}
                 {@render iconBtn('wrong', t('mod.markWrongName', { name }), r.status === 'playing', () => send({ type: 'mark', member: r.member.id, right: false }))}
                 <RowMenu label={t('mod.more', { name })}>
                   {#snippet children(close)}
                     <button class="ss-btn ghost gs-sm" type="button" disabled={i === 0} onclick={() => { move(r.member.id, -1); close(); }}><Icon name="up" />{t('order.upShort')}</button>
                     <button class="ss-btn ghost gs-sm" type="button" disabled={i === v.turma.length - 1} onclick={() => { move(r.member.id, 1); close(); }}><Icon name="down" />{t('order.downShort')}</button>
                     {#if r.member.id !== room.you}
+                      <button class="ss-btn ghost gs-sm" type="button" onclick={() => { send({ type: 'ghost', member: r.member.id, on: !r.ghosted }); close(); }}><Icon name="ghost" />{r.ghosted ? t('mod.unghost') : t('mod.ghost')}</button>
                       <Confirm label={t('mod.handOver')} small onconfirm={() => { send({ type: 'handOver', member: r.member.id }); close(); }} />
                       <Confirm label={t('mod.kick')} small onconfirm={() => { send({ type: 'kick', member: r.member.id }); close(); }} />
                     {/if}
@@ -99,7 +109,7 @@
                   {@render iconBtn('up', t('order.up', { name }), i === 0, () => move(r.member.id, -1))}
                   {@render iconBtn('down', t('order.down', { name }), i === v.turma.length - 1, () => move(r.member.id, 1))}
                 {/if}
-                {@render modActions(r.member.id, name)}
+                {@render modActions(r.member)}
               {/if}
             </span>
           {/if}
@@ -151,7 +161,7 @@
     <h4>{t('lobby.ghosts')}<span class="gs-n">{v.ghosts.length}</span></h4>
     <ul class="gs-members">
       {#each v.ghosts as g (g.id)}
-        <li><Who m={g} {room} />{#if v.isModerator}<span class="act">{@render modActions(g.id, g.nickname)}</span>{/if}</li>
+        <li><Who m={g} {room} />{#if v.isModerator}<span class="act">{@render modActions(g)}</span>{/if}</li>
       {/each}
     </ul>
   </div>

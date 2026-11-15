@@ -58,6 +58,11 @@ export interface GameState {
   order: string[];
   /** o moderador escolheu só moderar: não entra em `order` no próximo lobby (nem neste) */
   onlyModerate: string[];
+  /**
+   * quem virou fantasma (sozinho ou pelo moderador), até desvirar: no lobby e no "jogar de novo" fica fora de `order`; no
+   * jogo continua em `order` (com o post-it guardado), mas não tem vez, não vota, não acerta, não desiste e não segura o fim
+   */
+  ghosted: string[];
   /** personagem de cada membro (0..`CHARACTERS`−1) */
   characters: Record<string, number>;
   /**
@@ -111,6 +116,11 @@ export type GameAction =
   | { type: 'turnMs'; ms: number }
   /** moderador: só moderar (sai de `order`, vira fantasma) ou voltar a jogar (lobby) */
   | { type: 'onlyModerate'; on: boolean }
+  /**
+   * vira fantasma (`on`) ou desvira: a própria pessoa, ou o moderador para qualquer pessoa da turma (qualquer fase). No
+   * lobby sai da ordem (ou volta para o fim dela); no jogo fica na ordem, é pulado nas vezes e sai da votação
+   */
+  | { type: 'ghost'; member: string; on: boolean }
   /** o autor de `owner` (ou o moderador, para qualquer dono menos o próprio) escreve o post-it; recusa depois de pronto (lobby) */
   | { type: 'write'; owner: string; text: string; image: string | null }
   /** o autor marca o post-it que escreve como pronto (precisa de texto; lobby) */
@@ -166,6 +176,7 @@ export function createGame(init: { turnMs?: number } = {}): GameState {
     phase: 'lobby',
     order: [],
     onlyModerate: [],
+    ghosted: [],
     characters: {},
     authors: {},
     customAuthors: false,
@@ -217,6 +228,7 @@ export function removeMember(g: GameState, id: string, ctx: Ctx): { game: GameSt
   const oldOrder = g.order;
   next.order = next.order.filter((m) => m !== id);
   next.onlyModerate = next.onlyModerate.filter((m) => m !== id);
+  next.ghosted = next.ghosted.filter((m) => m !== id);
   delete next.characters[id];
   next.got = next.got.filter((m) => m !== id);
   next.gaveUp = next.gaveUp.filter((m) => m !== id);
@@ -317,6 +329,32 @@ function apply(g: GameState, actor: string, moderator: boolean, action: GameActi
       fixAuthors(g, events);
       return null;
     }
+    case 'ghost': {
+      const member = action.member;
+      if (member !== actor && !moderator) return 'notModerator';
+      if (!(member in g.characters)) return 'invalid';
+      const already = g.ghosted.includes(member);
+      if (action.on === already) return 'invalid';
+      if (!action.on) {
+        // desvira; no lobby, `settle` o põe de volta no fim da ordem (se conectado)
+        g.ghosted = g.ghosted.filter((id) => id !== member);
+        return null;
+      }
+      g.ghosted.push(member);
+      if (g.phase === 'lobby') {
+        g.order = g.order.filter((id) => id !== member);
+        fixAuthors(g, events);
+      }
+      if (g.vote) {
+        // quem pediu: a votação cai sem resultado (a vez passa no `settle`); quem votava: sai, e o voto também
+        if (g.vote.claimer === member) g.vote = null;
+        else {
+          g.vote.voters = g.vote.voters.filter((id) => id !== member);
+          delete g.vote.ballots[member];
+        }
+      }
+      return null;
+    }
     case 'write': {
       if (g.phase !== 'lobby') return 'wrongPhase';
       const postit = g.postits[action.owner];
@@ -356,7 +394,7 @@ function apply(g: GameState, actor: string, moderator: boolean, action: GameActi
       if (!turn || turn.owner !== actor) return moderator ? 'invalid' : 'notYourTurn';
       if (g.vote) return 'invalid';
       stopClock(turn, ctx.now);
-      const voters = g.order.filter((id) => id !== actor && ctx.online.has(id) && !ctx.fakes.has(id));
+      const voters = g.order.filter((id) => id !== actor && ctx.online.has(id) && !ctx.fakes.has(id) && !g.ghosted.includes(id));
       g.vote = { claimer: actor, voters, ballots: {}, closesAt: ctx.now + VOTE_MS };
       events.push({ type: 'claimed', owner: actor });
       return null;
@@ -380,7 +418,7 @@ function apply(g: GameState, actor: string, moderator: boolean, action: GameActi
     }
     case 'giveUp': {
       if (g.phase !== 'playing') return 'wrongPhase';
-      if (!g.order.includes(actor) || isDone(g, actor)) return 'invalid';
+      if (!g.order.includes(actor) || isDone(g, actor) || g.ghosted.includes(actor)) return 'invalid';
       g.gaveUp.push(actor);
       events.push({ type: 'gaveUp', owner: actor });
       if (g.vote?.claimer === actor) g.vote = null;
@@ -397,7 +435,7 @@ function apply(g: GameState, actor: string, moderator: boolean, action: GameActi
         return null;
       }
       if (action.right) {
-        if (g.got.includes(member)) return 'invalid';
+        if (g.got.includes(member) || g.ghosted.includes(member)) return 'invalid';
         g.gaveUp = g.gaveUp.filter((id) => id !== member);
         g.got.push(member);
         events.push({ type: 'gotIt', owner: member, by: 'moderator' });
@@ -431,9 +469,10 @@ function apply(g: GameState, actor: string, moderator: boolean, action: GameActi
       if (!moderator) return 'notModerator';
       if (g.phase !== 'ended') return 'wrongPhase';
       // quem está desconectado fica de fora (fantasma): não escreve nem espera post-it até voltar (`settle` o põe de volta)
+      // quem virou fantasma também, até desvirar
       const late = Object.keys(g.characters).filter((id) => !g.order.includes(id) && !g.onlyModerate.includes(id));
       g.phase = 'lobby';
-      g.order = [...g.order, ...late].filter((id) => ctx.online.has(id));
+      g.order = [...g.order, ...late].filter((id) => ctx.online.has(id) && !g.ghosted.includes(id));
       g.customAuthors = false;
       g.authors = circle(g.order);
       g.postits = {};
@@ -498,9 +537,14 @@ function isDone(g: GameState, id: string): boolean {
   return g.got.includes(id) || g.gaveUp.includes(id);
 }
 
-/** Pode ter a vez: está na ordem, conectada, não é falsa e ainda não acertou nem desistiu. */
+/** Joga agora: conectada, não é falsa nem fantasma (estar na ordem e não ter terminado são outra conta). */
+function present(g: GameState, ctx: Ctx, id: string): boolean {
+  return ctx.online.has(id) && !ctx.fakes.has(id) && !g.ghosted.includes(id);
+}
+
+/** Pode ter a vez: está na ordem, conectada, não é falsa nem fantasma e ainda não acertou nem desistiu. */
 function canTakeTurn(g: GameState, ctx: Ctx, id: string): boolean {
-  return g.order.includes(id) && ctx.online.has(id) && !ctx.fakes.has(id) && !isDone(g, id);
+  return g.order.includes(id) && present(g, ctx, id) && !isDone(g, id);
 }
 
 /**
@@ -575,19 +619,19 @@ function isPermutation(candidate: readonly string[], of: readonly string[]): boo
  * - votação vencida (`closesAt <= now`) ou sem ninguém mais que possa votar fecha: maioria dos votos dados, empate (e
  *   zero votos) = sim. Sim: a dona entra em `got` e a próxima vez começa. Não: a vez volta a correr com o que sobrava.
  * - vez vencida (relógio correndo e sobra <= 0): a próxima começa.
- * - a dona da vez está offline (ou é jogador falso): a próxima começa (jogador falso passa a vez sozinho).
- * - jogo acaba quando nenhuma pessoa conectada de `order` (sem contar jogadores falsos, que nunca acertam) está ainda
- *   jogando: todas acertaram ou desistiram. Sem nenhuma pessoa conectada que não seja falsa, não acaba (a sala espera).
+ * - a dona da vez está offline (ou é jogador falso, ou virou fantasma): a próxima começa (jogador falso passa a vez sozinho).
+ * - jogo acaba quando nenhuma pessoa conectada de `order` (sem contar jogadores falsos, que nunca acertam, nem
+ *   fantasmas) está ainda jogando: todas acertaram ou desistiram. Sem nenhuma pessoa assim, não acaba (a sala espera).
  * A próxima vez é da próxima pessoa em `order` depois da dona atual, conectada, sem ter acertado nem desistido, e não
- * jogador falso; dá a volta. Começa com `turnMs` e o relógio correndo (a menos que o moderador tenha pausado).
- * - no lobby, quem está conectado e ficou de fora da ordem sem ter escolhido só moderar (desconectado no "jogar de
- *   novo") volta para o fim dela, como quem acaba de entrar.
+ * jogador falso nem fantasma; dá a volta. Começa com `turnMs` e o relógio correndo (a menos que o moderador tenha pausado).
+ * - no lobby, quem está conectado e ficou de fora da ordem sem ter escolhido só moderar nem ser fantasma (desconectado
+ *   no "jogar de novo", ou fantasma que desvirou) volta para o fim dela, como quem acaba de entrar.
  */
 export function settle(g: GameState, ctx: Ctx): { game: GameState; events: GameEvent[] } {
   const next = structuredClone(g);
   const events: GameEvent[] = [];
   if (next.phase === 'lobby') {
-    const back = Object.keys(next.characters).filter((id) => ctx.online.has(id) && !next.order.includes(id) && !next.onlyModerate.includes(id));
+    const back = Object.keys(next.characters).filter((id) => ctx.online.has(id) && !next.order.includes(id) && !next.onlyModerate.includes(id) && !next.ghosted.includes(id));
     if (back.length) {
       next.order.push(...back);
       next.customAuthors = false;
@@ -622,8 +666,8 @@ function settleOnce(g: GameState, ctx: Ctx, events: GameEvent[]): boolean {
       return true;
     }
   }
-  const present = g.order.filter((id) => ctx.online.has(id) && !ctx.fakes.has(id));
-  if (present.length > 0 && present.every((id) => isDone(g, id))) {
+  const playing = g.order.filter((id) => present(g, ctx, id));
+  if (playing.length > 0 && playing.every((id) => isDone(g, id))) {
     endGame(g, events);
     return true;
   }

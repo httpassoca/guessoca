@@ -46,6 +46,8 @@ export interface TurmaRow {
   place: number | null;
   /** quantas vezes já teve a vez neste jogo */
   turns: number;
+  /** virou fantasma: no jogo continua aqui (com o post-it), mas a vez é pulada e não vota */
+  ghosted: boolean;
 }
 
 /** Por que o moderador ainda não pode começar: falta gente jogando, ou algum post-it está sem texto. */
@@ -86,7 +88,12 @@ export interface RoomView {
   isModerator: boolean;
   /** estou na ordem das vezes */
   isPlayer: boolean;
+  /** fora do jogo: fora da ordem (cheguei depois, só modero, ou virei fantasma no lobby) */
   isGhost: boolean;
+  /** virei fantasma (sozinho ou pelo moderador) e ainda não desvirei */
+  isGhosted: boolean;
+  /** sou o moderador e escolhi só moderar (fora da ordem sem ter virado fantasma) */
+  onlyModerating: boolean;
   /** já acertei ou desisti */
   done: boolean;
   /** quem joga, na ordem das vezes */
@@ -179,7 +186,7 @@ export function roomView(s: RoomSnapshot): RoomView {
     // como o servidor escolhe a próxima vez (`startTurn`): dá a volta na ordem a partir de quem está na vez
     const i = s.order.indexOf(turnOwner.id);
     const rotation = [...s.order.slice(i + 1), ...s.order.slice(0, Math.max(0, i))];
-    const nextId = rotation.find((id) => { const m = byId.get(id); return !!m && m.connected && !m.fake && !got.has(id) && !gaveUp.has(id); });
+    const nextId = rotation.find((id) => { const m = byId.get(id); return !!m && m.connected && !m.fake && !m.ghosted && !got.has(id) && !gaveUp.has(id); });
     turn = { owner: turnOwner, mine: turnOwner.id === me?.id, left: s.turn.left, running: s.turn.running, next: (nextId && byId.get(nextId)) || null };
   }
 
@@ -212,6 +219,7 @@ export function roomView(s: RoomSnapshot): RoomView {
       member, pos: i + 1, writesFor: (target && byId.get(target)) || null, writing: tp ? progressOf(tp) : 'empty',
       card, status: got.has(member.id) ? 'got' : gaveUp.has(member.id) ? 'gaveUp' : 'playing', place: place.get(member.id) ?? null,
       turns: s.turns?.[member.id] ?? 0, // um servidor antigo (no meio de um deploy) ainda não manda
+      ghosted: !!member.ghosted,
     };
   });
 
@@ -224,7 +232,7 @@ export function roomView(s: RoomSnapshot): RoomView {
   const ownPostitAuthor = hostLobby && me && s.postits[me.id] && !s.postits[me.id].written && myAuthorId !== me.id ? (myAuthorId && byId.get(myAuthorId)) || null : null;
   const startBlock: StartBlock | null = !hostLobby ? null : players.length < MIN_PLAYERS ? 'players' : !allWritten ? 'empty' : null;
   return {
-    me, isModerator, isPlayer, isGhost: !!me && !isPlayer, done, players,
+    me, isModerator, isPlayer, isGhost: !!me && !isPlayer, isGhosted: !!me?.ghosted, onlyModerating: isModerator && !isPlayer && !me?.ghosted, done, players,
     ghosts: s.members.filter((m) => !s.order.includes(m.id)),
     offline: s.members.filter((m) => !m.connected),
     turma,
@@ -244,7 +252,7 @@ export function roomView(s: RoomSnapshot): RoomView {
     turn,
     canClaim: playing && !!turn?.mine && turn.running && !s.vote && !s.paused,
     canSkip: playing && !!turn?.mine && !s.vote,
-    canGiveUp: playing && isPlayer && !done,
+    canGiveUp: playing && isPlayer && !done && !me?.ghosted,
     moderatorCanSkip: playing && isModerator && !!turn && !s.vote,
     vote,
     ranking,

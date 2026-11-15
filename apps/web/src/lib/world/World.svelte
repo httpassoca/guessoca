@@ -68,7 +68,7 @@
   {#each list as h (h.id)}
     {@const said = bubbleOf.get(h.id)}
     <div class="gs-head" data-member={h.id}>
-      <div class="inner" class:bot={h.bot !== null} class:mine={h.mine} class:turn={h.card?.turn} class:done={h.card && h.card.status !== 'playing'}>
+      <div class="inner" class:bot={h.bot !== null} class:mine={h.mine} class:turn={h.card?.turn} class:done={h.card && h.card.status !== 'playing'} class:ghost={h.ghost}>
         {#if h.card}
           <div class="tip" class:hidden={h.card.hidden}>
             {#if h.card.hidden}

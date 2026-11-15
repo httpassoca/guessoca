@@ -12,6 +12,7 @@
   import Icon from '../hud/Icon.svelte';
   import { roomPath } from '../route.svelte';
   import CharacterPicker, { characterName } from './CharacterPicker.svelte';
+  import GhostSwitch from './GhostSwitch.svelte';
   import Swatch from './Swatch.svelte';
   import PostitEditor from './PostitEditor.svelte';
   import Turma from './Turma.svelte';
@@ -29,7 +30,7 @@
   const turnIdx = $derived(turns.indexOf(room.turnMs));
   const caps = $derived(maxPlayersOptions(v.maxPlayersMin));
   const capIdx = $derived(caps.indexOf(room.maxPlayers));
-  const onlyModerating = $derived(v.isModerator && v.isGhost);
+  const onlyModerating = $derived(v.onlyModerating);
   const myCharacter = $derived(v.me?.character ?? null);
   function pickCharacter(n: number) {
     if (n === myCharacter) return;
@@ -91,7 +92,7 @@
     {#key v.writeFor.owner.id}<PostitEditor owner={v.writeFor.owner.id} postit={v.writeFor.postit} code={room.code} {token} {send} canReady />{/key}
   </section>
 {:else if v.isGhost}
-  <p class="gs-banner">{onlyModerating ? t('lobby.onlyModerateBanner') : t('ghost.banner')}</p>
+  <p class="gs-banner">{onlyModerating ? t('lobby.onlyModerateBanner') : v.isGhosted ? t('ghost.ghostedLobbyBanner') : t('ghost.banner')}</p>
 {/if}
 
 {#if v.isModerator && (v.missing.length || editing.length || v.ownPostitAuthor)}
@@ -123,6 +124,8 @@
     {#if picking}<CharacterPicker value={myCharacter} onpick={pickCharacter} />{/if}
   </section>
 {/if}
+
+<GhostSwitch {v} {send} />
 
 <section class="gs-block gs-sec">
   <div class="gs-sec-head"><h3>{t('lobby.settings')}</h3>{#if !v.isModerator}<span class="gs-hint">{t('lobby.settingsReadOnly')}</span>{/if}</div>

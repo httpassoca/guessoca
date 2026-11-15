@@ -22,6 +22,7 @@
     wrong: '<path d="M7 7l10 10M17 7L7 17"/>',
     pause: '<path d="M8 5v14M16 5v14"/>',
     more: '<path d="M5 12h1M11.5 12h1M18 12h1"/>',
+    ghost: '<path d="M5 21V10a7 7 0 0 1 14 0v11l-2.5-2-2.3 2-2.2-2-2.2 2-2.3-2z"/><path d="M9 10h1M14 10h1"/>',
     trash: '<path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/><path d="M10 11v5M14 11v5"/>',
   } as const;
   export type IconName = keyof typeof PATHS;

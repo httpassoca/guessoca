@@ -53,6 +53,7 @@ import { Backdrop } from './backdrop';
 import { Celebration } from './celebration';
 import { seedOf } from './critters';
 import { Fauna } from './fauna';
+import { GHOST_ALPHA, GHOST_SHADOW_ALPHA, GHOST_TINT, ghostLift } from './ghost';
 import { Film } from './film';
 import { lobbyMatrix, moodStep } from './mood';
 import { hash, STRIKE_MS, strikeAt } from './ambient';
@@ -82,6 +83,8 @@ export interface SceneBody extends Vec3 {
   scale?: number;
   /** um bot engraçado (os gatos se afastam dele) */
   bot?: boolean;
+  /** virou fantasma: translúcido, azulado e flutuando um pouco (`ghost.ts`; nenhum pixel novo) */
+  ghost?: boolean;
 }
 
 /** As animações na ordem das linhas da folha (`ANIMATION_NAMES` em `tools/sprites/src/atlas.ts`). */
@@ -413,14 +416,17 @@ export class Scene {
       const at = project(b, cam, view);
       d.sprite.texture = frames[frameIndex(atlas, anim, now - b.animSince)];
       d.sprite.anchor.set(atlas.anchor.x / atlas.frame.w, atlas.anchor.y / atlas.frame.h);
-      d.sprite.position.set(at.x, at.y);
       const big = b.scale ?? 1;
+      // o fantasma flutua acima do chão em pixels inteiros do mundo; a sombra fica no chão
+      d.sprite.position.set(at.x, at.y - (b.ghost ? ghostLift(now, Number(b.id.slice(1)) || 0) * s * big : 0));
       const k = s * artScale(atlas) * big;
       // uma folha encolhida para caber na placa (`fx`, `fy` < 1) é desenhada maior na mesma proporção
       d.sprite.scale.set((b.facing * k) / sheet.fx, k / sheet.fy);
       d.sprite.zIndex = i;
       d.sprite.visible = true;
-      d.sprite.alpha = b.blink && Math.floor(now / BLINK_PERIOD) % 2 === 1 ? BLINK_ALPHA : 1;
+      d.sprite.alpha = (b.blink && Math.floor(now / BLINK_PERIOD) % 2 === 1 ? BLINK_ALPHA : 1) * (b.ghost ? GHOST_ALPHA : 1);
+      const tint = b.ghost ? GHOST_TINT : 0xffffff;
+      if (d.sprite.tint !== tint) d.sprite.tint = tint;
 
       // a sombra fica no chão debaixo dos pés, não na altura do corpo: o pulo se lê como altura
       // (abaixo do chão mais de 1 unidade = caindo pelo vão: sem sombra)
@@ -431,7 +437,7 @@ export class Scene {
         const k = Math.max(SHADOW_MIN, 1 - (b.y - ground) / SHADOW_FADE);
         d.shadow.position.set(at.x, g.y);
         d.shadow.scale.set(s * k * big);
-        d.shadow.alpha = b.blink ? BLINK_SHADOW_ALPHA : 1;
+        d.shadow.alpha = (b.blink ? BLINK_SHADOW_ALPHA : 1) * (b.ghost ? GHOST_SHADOW_ALPHA : 1);
         d.shadow.visible = true;
       }
 

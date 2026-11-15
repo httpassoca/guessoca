@@ -124,7 +124,7 @@ export function createRoom(code: string, now: number, opts: { ttl?: number; dev?
 /** As mensagens do cliente que são ações do jogo, passadas como estão às regras. */
 const GAME_ACTIONS = new Set<GameAction['type']>([
   'character', 'order', 'shuffleAuthors', 'assign', 'turnMs', 'onlyModerate', 'write', 'ready', 'unready', 'start', 'claim', 'vote', 'skip',
-  'giveUp', 'mark', 'pause', 'endGame', 'playAgain',
+  'giveUp', 'mark', 'pause', 'endGame', 'playAgain', 'ghost',
 ]);
 const isGameAction = (m: ClientMessage): m is ClientMessage & GameAction => GAME_ACTIONS.has(m.type as GameAction['type']);
 
@@ -441,7 +441,10 @@ export function snapshotFor(s: RoomState, token: string, now: number): RoomSnaps
     bots: s.bots.map((b) => ({ ...b })),
     stats: g.phase === 'ended' ? structuredClone(s.stats) : {},
     members: s.members.map((m) => ({
-      id: m.id, nickname: m.nickname, connected: m.connected, character: g.characters[m.id] ?? null, ghost: !g.order.includes(m.id), fake: m.fake,
+      id: m.id, nickname: m.nickname, connected: m.connected, character: g.characters[m.id] ?? null,
+      ghost: !g.order.includes(m.id) || g.ghosted.includes(m.id), fake: m.fake,
+      // só vai quem virou fantasma (como os campos opcionais dos bots)
+      ...(g.ghosted.includes(m.id) ? { ghosted: true } : {}),
     })),
     order: [...g.order],
     authors: { ...g.authors },
