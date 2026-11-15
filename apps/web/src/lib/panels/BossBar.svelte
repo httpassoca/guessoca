@@ -2,19 +2,24 @@
   import type { RoomSnapshot } from '@guess/protocol';
   import { fade } from 'svelte/transition';
   import { t } from '../i18n.svelte';
-  import { bossOf, hitTracker, segments } from '../room/boss';
+  import { bossOf, hitTracker, segmentGap, segments, segmentWidths } from '../room/boss';
   import { characterName } from '../world/names';
 
   /**
    * A barra de vida do chefão (issue #60), embaixo da tela, para todo mundo da sala enquanto ele está no telhado: o nome
-   * do personagem e um gomo por empurrão que ele ainda aguenta. Os pontos vêm do servidor (`BotView.hp`); a cada golpe
-   * que conta, o gomo perdido pisca em branco e a barra treme. Aparece quando ele cai do céu e some quando ele vai embora
-   * (derrubado, a barra vazia fica até ele sumir no ar). Onde fica (`left`, `width`, `bottom`) é de `bossBarBox`.
+   * do personagem e um gomo por empurrão que ele ainda aguenta (dezoito, em pixels inteiros: `segmentWidths`). Os pontos
+   * vêm do servidor (`BotView.hp`); a cada golpe que conta, o gomo perdido pisca em branco e a barra treme. Aparece
+   * quando ele cai do céu e some quando ele vai embora (derrubado, a barra vazia fica até ele sumir no ar). Onde fica
+   * (`left`, `width`, `bottom`) é de `bossBarBox`.
    */
   let { room, left, width, bottom }: { room: RoomSnapshot; left: number; width: number; bottom: number } = $props();
 
   const boss = $derived(bossOf(room));
   const segs = $derived(boss ? segments(boss.hp, boss.max) : []);
+  /** a largura por dentro da barra, medida, e dela a de cada gomo em pixels inteiros (até medir, o CSS divide) */
+  let inner = $state(0);
+  const gap = $derived(segmentGap(inner, segs.length));
+  const widths = $derived(segmentWidths(inner, segs.length, gap));
   const hit = hitTracker();
   /** conta os golpes (reinicia a animação) e quais gomos acabaram de se perder */
   let hits = $state(0);
@@ -37,7 +42,9 @@
       </div>
       {#key hits}
         <div class="gs-boss-bar" class:hit={hits > 0} aria-hidden="true">
-          {#each segs as on, i (i)}<span class="seg" class:on class:lost={hits > 0 && i >= lost.from && i < lost.to}></span>{/each}
+          <div class="gs-boss-segs" bind:clientWidth={inner} style:gap="{gap}px">
+            {#each segs as on, i (i)}<span class="seg" class:on class:lost={hits > 0 && i >= lost.from && i < lost.to} class:fixed={widths.length > 0} style:width={widths.length ? `${widths[i]}px` : null}></span>{/each}
+          </div>
         </div>
       {/key}
     </div>

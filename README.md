@@ -92,7 +92,7 @@ apps/web           Vite + Svelte 5 + PixiJS v8 + dssoca
   src/lib/room/view.ts     o snapshot visto por mim: quem sou, para quem escrevo, de quem é a vez, se posso acertar, passar,
                            desistir ou votar, os post-its como posso vê-los, o ranking, a contagem regressiva
   src/lib/room/stats.ts    as estatísticas do fim do jogo: do snapshot para as linhas da tabela (uma por pessoa) e os destaques
-  src/lib/room/boss.ts     a barra de vida do chefão: quem é o chefão no snapshot (`hp` de `hpMax`), os gomos e quando um golpe contou
+  src/lib/room/boss.ts     a barra de vida do chefão: quem é o chefão no snapshot (`hp` de `hpMax`), os gomos (largura em pixels inteiros) e quando um golpe contou
   src/lib/image.ts         a imagem do post-it: reduz a 512 px, WebP baixando a qualidade até caber, sobe por POST
   src/lib/hints.ts         as dicas de primeira vez (o cartão das teclas no telhado), lembradas por navegador (localStorage)
   src/lib/effects.ts       "efeitos de tela" (os filtros de filme) ligados ou não, por navegador (localStorage)

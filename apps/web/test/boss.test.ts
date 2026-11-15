@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'bun:test';
 import { BOSS_SCALE } from '@guess/protocol';
 import { RemoteRoom, type SocketLike } from '../src/lib/room/remote';
-import { bossOf, hitTracker, segments } from '../src/lib/room/boss';
+import { bossOf, hitTracker, segmentGap, segments, segmentWidths } from '../src/lib/room/boss';
 import { boltPath, roofline, STRIKE_MS, strikeAt, strikeTarget } from '../src/lib/world/ambient';
 import { snapshot } from './snapshots';
 
@@ -26,6 +26,29 @@ describe('a barra de vida do chefão: de onde vem', () => {
     expect(segments(6, 6)).toEqual([true, true, true, true, true, true]);
     expect(segments(4, 6)).toEqual([true, true, true, true, false, false]);
     expect(segments(0, 6)).toEqual([false, false, false, false, false, false]);
+  });
+
+  test('os gomos têm largura inteira (nítidos) e enchem a barra: os que sobram vão um pixel a mais, espalhados', () => {
+    // a barra cheia (480 de largura, 446 por dentro) e a estreita (280, 246 por dentro), com 18 gomos
+    for (const inner of [446, 246, 300, 247]) {
+      const gap = segmentGap(inner, 18);
+      const w = segmentWidths(inner, 18, gap);
+      expect(w).toHaveLength(18);
+      for (const x of w) expect(Number.isInteger(x)).toBe(true);
+      expect(w.reduce((a, b) => a + b, 0) + 17 * gap).toBe(inner);
+      expect(Math.max(...w) - Math.min(...w)).toBeLessThanOrEqual(1);
+      expect(Math.min(...w)).toBeGreaterThanOrEqual(8); // ainda se lê como gomo
+      expect(gap).toBeGreaterThanOrEqual(1);
+      // os mais largos não ficam todos de um lado
+      const wide = w.map((x, i) => (x > Math.min(...w) ? i : -1)).filter((i) => i >= 0);
+      if (wide.length > 1) expect(wide[wide.length - 1] - wide[0]).toBeGreaterThan(wide.length - 1);
+    }
+    // gomos largos: o espaço normal; gomos finos: um espaço menor
+    expect(segmentGap(446, 18)).toBe(2);
+    expect(segmentGap(446, 6)).toBe(2);
+    expect(segmentGap(150, 18)).toBe(1);
+    // sem medida ainda, nada
+    expect(segmentWidths(0, 18, 2)).toEqual([]);
   });
 
   test('o golpe: avisa quando os pontos do mesmo chefão caem; chegar, trocar de chefão ou nada mudar, não', () => {

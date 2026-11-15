@@ -2,7 +2,7 @@ import { describe, expect, test } from 'bun:test';
 import { BOSS_SCALE, BOTS_MAX, parsePresence } from '@guess/protocol';
 import { CHARACTERS } from '@guess/rules';
 import { groundAt, MAP, spawnPoint, WALK } from '@guess/world';
-import { ACTIONS, BOSS_ACTIONS, BOSS_BOT_HIT_MS, BOSS_HP, BOT_SHOVE_PLAYER_MS, BOTS_FLEE_MS, BotWorld, type Bot, type Seen } from '../src/bots';
+import { ACTIONS, BOSS_ACTIONS, BOSS_BOT_HIT_MS, BOSS_HP, BOSS_STAY_MAX_MS, BOSS_STAY_MIN_MS, BOT_SHOVE_PLAYER_MS, BOTS_FLEE_MS, BotWorld, type Bot, type Seen } from '../src/bots';
 import { lcg } from './sim';
 
 const DT = 1 / 30;
@@ -152,6 +152,41 @@ describe('bots engraçados', () => {
         wait(1000);
         expect(world.bots.some((b) => b.id === boss.id)).toBe(false);
       }
+    });
+
+    test('aguenta dezoito empurrões, e fica tempo para uma pessoa só dar todos com folga (um a cada três segundos)', () => {
+      expect(BOSS_HP).toBe(18);
+      expect(BOSS_STAY_MIN_MS).toBeGreaterThanOrEqual(BOSS_HP * 3000 + 30_000); // e meio minuto até alguém notar e chegar nele
+      expect(BOSS_STAY_MAX_MS).toBeGreaterThan(BOSS_STAY_MIN_MS);
+      // ninguém o empurra: vai embora sozinho entre o mínimo e o máximo, contados de quando caiu do céu
+      for (const seed of [81, 82, 83]) {
+        const world = new BotWorld(lcg(seed), { characters: CHARACTERS, firstWithin: 1000, bossFirst: true });
+        let now = 0;
+        let born = -1;
+        for (let i = 0; i < 20_000; i++) {
+          now += DT * 1000;
+          world.tick(now, DT, [person('m1')], { enabled: true, taken: new Set() });
+          const boss = world.bots.find((b) => b.boss);
+          if (boss && born < 0) { born = now; expect(boss.leaveAt - now).toBeGreaterThanOrEqual(BOSS_STAY_MIN_MS - 50); expect(boss.leaveAt - now).toBeLessThanOrEqual(BOSS_STAY_MAX_MS); break; }
+        }
+        expect(born).toBeGreaterThanOrEqual(0);
+      }
+    });
+
+    test('dezoito empurrões de pessoa, um a cada segundo e meio: cambaleia em todos menos o último, sem nunca sair do telhado', () => {
+      const { world, boss, wait, now } = withBoss(84);
+      boss.leaveAt = Infinity;
+      for (let hit = 1; hit < BOSS_HP; hit++) {
+        world.shoved(boss.id, hit % 3 ? 1 : -1, 'm1', now());
+        wait(1500);
+        expect(world.bots).toContain(boss);
+        expect(groundAt(MAP, boss.body.x, boss.body.z)).not.toBeNull();
+      }
+      expect(boss.hp).toBe(1);
+      world.shoved(boss.id, 1, 'm1', now());
+      expect(boss.hp).toBe(0);
+      wait(3000);
+      expect(world.bots).not.toContain(boss);
     });
 
     test('a lista leva os pontos que ainda aguenta (`hp`, de `hpMax`), só no chefão, e muda a cada empurrão que conta', () => {

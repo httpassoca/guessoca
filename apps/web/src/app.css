@@ -427,8 +427,9 @@ html, body { margin: 0; min-height: 100%; background: var(--ss-bg); }
 
 /*
  * a barra de vida do chefão: embaixo, entre o bloco e a fala (onde, de `bossBarBox`). O nome na fonte de pixel (VT323,
- * 25 px, a nativa, como nos balões), um gomo por empurrão que ele aguenta: vermelho neon com a luz em cima e a sombra embaixo, como
- * um ladrilho; o perdido pisca em branco e a barra treme em passos de pixel
+ * 25 px, a nativa, como nos balões), um gomo por empurrão que ele aguenta (largura em pixels inteiros, do componente):
+ * vermelho neon com a luz em cima e a sombra embaixo, como um ladrilho; o perdido pisca em branco e a barra treme em
+ * passos de pixel
  */
 .gs-boss-wrap { position: absolute; z-index: 10; pointer-events: none; }
 .gs-boss { --gs-hp: oklch(64% 0.24 14); --gs-hp-hi: oklch(80% 0.15 14); --gs-hp-lo: oklch(44% 0.17 14);
@@ -437,8 +438,10 @@ html, body { margin: 0; min-height: 100%; background: var(--ss-bg); }
 .gs-boss-tag { flex: none; color: var(--gs-hp); }
 .gs-boss-name { flex: 1; min-width: 0; color: var(--ss-fg); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .gs-boss-count { flex: none; color: var(--ss-fg-muted); font-variant-numeric: tabular-nums; }
-.gs-boss-bar { display: flex; gap: 2px; padding: 2px; background: #0a0710; border: 2px solid color-mix(in srgb, var(--gs-hp) 35%, var(--ss-line)); }
+.gs-boss-bar { padding: 2px; background: #0a0710; border: 2px solid color-mix(in srgb, var(--gs-hp) 35%, var(--ss-line)); }
+.gs-boss-segs { display: flex; gap: 2px; }
 .gs-boss-bar .seg { flex: 1; height: 14px; background: color-mix(in srgb, var(--gs-hp) 12%, #0a0710); }
+.gs-boss-bar .seg.fixed { flex: none; }
 .gs-boss-bar .seg.on { background: var(--gs-hp); box-shadow: inset 0 2px 0 var(--gs-hp-hi), inset 0 -2px 0 var(--gs-hp-lo); }
 .gs-boss-bar .seg.lost { animation: gs-boss-lost 520ms steps(4, end) both; }
 .gs-boss-bar.hit { animation: gs-boss-shake 280ms steps(1, end); }
