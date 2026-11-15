@@ -5,10 +5,10 @@
   import { onMount, untrack } from 'svelte';
   import type { MsgKey } from '../i18n';
   import { t } from '../i18n.svelte';
-  import { notepadMinimized, rememberCharacter, rememberedCharacter, rememberNotepadMinimized, rememberSideCollapsed, sideCollapsed } from '../identity';
+  import { notepadMinimized, rememberCharacter, rememberedCharacter, rememberedNotepadSize, rememberNotepadMinimized, rememberNotepadSize, rememberSideCollapsed, sideCollapsed } from '../identity';
   import { isTextField, keyAction } from '../keys';
   import { NO_SECRET, secretKey, stepCharacter } from '../secret';
-  import { besideSide, bossBarBox, EDGE, GAP, notepadBox, sideCollapsedAfter, sideInset, type Phase } from '../layout';
+  import { besideSide, bossBarBox, clampNotepadSize, EDGE, GAP, NOTEPAD_SIZE, notepadBox, resizeNotepad, sideCollapsedAfter, sideInset, type Phase, type Size } from '../layout';
   import type { GameRequest, RemoteRoom, RemoteState } from '../room/remote';
   import { moderatorTracker } from '../room/handover';
   import { characterToClaim, countdown, devTools, roomView } from '../room/view';
@@ -63,12 +63,16 @@
   let sideWidth = $state(0);
   let cornerWidth = $state(0);
   let viewportW = $state(typeof window === 'undefined' ? 1280 : window.innerWidth);
+  let viewportH = $state(typeof window === 'undefined' ? 720 : window.innerHeight);
+  /** o tamanho do bloco que a pessoa pediu (lembrado pelo navegador); o que aparece é ele preso à tela de agora */
+  let notepadWanted = $state<Size>(rememberedNotepadSize() ?? NOTEPAD_SIZE);
   const side = $derived({ open: sideOpen, width: sideWidth });
   const game = $derived(room.phase !== 'lobby');
   const dev = $derived(devTools(location, room.dev));
   const link = $derived(location.origin + roomPath(room.code));
-  const pad = $derived(notepadBox(side, viewportW));
-  const bossBox = $derived(bossBarBox(side, viewportW, notepadMin));
+  const padSize = $derived(clampNotepadSize(notepadWanted, side, viewportW, viewportH));
+  const pad = $derived(notepadBox(side, viewportW, padSize.w));
+  const bossBox = $derived(bossBarBox(side, viewportW, notepadMin, padSize.w));
   /** a vez e a votação centram no que sobra entre a coluna (ou os botões do canto) e o ranking */
   const topLeft = $derived(sideOpen ? besideSide(side) : EDGE + cornerWidth + GAP);
   const PHASE: Record<RoomSnapshot['phase'], MsgKey> = { lobby: 'phase.lobby', playing: 'phase.playing', ended: 'phase.ended' };
@@ -86,6 +90,12 @@
   // a trilha: toca em loop com o jogo correndo, sai em 1 s quando ele acaba (ou ao sair da sala)
   $effect(() => { setMusic(musicWanted(room.phase)); });
   function setNotepadMin(on: boolean) { notepadMin = on; rememberNotepadMinimized(on); }
+  /** a alça do bloco: arrastando muda na hora, ao soltar fica lembrado; null volta ao padrão (e esquece) */
+  function setNotepadSize(size: Size | null, done: boolean) {
+    notepadWanted = size ?? NOTEPAD_SIZE;
+    if (done) rememberNotepadSize(size);
+  }
+  const resizePad = (start: Size, dx: number, dy: number, edges: { w: boolean; h: boolean }) => resizeNotepad(start, dx, dy, edges, side, viewportW, viewportH);
 
   /** telas baixas (1366×768): o bloco aberto cobre o telhado onde a turma fica */
   const SMALL_H = 900;
@@ -193,7 +203,7 @@
   });
 </script>
 
-<svelte:window onkeydown={onKey} onclick={onClick} bind:innerWidth={viewportW} />
+<svelte:window onkeydown={onKey} onclick={onClick} bind:innerWidth={viewportW} bind:innerHeight={viewportH} />
 
 <div class="gs-room">
   <World {remote} {room} {v} blocked={menuOpen} insetLeft={sideInset(side)} />
@@ -247,7 +257,7 @@
   {/if}
   {#if game}
     <div class="gs-rank"><Ranking rows={v.ranking} {room} /></div>
-    <Notepad code={room.code} minimized={notepadMin} left={pad.left} width={pad.width} onminimize={setNotepadMin} />
+    <Notepad code={room.code} minimized={notepadMin} left={pad.left} width={pad.width} size={padSize} resize={resizePad} onsize={setNotepadSize} onminimize={setNotepadMin} />
   {/if}
 
   {#if room.phase === 'playing'}<BossBar {room} left={bossBox.left} width={bossBox.width} bottom={bossBox.bottom} />{/if}

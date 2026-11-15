@@ -100,6 +100,22 @@ describe('o que atravessa a ida do pré-lobby para a sala', () => {
     expect(notepadMinimizedIn(null)).toBe(false);
   });
 
+  test('o tamanho do bloco, por navegador; sem nada guardado (ou lixo), o padrão', async () => {
+    const { notepadSizeIn, rememberNotepadSizeIn } = await import('../src/lib/identity');
+    const browser = fakeStorage();
+    expect(notepadSizeIn(browser)).toBeNull();
+    rememberNotepadSizeIn(browser, { w: 480, h: 320 });
+    expect(notepadSizeIn(browser)).toEqual({ w: 480, h: 320 });
+    rememberNotepadSizeIn(browser, null); // de volta ao padrão
+    expect(notepadSizeIn(browser)).toBeNull();
+    for (const junk of ['x', '{}', '{"w":"a","h":1}', '{"w":-5,"h":300}', '{"w":1.5,"h":300}', '[1,2]', 'null']) {
+      browser.setItem('guess.notepadSize', junk);
+      expect(notepadSizeIn(browser)).toBeNull();
+    }
+    expect(notepadSizeIn(null)).toBeNull();
+    rememberNotepadSizeIn(null, { w: 1, h: 1 }); // sem storage: segue sem quebrar
+  });
+
   test('a coluna recolhida ou não, por aba; começa aberta', async () => {
     const { sideCollapsedIn, rememberSideCollapsedIn } = await import('../src/lib/identity');
     const tab = fakeStorage();
