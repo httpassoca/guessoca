@@ -377,7 +377,7 @@ export class TalkBrain {
     const self = s.figures.find((f) => f.id === bot);
     const describe = (f: Figure) => {
       if (f.bot) return `${f.name} (bot${f.boss ? ' chefão' : ''}${this.talkable(f.id) ? '' : ', calado'})`;
-      const st = f.state === 'guessed' ? ', já acertou' : f.state === 'gaveUp' ? ', desistiu' : f.state === 'ghost' ? ', só assistindo' : f.id === s.turn ? ', na vez' : '';
+      const st = f.state === 'guessed' ? ', já acertou' : f.state === 'gaveUp' ? ', desistiu' : f.state === 'ghost' ? ', fantasma: translúcido, fora do jogo, só assistindo' : f.id === s.turn ? ', na vez' : '';
       const where = self ? `, ${Math.abs(f.x - self.x) < NEAR ? 'pertinho' : 'perto'} à ${f.x < self.x ? 'esquerda' : 'direita'}` : '';
       return `${f.name} (pessoa, de ${persona(f.character).name}${st}${where})`;
     };

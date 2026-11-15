@@ -222,11 +222,13 @@ export class WorldRuntime {
     }
 
     if (!this.broken) {
-      const others = othersOf(bodies);
+      // fantasma (eu ou o outro) atravessa: ninguém é sólido para ele, nem ele para os outros (`othersOf`)
+      const others = othersOf(bodies, { ghost: !!me?.ghosted });
       // o ataque dura o que dura na folha do meu personagem (o mundo põe o piso e o teto)
       const shoveMs = me && me.character !== null ? attackMs(character(me.character).atlas) : undefined;
       // quem leva o meu empurrão: as pessoas (a aba delas aplica) e os bots (o servidor aplica); o falso não
-      const real = new Set([...room.members.filter((m) => !m.fake).map((m) => m.id), ...(room.bots ?? []).map((b) => b.id)]);
+      // fantasma não empurra nem é empurrado (o servidor também descarta)
+      const real = new Set(me?.ghosted ? [] : [...room.members.filter((m) => !m.fake && !m.ghosted).map((m) => m.id), ...(room.bots ?? []).map((b) => b.id)]);
       const { steps, acc } = fixedSteps(this.acc, elapsed);
       this.acc = acc;
       try {
@@ -264,7 +266,7 @@ export class WorldRuntime {
     const list: SceneBody[] = [];
     if (me && me.character !== null) {
       const emote = this.emote && now - this.emote.since < EMOTE_MS ? this.emote.name : null;
-      list.push({ id: me.id, character: me.character, x: body.x, y: body.y, z: body.z, facing: body.facing, anim: body.anim, animSince: body.animSince, emote, blink: this.blinks(body, now) });
+      list.push({ id: me.id, character: me.character, x: body.x, y: body.y, z: body.z, facing: body.facing, anim: body.anim, animSince: body.animSince, emote, blink: this.blinks(body, now), ghost: !!me.ghosted });
     }
     for (const b of bodies) list.push(this.sceneBody(b, now));
     // quem saiu do telhado (bots que foram embora, gente que saiu) não fica guardado
@@ -287,7 +289,7 @@ export class WorldRuntime {
   private sceneBody(b: CrowdBody, now: number): SceneBody {
     let a = this.animOf.get(b.id);
     if (!a || a.anim !== b.anim) { a = { anim: b.anim, since: now }; this.animOf.set(b.id, a); }
-    return { id: b.id, character: b.character, x: b.x, y: b.y, z: b.z, facing: b.facing, anim: b.anim, animSince: a.since, emote: b.emote, blink: b.blink, scale: b.scale, bot: b.bot };
+    return { id: b.id, character: b.character, x: b.x, y: b.y, z: b.z, facing: b.facing, anim: b.anim, animSince: a.since, emote: b.emote, blink: b.blink, scale: b.scale, bot: b.bot, ghost: b.ghost };
   }
 
   /** Cada post-it vai sobre a cabeça do seu dono, com `translate3d`; quem não está no telhado some. */

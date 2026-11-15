@@ -140,6 +140,11 @@ export type ClientMessage =
   /** passa a vez (a própria; o moderador, a de quem for) */
   | { type: 'skip' }
   | { type: 'giveUp' }
+  /**
+   * qualquer fase: `member` vira fantasma (`on`) ou desvira; a própria pessoa, ou o moderador para qualquer um. Fantasma
+   * fica na sala mas fora do jogo: no lobby sai da ordem; no jogo é pulado nas vezes, não vota e guarda o post-it
+   */
+  | { type: 'ghost'; member: string; on: boolean }
   // moderador, a qualquer momento
   | { type: 'mark'; member: string; right: boolean }
   | { type: 'pause'; on: boolean }
@@ -211,8 +216,13 @@ export interface MemberView {
   connected: boolean;
   /** personagem, 0..`CHARACTERS`−1 */
   character: number | null;
-  /** fora de `order`: chegou depois do começo, ou só modera */
+  /** fora do jogo agora: fora de `order` (chegou depois do começo, ou só modera) ou virou fantasma (`ghosted`) */
   ghost: boolean;
+  /**
+   * virou fantasma (sozinho ou pelo moderador) e ainda não desvirou: no jogo pode continuar em `order`, com o post-it
+   * guardado, mas é pulado nas vezes e não vota. Um servidor de antes disso não manda (ninguém virou)
+   */
+  ghosted?: boolean;
   /** jogador falso (só em desenvolvimento) */
   fake: boolean;
 }
@@ -377,6 +387,8 @@ export function parseClientMessage(raw: unknown): ClientMessage | null {
       return isBool(m.yes) ? { type: 'vote', yes: m.yes } : null;
     case 'mark':
       return isId(m.member) && isBool(m.right) ? { type: 'mark', member: m.member, right: m.right } : null;
+    case 'ghost':
+      return isId(m.member) && isBool(m.on) ? { type: 'ghost', member: m.member, on: m.on } : null;
     case 'presence': {
       const presence = parsePresence(m.presence);
       return presence ? { type: 'presence', presence } : null;

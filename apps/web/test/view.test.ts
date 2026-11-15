@@ -440,3 +440,47 @@ describe('o fio da vez', () => {
     expect(turnTone(0)).toBe('red');
   });
 });
+
+describe('fantasma (virou)', () => {
+  const ghosted = (id: string, nickname: string) => member(id, nickname, { ghost: true, ghosted: true });
+  const playing = (extra: Partial<RoomSnapshot> = {}) => snapshot({
+    phase: 'playing', authors: circle, order: ['m1', 'm2', 'm3'],
+    members: [member('m1', 'Zé'), ghosted('m2', 'Ana'), member('m3', 'Bia')],
+    postits: { m1: postit('m3', { text: null, ready: true }), m2: postit('m1', { text: 'Pelé', ready: true }), m3: postit('m2', { text: 'Xuxa', ready: true }) },
+    turn: { owner: 'm1', left: 42_000, running: true },
+    ...extra,
+  });
+
+  test('no jogo, continua na turma (com o post-it) marcado como fantasma, e a próxima vez pula ele', () => {
+    const v = roomView(playing());
+    expect(v.turma.map((r) => [r.member.id, r.ghosted])).toEqual([['m1', false], ['m2', true], ['m3', false]]);
+    expect(v.turma[1].card?.text).toBe('Pelé');
+    expect(v.turn?.next?.id).toBe('m3');
+    expect(v.ghosts).toEqual([]);
+  });
+
+  test('eu virei fantasma: sei disso, não desisto, e meu post-it continua escondido', () => {
+    const v = roomView(playing({ you: 'm2', postits: { m1: postit('m3', { text: 'Batman', ready: true }), m2: postit('m1', { text: null, ready: true }), m3: postit('m2', { text: 'Xuxa', ready: true }) } }));
+    expect(v.isGhosted).toBe(true);
+    expect(v.isPlayer).toBe(true);
+    expect(v.canGiveUp).toBe(false);
+    expect(v.postits.find((c) => c.owner.id === 'm2')?.hidden).toBe(true);
+  });
+
+  test('no lobby, quem virou fica entre os fantasmas, e o moderador fantasma não está "só moderando"', () => {
+    const members = [ghosted('m1', 'Zé'), member('m2', 'Ana'), member('m3', 'Bia')];
+    const v = roomView(snapshot({ members, order: ['m2', 'm3'] }));
+    expect(v.ghosts.map((m) => m.id)).toEqual(['m1']);
+    expect(v.isGhost).toBe(true);
+    expect(v.isGhosted).toBe(true);
+    expect(v.onlyModerating).toBe(false);
+    const only = roomView(snapshot({ members: [member('m1', 'Zé', { ghost: true }), member('m2', 'Ana'), member('m3', 'Bia')] }));
+    expect(only.onlyModerating).toBe(true);
+  });
+
+  test('um servidor de antes do fantasma não manda o campo: ninguém virou', () => {
+    const v = roomView(snapshot());
+    expect(v.isGhosted).toBe(false);
+    expect(v.turma.every((r) => !r.ghosted)).toBe(true);
+  });
+});

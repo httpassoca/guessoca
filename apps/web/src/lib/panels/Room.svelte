@@ -205,7 +205,7 @@
   <aside id="gs-side" class="gs-side" hidden={!sideOpen} bind:offsetWidth={sideWidth} aria-label={t('side.label')}>
     <header class="gs-side-head">
       <Tooltip text={t('sala.title', { code: room.code })} placement="bottom"><span class="gs-code small">{room.code}</span></Tooltip>
-      <span class="gs-tags"><span class="gs-tag">{t(PHASE[room.phase])}</span>{#if v.isGhost}<span class="gs-tag">{t('badge.ghost')}</span>{/if}</span>
+      <span class="gs-tags"><span class="gs-tag">{t(PHASE[room.phase])}</span>{#if v.isGhost || v.isGhosted}<span class="gs-tag">{t('badge.ghost')}</span>{/if}</span>
       <span class="gs-spacer"></span>
       <span class="meta" class:gs-warn={st.status === 'reconnecting'}>{status}</span>
     </header>

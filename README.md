@@ -102,7 +102,8 @@ apps/web           Vite + Svelte 5 + PixiJS v8 + dssoca
                            da cidade, e `critters.ts`, as tiras dos gatos e dos pássaros
   src/lib/world/            o telhado no navegador: controls (teclas → `Input`), loop (60 passos por segundo), presence (manda
                            a própria ~15/s e um batimento por segundo parado; interpola a dos outros), crowd (quem desenhar,
-                           jogadores falsos parados em lugares fixos), view (escala inteira, onde vão o post-it e o balão),
+                           jogadores falsos parados em lugares fixos; fantasma nunca é sólido), ghost (puro: o fantasma
+                           translúcido, azulado e flutuando, só na hora de desenhar), view (escala inteira, onde vão o post-it e o balão),
                            heads, dressing (puro: que objeto veste cada caixa do mapa, onde ficam tampo e fachada de cada
                            telhado, antenas, letreiros e poças, o neon que falha), parallax (puro: a faixa que rola a uma
                            fração da câmera), rain (puro: as gotas reaproveitadas), cheer (puro: quem acabou de
