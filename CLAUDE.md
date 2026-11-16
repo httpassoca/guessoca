@@ -18,7 +18,7 @@ Before touching any art (characters, animations, props, backgrounds, maps, emote
 
 When the owner hands over a character folder ("add this character", "replace X with this"), follow "Art made by an image model" in `docs/art.md`: a character is one entry in `PACKS` (`tools/sprites/src/packs.ts`) plus one more in `CHARACTERS`. Never change the pixels of art the owner supplies: only move whole frames, and let the game draw it smaller. The prompt the owner uses to get such folders is `docs/character-prompt.md`.
 
-The owner's system page is `/sistema` (ADR 0009): it lists, previews, downloads and replaces the served files, behind a password. Files replaced there are stored in `data/overrides/` and win over the built ones even after a deploy, so if new art from the repo isn't showing live, check for an active override first. The one-time server setup for its password is in `docs/sistema.md`; never put the password or its hash in the repo.
+The owner's system page is `/sistema` (ADR 0009): it lists, previews, downloads and replaces the served files, behind a password. Files replaced there are stored in `data/overrides/` and win over the built ones even after a deploy, so if new art from the repo isn't showing live, check for an active override first. The one-time server setup for its password is in `docs/sistema.md`; never put the password or its hash in the repo. Its **Uso** tab shows usage statistics (`apps/server/src/usage.ts`, `data/stats.json`): aggregates only, never IPs, nicknames, chat or post-it text (ADR 0009 amendment); count from the host or server through the `meter`, never inside the pure room `step()`.
 
 ## Agent skills
 

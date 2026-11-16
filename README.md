@@ -75,6 +75,9 @@ apps/server        Bun.serve: `/health`, `POST /api/rooms` (corpo JSON do pré-l
                      o empurrão no ritmo do empurrão e ao alcance pelas presenças; no máximo 16 visitantes), e as imagens da sala em memória
                      (ADR 0003): só de quem é da turma, liberadas quando nenhum post-it as usa (uma subida ainda sem post-it
                      espera 2 min; no máximo 2 por pessoa)
+  src/usage.ts       as estatísticas de uso do `/sistema` (emenda do ADR 0009): contadores por dia de São Paulo, 90 dias,
+                     visitantes distintos por um resumo do token com sal do dia; grava `data/stats.json` (temporário +
+                     renomear, 15 s depois da mudança e ao sair); nunca IP, apelido, texto ou post-it
   src/rooms.ts       `Rooms`: as salas vivas num mapa em memória, códigos de 4 letras sem I nem O; no máximo 2000, e o sorteio
                      do código desiste depois de 100 tentativas (503)
   src/limits.ts      baldes de fichas (por socket, por IP) e o IP de quem pede (o `X-Real-IP` do nginx só vale vindo do
@@ -329,6 +332,12 @@ O modelo, os limites, o orçamento e como testar sem chave estão em `docs/groq.
   `guessoca-data` em `/app/data`) e **sobrevivem a um deploy**: se uma folha nova do repositório não aparece no ar, veja
   se há uma troca valendo na primeira aba.
 - **Só com deploy**: personagem novo, outra quantidade de quadros, outro fps, efeitos sonoros, mapa.
+- **Uso** (a aba de estatísticas, atualiza sozinha a cada 5 s): o agora (salas no lobby e em jogo, gente conectada, bots
+  no telhado, há quanto tempo o servidor está no ar, memória), os últimos 30 dias (jogos, pessoas por jogo, duração média,
+  visitantes por dia, pico de gente junta, um gráfico de jogos e um de pessoas por dia), os personagens mais escolhidos, o
+  que acontece no telhado (palpites, acertos, desistências, fantasmas, chefões, falas no chat, fechados por enxurrada) e o
+  Groq (pedidos e tokens das últimas 24 h contra o limite grátis, 429, demoras, falas ditas e descartadas). Fica em
+  `data/stats.json` (o mesmo volume), só contas por dia, 90 dias; nada de IP, apelido, texto de chat ou post-it.
 
 ## Deploy
 

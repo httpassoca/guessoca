@@ -4,6 +4,7 @@
    * servidor confere, `apps/server/src/admin.ts`) e a guarda só nesta aba.
    *
    * Abas: **Visão geral** (o elenco em fila no tamanho do jogo, o que está trocado, baixar tudo, o pedido de personagem),
+   * **Uso** (as estatísticas de uso: o agora, os últimos 30 dias e o orçamento do Groq; `system/Usage.svelte`),
    * **Personagens** (uma lista à esquerda; à direita um palco com a animação escolhida, a régua de quadros e as sete
    * animações em miniatura), **Cenário** (o telhado montado como no jogo, os objetos, os balões), **Sons** (a música com
    * um tocador, e a forma de onda de cada efeito) e **Arquivos** (a tabela de todos os arquivos servidos, por grupo, com o
@@ -26,6 +27,7 @@
   import Swatch from '../panels/Swatch.svelte';
   import Anim from '../system/Anim.svelte';
   import { frameAtTime, lengthOf, pageName, sheetOfPath } from '../system/anim';
+  import Usage from '../system/Usage.svelte';
   import Wave from '../system/Wave.svelte';
   import { agoText, ApiError, saveBytes, sizeText, systemApi, type AssetInfo, type AssetList } from '../system/api';
   import promptText from '../system/character-prompt.txt?raw';
@@ -33,7 +35,7 @@
   import { zip, type ZipEntry } from '../system/zip';
 
   const ANIMS: AnimationName[] = ['idle', 'walk', 'run', 'jump', 'fall', 'fall_loop', 'shove'];
-  const TABS = [['geral', 'Visão geral'], ['personagens', 'Personagens'], ['cenario', 'Cenário'], ['sons', 'Sons'], ['arquivos', 'Arquivos']] as const;
+  const TABS = [['geral', 'Visão geral'], ['uso', 'Uso'], ['personagens', 'Personagens'], ['cenario', 'Cenário'], ['sons', 'Sons'], ['arquivos', 'Arquivos']] as const;
   type Tab = (typeof TABS)[number][0];
   const SFX_ABOUT: Record<SfxName, string> = {
     jump: 'pulo: um blip curto que sobe', shove: 'empurrão: um baque de ruído grave', vote: 'voto: um sininho de duas notas',
@@ -380,6 +382,8 @@
           </div>
         </section>
         </div>
+      {:else if tab === 'uso'}
+        <Usage load={() => api.usage()} nameOf={(i) => (CHARACTER_ART[i] ? displayName(CHARACTER_ART[i]) : `personagem ${i + 1}`)} onAuthFail={logout} />
       {:else if tab === 'personagens'}
         {@const c = CHARACTER_ART[picked] ?? CHARACTER_ART[0]}
         {@const n = CHARACTER_ART.indexOf(c)}

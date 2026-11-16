@@ -24,4 +24,5 @@ How it fits together:
 - The file lives in the home directory, not in `~/dev/guessoca`, because the deploy wipes that folder on every push.
 - Replaced files are kept in the Docker volume `guessoca-data` (mounted at `/app/data`), which survives deploys. `docker volume rm guessoca-data` (with the container stopped) discards every replacement at once.
 - To change the password, write the file again with the new one and restart the container.
-- To try it on your own machine: `GUESS_ADMIN_HASH=$(printf %s 'anything' | sha256sum | cut -d' ' -f1) PORT=3111 bun apps/server/src/index.ts`, then open `http://localhost:3111/sistema`.
+- Usage statistics (the **Uso** tab, `GET /api/admin/usage`, same password) are kept in `stats.json` in the same volume: daily counters for the last 90 days, written 15 s after a change and on `docker stop`. Deleting the file (container stopped) starts the counts over. No IPs, nicknames, chat text or post-it words are stored; see the amendment to ADR 0009.
+- To try it on your own machine: `GUESS_ADMIN_HASH=$(printf %s 'anything' | sha256sum | cut -d' ' -f1) PORT=3111 bun apps/server/src/index.ts`, then open `http://localhost:3111/sistema`. Add `GUESS_DATA_DIR=/some/tmp/dir` to keep that run's overrides and `stats.json` out of the repo's `data/`.
