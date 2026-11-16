@@ -9,6 +9,7 @@ import { redact, TalkBrain, type Figure, type Heard, type Scene, type TalkReques
 import type { ServerWebSocket } from 'bun';
 import { TokenBucket } from './limits';
 import type { Log } from './log';
+import type { Meter, UsageEvent } from './usage';
 import { createRoom, referencedImages, ROOM_TTL, step, timerKey, type RoomInput, type RoomState } from './room';
 
 /** Uma imagem que nenhum post-it usa ainda espera este tempo pelo `write` que a usa; depois, morre. */
@@ -29,6 +30,8 @@ export interface HostOptions {
   talker?: Talker;
   /** a chance de um bot falar (`TALKABLE_CHANCE`; os testes põem 1) */
   talkChance?: number;
+  /** quem conta o uso para o sistema (`usage.ts`, emenda do ADR 0009): só o que aconteceu, nunca quem */
+  meter?: Meter;
 }
 
 /**
@@ -85,7 +88,7 @@ interface StoredImage {
 export type AddImageResult = { ok: true; id: string } | { ok: false; error: 'notMember' | 'tooBig' | 'notWebp' };
 
 /** `ip`: de quem é o socket (o servidor conta quantos cada IP tem aberto). */
-export interface SocketData { code: string; token: string; ip: string }
+export interface SocketData { code: string; token: string; ip: string; /** o servidor contou este socket como gente conectada */ counted?: boolean }
 export type Socket = ServerWebSocket<SocketData>;
 
 /**
@@ -151,6 +154,10 @@ export class RoomHost {
   private readonly talker: Talker | undefined;
   private readonly talkChance: number | undefined;
   private talk: TalkBrain | null = null;
+  /** o uso para o sistema: quem conta, quando o jogo que roda começou e os chefões deste jogo já contados */
+  private readonly meter: Meter | undefined;
+  private gameStartedAt = 0;
+  private readonly bossesSeen = new Set<string>();
 
   constructor(code: string, private readonly log: Log, private readonly onDead: (code: string) => void, opts: HostOptions = {}) {
     this.clock = opts.clock ?? Date.now;
@@ -162,6 +169,7 @@ export class RoomHost {
     this.chatInterval = opts.chatInterval ?? CHAT_INTERVAL;
     this.talker = opts.talker;
     this.talkChance = opts.talkChance;
+    this.meter = opts.meter;
     this.state = createRoom(code, now, { ttl: opts.ttl ?? ROOM_TTL, dev: opts.dev ?? false, init: opts.init });
     this.syncTimers(now);
     log('room.created', { room: code });
@@ -230,6 +238,7 @@ export class RoomHost {
     if (b[which].take(now)) return true;
     if (b.dropped++ === 0) this.log('room.flood', { room: this.code, token: token.slice(0, 8) });
     if (!b.overflow.take(now)) {
+      this.note({ type: 'floodKick' });
       this.log('room.flooded', { room: this.code, token: token.slice(0, 8), dropped: b.dropped });
       this.drop(ws);
       ws.close(CLOSE_TOO_MANY, 'mensagens demais');
@@ -366,6 +375,7 @@ export class RoomHost {
     this.chats.set(token, now);
     const raw = JSON.stringify({ type: 'chat', member: from.id, text });
     for (const ws of this.sockets.values()) ws.send(raw);
+    this.note({ type: 'chat' });
     // o post-it nunca vai para o modelo: nem quando alguém o diz no chat
     this.hear({ type: 'chat', from: from.id, text: redact(text, this.secrets()) });
   }
@@ -400,6 +410,34 @@ export class RoomHost {
     return { playing: this.playing(), turn: g.turn?.owner ?? null, claim: g.vote?.claimer ?? null, paused: g.paused, figures };
   }
 
+  /** Conta para o sistema; quem conta e quebra não derruba a sala. */
+  private note(e: UsageEvent) {
+    if (!this.meter) return;
+    try { this.meter(e); } catch { /* contar nunca derruba o jogo */ }
+  }
+
+  /** O uso para o sistema, pelo que mudou num passo da sala: o jogo começar e acabar, quem acertou, desistiu, virou fantasma. */
+  private measure(before: RoomState['game'], after: RoomState, now: number) {
+    if (!this.meter) return;
+    const g = after.phase === 'dead' ? null : after.game;
+    if (before.phase !== 'playing' && g?.phase === 'playing') {
+      this.gameStartedAt = now;
+      this.note({ type: 'gameStarted', characters: g.order.filter((id) => !g.ghosted.includes(id)).map((id) => g.characters[id]).filter((c) => c !== undefined) });
+    }
+    if (before.phase === 'playing' && g?.phase !== 'playing') {
+      const ms = Math.max(0, now - this.gameStartedAt);
+      if (g?.phase === 'ended') {
+        const all = Object.values(after.phase === 'dead' ? {} : after.stats);
+        this.note({ type: 'gameFinished', ms, shoves: all.reduce((n, x) => n + x.shoves, 0), falls: all.reduce((n, x) => n + x.falls, 0) });
+      } else this.note({ type: 'gameAbandoned', ms });
+    }
+    if (!g) return;
+    if (!before.vote && g.vote) this.note({ type: 'claim' });
+    for (const id of g.got) if (!before.got.includes(id)) this.note({ type: 'guessed' });
+    for (const id of g.gaveUp) if (!before.gaveUp.includes(id)) this.note({ type: 'gaveUp' });
+    for (const id of g.ghosted) if (!before.ghosted.includes(id)) this.note({ type: 'ghost' });
+  }
+
   /** O jogo andou (um passo da sala): a vez, a votação, quem acertou, errou ou desistiu viram assunto. */
   private heardGame(before: RoomState['game'], after: RoomState['game']) {
     if (!this.talk || before.phase !== 'playing' || after.phase !== 'playing') return;
@@ -425,6 +463,7 @@ export class RoomHost {
   private botSays(world: BotWorld, talk: TalkBrain, req: TalkRequest, text: string | null) {
     if (this.botWorld !== world || this.talk !== talk || this.state.phase === 'dead') return;
     const line = talk.done(req, text, this.clock(), this.scene(world), this.secrets());
+    if (text !== null) this.note({ type: line ? 'botLine' : 'botLineDropped' });
     if (!line) return;
     this.log('room.botSaid', { room: this.code, bot: req.bot, priority: req.priority });
     const raw = JSON.stringify({ type: 'chat', member: req.bot, text: line });
@@ -441,6 +480,7 @@ export class RoomHost {
     const before = this.state.game;
     const { state, out, events } = step(this.state, input, now, { rng: this.rng });
     this.state = state;
+    this.measure(before, state, now);
     if (state.phase !== 'dead') this.heardGame(before, state.game);
     // fora do jogo não se conta; quem saiu da turma (expulso) leva os números junto
     if (!this.playing()) this.counters = {};
@@ -491,6 +531,7 @@ export class RoomHost {
     this.botWorld = null;
     this.talk = null;
     this.botSent.clear();
+    this.bossesSeen.clear();
   }
 
   /** Um passo dos bots: simula, entrega os empurrões, avisa a sala se a lista mudou e manda as presenças que mudaram. */
@@ -521,8 +562,10 @@ export class RoomHost {
       this.count(...hit);
       if (this.botWorld !== world) return;
     }
+    if (r.rosterChanged) for (const b of world.bots) if (b.boss && !this.bossesSeen.has(b.id)) { this.bossesSeen.add(b.id); this.note({ type: 'bossSpawned' }); }
     // o chefão derrubado: o raio cai na cidade em toda aba ao mesmo tempo
     for (const d of r.downs) {
+      this.note({ type: 'bossDown' });
       const raw = JSON.stringify({ type: 'bossDown', bot: d.id, x: Math.round(d.x * 10) / 10 });
       for (const ws of this.sockets.values()) ws.send(raw);
     }

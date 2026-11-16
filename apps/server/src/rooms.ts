@@ -18,6 +18,8 @@ export class Rooms {
 
   get size() { return this.rooms.size; }
   get(code: string) { return this.rooms.get(code.toUpperCase()); }
+  /** As salas vivas, para as estatísticas do sistema. */
+  all() { return this.rooms.values(); }
 
   /**
    * Abre uma sala com o que o pré-lobby escolheu (`init`, já validado). null = não cabe mais nenhuma (o teto), ou o

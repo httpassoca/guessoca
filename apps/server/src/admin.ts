@@ -17,6 +17,7 @@
  *
  * Rotas, todas com a senha: `GET /api/admin/assets` (a lista e o estado do servidor), `GET /api/admin/assets/<caminho>`
  * (baixa o que está valendo; `?original=1` baixa o original), `PUT` (troca, o corpo é o arquivo), `DELETE` (desfaz).
+ * `GET /api/admin/usage`: as estatísticas de uso (`usage.ts`, emenda do ADR 0009), também só com a senha.
  */
 import { mkdirSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -83,6 +84,8 @@ export interface AdminOptions {
   hash: string;
   /** o estado do servidor para a página */
   stats: () => Record<string, unknown>;
+  /** as estatísticas de uso (`usage.ts`): o agora, os dias e o Groq */
+  usage?: () => unknown;
   /** espera de senha errada, ms (os testes zeram) */
   failDelay?: number;
 }
@@ -152,6 +155,11 @@ export function createAdmin(opts: AdminOptions) {
       if (rest === 'assets') {
         if (req.method !== 'GET') return new Response('method not allowed', { status: 405 });
         return Response.json({ assets: await list(), server: opts.stats() }, { headers: { 'cache-control': 'no-store' } });
+      }
+      if (rest === 'usage') {
+        if (req.method !== 'GET') return new Response('method not allowed', { status: 405 });
+        if (!opts.usage) return new Response('not found', { status: 404 });
+        return Response.json(opts.usage(), { headers: { 'cache-control': 'no-store' } });
       }
       if (!rest.startsWith('assets/')) return new Response('not found', { status: 404 });
       let path: string;

@@ -12,5 +12,7 @@ const dataDir = process.env.GUESS_DATA_DIR ?? resolve(import.meta.dir, '../../..
 // os bots que falam (`talk.ts`, `groq.ts`): só com `GROQ_API_KEY` no ambiente (ver docs/groq.md); um só para o processo,
 // para o orçamento do plano grátis ser contado para todas as salas juntas
 const talker = talkerFromEnv(process.env, consoleLog);
-const { server } = createServer({ port, distDir, dataDir, adminHash: process.env.GUESS_ADMIN_HASH, log: consoleLog, hostname: '0.0.0.0', dev, ...(talker ? { talker } : {}) });
+const { server, usage } = createServer({ port, distDir, dataDir, adminHash: process.env.GUESS_ADMIN_HASH, log: consoleLog, hostname: '0.0.0.0', dev, ...(talker ? { talker } : {}) });
 consoleLog('server.listening', { url: server.url.toString(), dist: distDir, dev, talk: talker ? talker.model : false });
+// o `docker stop` manda SIGTERM: as estatísticas de uso (`usage.ts`) vão para o disco antes de sair
+for (const signal of ['SIGTERM', 'SIGINT'] as const) process.on(signal, () => { usage.flush(); process.exit(0); });

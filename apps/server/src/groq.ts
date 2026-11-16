@@ -12,6 +12,7 @@
  */
 import type { Log } from './log';
 import type { ChatMessage, Priority } from './talk';
+import type { Meter } from './usage';
 
 /** Limites de um modelo: pedidos e tokens por minuto e por dia. */
 export interface Limits { rpm: number; rpd: number; tpm: number; tpd: number }
@@ -51,6 +52,9 @@ export function duration(s: string | null | undefined): number | null {
 /** Uma reserva: o pedido já conta nas janelas; `commit` troca a estimativa de tokens pelo gasto de verdade. */
 export interface Ticket { at: number; tokens: number }
 
+/** O que o orçamento já gastou, para o sistema (`usage.ts`). */
+export interface BudgetUsage { limits: Limits; minute: { requests: number; tokens: number }; day: { requests: number; tokens: number }; blockedUntil: number }
+
 export class Budget {
   private spent: Ticket[] = [];
   private inFlight = 0;
@@ -85,6 +89,15 @@ export class Budget {
   /** O gasto de verdade de um pedido (`usage.total_tokens`); null = não se sabe, fica a estimativa. */
   commit(ticket: Ticket, used: number | null) { if (used !== null && Number.isFinite(used) && used >= 0) ticket.tokens = used; }
 
+  /** Quanto já foi usado (pedidos e tokens) no último minuto e nas últimas 24 h, para o sistema; e até quando está travado. */
+  usage(): BudgetUsage {
+    const now = this.clock();
+    const day = this.spent.filter((t) => now - t.at < DAY);
+    const minute = day.filter((t) => now - t.at < MINUTE);
+    const sum = (list: Ticket[]) => list.reduce((s, t) => s + t.tokens, 0);
+    return { limits: this.limits, minute: { requests: minute.length, tokens: sum(minute) }, day: { requests: day.length, tokens: sum(day) }, blockedUntil: this.blockedUntil > now ? this.blockedUntil : 0 };
+  }
+
   /** O pedido acabou (bem ou mal): libera o lugar no ar. */
   release() { this.inFlight = Math.max(0, this.inFlight - 1); }
 
@@ -108,7 +121,14 @@ export class Budget {
 }
 
 /** Quem fala com o modelo: devolve a fala, null (falhou) ou, na hora, null sem promessa (sem orçamento agora). */
-export interface Talker { ask(priority: Priority, messages: ChatMessage[]): Promise<string | null> | null }
+export interface Talker {
+  ask(priority: Priority, messages: ChatMessage[]): Promise<string | null> | null;
+  /** quem conta o uso para o sistema (`usage.ts`): pedidos, tokens, 429, demoras, erros; nunca o texto */
+  meter?: Meter;
+  /** o modelo e o orçamento gasto, para o sistema */
+  readonly model?: string;
+  usage?(): BudgetUsage;
+}
 
 export interface GroqOptions {
   key: string;
@@ -126,6 +146,7 @@ export class GroqTalker implements Talker {
   readonly budget: Budget;
   private readonly maxTokens: number;
   private readonly reasoning: boolean;
+  meter?: Meter;
 
   constructor(private readonly opts: GroqOptions) {
     this.model = opts.model;
@@ -139,14 +160,20 @@ export class GroqTalker implements Talker {
     const chars = messages.reduce((s, m) => s + m.content.length, 0);
     const ticket = this.budget.reserve(priority, Math.ceil(chars / 3.5) + 20 + this.maxTokens);
     if (!ticket) return null;
+    this.note({ type: 'groqRequest' });
     return this.call(messages, ticket).finally(() => this.budget.release());
   }
+
+  usage(): BudgetUsage { return this.budget.usage(); }
+
+  /** Conta para o sistema; um erro de quem conta não chega à fala. */
+  private note(e: Parameters<Meter>[0]) { try { this.meter?.(e); } catch { /* contar nunca derruba a fala */ } }
 
   private async call(messages: ChatMessage[], ticket: Ticket): Promise<string | null> {
     const { key, baseUrl = BASE_URL, fetch = globalThis.fetch, timeoutMs = 6000, log } = this.opts;
     const abort = new AbortController();
     let timer: ReturnType<typeof setTimeout> | undefined;
-    const late = new Promise<null>((resolve) => { timer = setTimeout(() => { abort.abort(); resolve(null); }, timeoutMs); });
+    const late = new Promise<null>((resolve) => { timer = setTimeout(() => { abort.abort(); this.note({ type: 'groqTimeout' }); resolve(null); }, timeoutMs); });
     const body = {
       model: this.model, messages, max_completion_tokens: this.maxTokens, temperature: 0.9,
       ...(this.reasoning ? { reasoning_effort: 'low', include_reasoning: false } : {}),
@@ -157,13 +184,15 @@ export class GroqTalker implements Talker {
         headers: { authorization: `Bearer ${key}`, 'content-type': 'application/json' },
       });
       this.budget.observe(res.status, res.headers);
-      if (!res.ok) { log('talk.error', { status: res.status }); return null; }
+      if (!res.ok) { log('talk.error', { status: res.status }); this.note({ type: res.status === 429 ? 'groq429' : 'groqError' }); return null; }
       const data = (await res.json()) as { choices?: { message?: { content?: unknown } }[]; usage?: { total_tokens?: unknown } };
-      this.budget.commit(ticket, typeof data.usage?.total_tokens === 'number' ? data.usage.total_tokens : null);
+      const used = typeof data.usage?.total_tokens === 'number' ? data.usage.total_tokens : null;
+      this.budget.commit(ticket, used);
+      if (used !== null) this.note({ type: 'groqTokens', n: used });
       const content = data.choices?.[0]?.message?.content;
       return typeof content === 'string' && content.trim() ? content.trim() : null;
     })().catch((e: unknown) => {
-      if (!abort.signal.aborted) log('talk.error', { error: e instanceof Error ? e.message : String(e) });
+      if (!abort.signal.aborted) { log('talk.error', { error: e instanceof Error ? e.message : String(e) }); this.note({ type: 'groqError' }); }
       return null;
     });
     try { return await Promise.race([work, late]); } finally { clearTimeout(timer); }

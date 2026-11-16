@@ -123,6 +123,57 @@ describe('sistema: trocar um arquivo', () => {
   });
 });
 
+describe('sistema: o uso (emenda do ADR 0009)', () => {
+  test('só com a senha: sem ela ou errada, 401, e nada do uso aparece', async () => {
+    for (const pass of [null, 'errada', '']) {
+      const r = await api('usage', {}, pass);
+      expect(r.status).toBe(401);
+      expect(await r.text()).not.toContain('roomsCreated');
+    }
+    expect((await api('usage', { method: 'POST' })).status).toBe(405);
+  });
+
+  test('o agora (salas, gente, memória) e os dias: uma sala criada e alguém entrando aparecem', async () => {
+    const before = await (await api('usage')).json() as { usage: { days: { counts: Record<string, number>; visitors: number }[] } };
+    const created0 = before.usage.days.at(-1)!.counts.roomsCreated ?? 0;
+    const { code } = await (await fetch(`${base}/api/rooms`, { method: 'POST', body: '{}' })).json() as { code: string };
+    const ws = new WebSocket(`${base.replace('http', 'ws')}/ws?room=${code}&token=22222222-2222-4222-8222-222222222222`);
+    await new Promise((r) => { ws.onmessage = r; });
+    ws.send(JSON.stringify({ type: 'join', nickname: 'Zé' }));
+    await new Promise((r) => setTimeout(r, 50));
+    const r = await api('usage');
+    expect(r.status).toBe(200);
+    expect(r.headers.get('cache-control')).toBe('no-store');
+    const body = await r.json() as { live: Record<string, number | Record<string, number>>; usage: { days: { counts: Record<string, number>; visitors: number; peakOnline: number }[] }; groq: unknown };
+    expect(body.live).toMatchObject({ rooms: 1, lobby: 1, playing: 0, players: 1, online: 1, bots: 0 });
+    expect((body.live.memory as Record<string, number>).rss).toBeGreaterThan(0);
+    expect(body.live.uptimeMs).toBeGreaterThanOrEqual(0);
+    const today = body.usage.days.at(-1)!;
+    expect(today.counts.roomsCreated).toBe(created0 + 1);
+    expect(today.visitors).toBeGreaterThanOrEqual(1);
+    expect(today.peakOnline).toBeGreaterThanOrEqual(1);
+    expect(body.usage.days).toHaveLength(30);
+    expect(body.groq).toBeNull(); // sem GROQ_API_KEY
+    expect(JSON.stringify(body)).not.toContain('Zé');
+    ws.close();
+  });
+
+  test('o uso vai para `<data>/stats.json` ao parar, e o próximo processo continua de onde parou', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'guess-usage-data-'));
+    try {
+      const a = createServer({ port: 0, distDir: dist, dataDir: dir, adminHash: HASH, log: silentLog, dev: true });
+      await fetch(`http://localhost:${a.server.port}/api/rooms`, { method: 'POST', body: '{}' });
+      a.stop();
+      expect(existsSync(join(dir, 'stats.json'))).toBe(true);
+      const b = createServer({ port: 0, distDir: dist, dataDir: dir, adminHash: HASH, log: silentLog, dev: true });
+      try {
+        const body = await (await fetch(`http://localhost:${b.server.port}/api/admin/usage`, { headers: { [ADMIN_HEADER]: PASS } })).json() as { usage: { totals: Record<string, number> } };
+        expect(body.usage.totals.roomsCreated).toBe(1);
+      } finally { b.stop(); }
+    } finally { rmSync(dir, { recursive: true }); }
+  });
+});
+
 describe('sistema: os bytes', () => {
   test('o formato sai dos primeiros bytes, não do nome', () => {
     expect(sniff(PNG_1)).toBe('png');

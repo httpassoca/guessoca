@@ -6,6 +6,7 @@ import { Rooms, ROOMS_MAX } from './rooms';
 import { staticHandler } from './static';
 import { createAdmin } from './admin';
 import { clientIp, KeyedBuckets } from './limits';
+import { Usage } from './usage';
 import { join } from 'node:path';
 
 /** `dev`: as salas aceitam jogadores falsos (nunca em produção). */
@@ -66,7 +67,14 @@ function parseJson(bytes: Uint8Array): unknown {
  */
 export function createServer(opts: ServerOptions) {
   const limits: Limits = { ...LIMITS, ...opts.limits };
-  const rooms = new Rooms(opts.log, Math.random, { dev: opts.dev ?? false, ...(opts.talker ? { talker: opts.talker } : {}) }, { max: limits.roomsMax });
+  // as estatísticas de uso do sistema (`usage.ts`): em `<data>/stats.json` quando há pasta de dados, senão só na memória
+  const usage = new Usage({ log: opts.log, ...(opts.dataDir !== undefined ? { file: join(opts.dataDir, 'stats.json') } : {}) });
+  usage.load();
+  const meter = usage.record.bind(usage);
+  if (opts.talker) opts.talker.meter = meter;
+  const rooms = new Rooms(opts.log, Math.random, { dev: opts.dev ?? false, meter, ...(opts.talker ? { talker: opts.talker } : {}) }, { max: limits.roomsMax });
+  /** gente conectada a uma sala, no servidor todo (para o pico do dia) */
+  let online = 0;
   const creations = new KeyedBuckets(limits.createBurst, limits.createPerSecond);
   const connects = new KeyedBuckets(limits.connectBurst, limits.connectPerSecond);
   /** sockets abertos por IP */
@@ -75,6 +83,7 @@ export function createServer(opts: ServerOptions) {
   let refusedSince = 0, refusedLoggedAt = 0;
   const refused = (what: string) => {
     refusedSince++;
+    meter({ type: 'limited' });
     const now = Date.now();
     if (now - refusedLoggedAt < 60_000) return;
     opts.log('server.limited', { what, refused: refusedSince });
@@ -108,6 +117,26 @@ export function createServer(opts: ServerOptions) {
   const admin = opts.dataDir === undefined || !opts.adminHash ? null : createAdmin({
     distDir: opts.distDir, dataDir: opts.dataDir, hash: opts.adminHash,
     stats: () => ({ rooms: rooms.size, startedAt, now: Date.now(), dev: opts.dev ?? false, bun: Bun.version }),
+    usage: () => {
+      const live = { rooms: 0, lobby: 0, playing: 0, ended: 0, players: 0, visitors: 0, bots: 0 };
+      for (const host of rooms.all()) {
+        const st = host.state;
+        if (st.phase === 'dead') continue;
+        live.rooms++;
+        live[st.game.phase]++;
+        live.players += st.members.filter((m) => m.connected).length;
+        live.visitors += st.visitors.length;
+        live.bots += st.bots.length;
+      }
+      const mem = process.memoryUsage();
+      const now = Date.now();
+      const talker = opts.talker;
+      return {
+        live: { ...live, online, startedAt, now, uptimeMs: now - startedAt, memory: { rss: mem.rss, heapUsed: mem.heapUsed } },
+        usage: usage.snapshot(30),
+        groq: talker?.usage ? { model: talker.model ?? null, budget: talker.usage() } : null,
+      };
+    },
     failDelay: opts.dev ? 0 : undefined,
   });
 
@@ -129,6 +158,7 @@ export function createServer(opts: ServerOptions) {
         if (!body) return new Response('too big', { status: 413 });
         const host = rooms.create(parseRoomInit(parseJson(body)));
         if (!host) { refused('roomsFull'); return new Response('no room left', { status: 503, headers: { 'retry-after': '60' } }); }
+        meter({ type: 'roomCreated' });
         return Response.json({ code: host.code });
       }
       if (url.pathname.startsWith('/api/admin/')) return (await admin?.handle(req, url)) ?? new Response('sistema desligado', { status: 404 });
@@ -161,16 +191,21 @@ export function createServer(opts: ServerOptions) {
         socketsOf.set(ws.data.ip, (socketsOf.get(ws.data.ip) ?? 0) + 1);
         const host = rooms.get(ws.data.code);
         if (!host) { ws.close(CLOSE_ROOM_NOT_FOUND, 'sala não existe'); return; }
+        // o uso: o token só vira um resumo com o sal do dia (`usage.ts`); a conta de quem está conectado dá o pico
+        ws.data.counted = true;
+        meter({ type: 'online', n: ++online });
+        meter({ type: 'visit', token: ws.data.token });
         host.connect(ws);
       },
       message(ws, raw) { rooms.get(ws.data.code)?.message(ws, raw); },
       close(ws) {
         const n = (socketsOf.get(ws.data.ip) ?? 1) - 1;
         if (n > 0) socketsOf.set(ws.data.ip, n); else socketsOf.delete(ws.data.ip);
+        if (ws.data.counted) { ws.data.counted = false; online = Math.max(0, online - 1); }
         rooms.get(ws.data.code)?.disconnect(ws);
       },
     },
   });
 
-  return { server, rooms, stop: () => server.stop(true) };
+  return { server, rooms, usage, stop: () => { server.stop(true); usage.flush(); } };
 }
