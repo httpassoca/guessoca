@@ -20,3 +20,18 @@ A replacement is written to `<data>/overrides/<path>` and the static handler ser
 - The password protects only writes: every asset is a public URL anyway. The damage of a leaked password is bounded (same-size images and an Ogg file, all reversible, originals intact).
 - Wrong passwords wait 400 ms before the 401. There is no lockout.
 - Overrides are not in git. The zip download is the way to get them back into the repo.
+
+## Amendment: usage statistics
+
+The owner wants to know how the game is used and how close the talking bots run to the free Groq tier, so `/sistema` has a **Uso** tab, fed by `GET /api/admin/usage` behind the same password check (no password, wrong password: 401, like every admin route).
+
+- **Live**: computed on each request from the rooms in memory (open rooms by phase, connected members, visitors without a nickname, bots on the roof), the process uptime and memory. Nothing stored. The page asks again every 5 s while the tab is open and visible.
+- **Over time**: `apps/server/src/usage.ts` keeps one bucket per day (São Paulo's day, `America/Sao_Paulo`) for the last 90 days, older ones dropped on the next write. Each bucket holds only counters: rooms created; games started, finished, abandoned; seats taken (players per game is seats ÷ games); total game time; shoves and falls of finished games; claims, correct guesses, give-ups, players turned ghost; chat lines (the count); bosses spawned and knocked down; sockets closed for flooding (4429) and requests refused by the IP limits; Groq requests, tokens, 429s, timeouts and other errors; bot lines said and dropped (by the filter, or late); the day's peak of people connected at once; and how many times each character was picked.
+- **Who counts**: the server (`server.ts`: rooms created, refusals, sockets, visits) and the host (`host.ts`: game transitions, chat, flood kicks, bosses, bot lines) call a `meter` with an event; the Groq client reports its own requests. The room's `step()` stays pure: the host compares the state before and after each step. A meter that throws is swallowed; counting never touches the disk on the game's path.
+- **On disk**: `<data>/stats.json` (the `guessoca-data` volume, so it survives deploys), written 15 s after the first change and on SIGTERM, to a temporary file renamed over the old one. A missing or broken file starts the counts from zero; a failed write is logged at most once an hour and retried on the next change. What is read back is sanitised (unknown keys and non-counts dropped, days and hashes capped).
+
+### What is deliberately not stored
+
+No IP address, nickname, chat text, post-it word, image, room code or token. Distinct visitors per day are counted from the per-room, per-browser token (ADR 0003 amendment) hashed with SHA-256 together with a random salt drawn each day, truncated to 16 hex characters; at the day's end the salt and the hashes are discarded and only the number remains. Today's hashes are written to the file only so that a deploy in the middle of the day does not count everyone twice; they cannot be reversed or linked across days. At most 20 000 per day are kept. Because the token is per room, one person in three rooms counts three times: the number is "seats opened", close enough for a game among friends.
+
+The Groq meter shows the limiter's own sliding windows (requests and tokens in the last minute and 24 h against `GROQ_RPM`/`RPD`/`TPM`/`TPD`), which are what actually throttles the bots, next to the calendar-day counters.

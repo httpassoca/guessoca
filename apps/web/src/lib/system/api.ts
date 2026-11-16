@@ -11,6 +11,20 @@ export interface AssetInfo {
 export interface ServerInfo { rooms: number; startedAt: number; now: number; dev: boolean; bun: string }
 export interface AssetList { assets: AssetInfo[]; server: ServerInfo }
 
+/** As estatísticas de uso (`apps/server/src/usage.ts`): os contadores de um dia. */
+export type UsageCounts = Partial<Record<
+  'roomsCreated' | 'gamesStarted' | 'gamesFinished' | 'gamesAbandoned' | 'players' | 'gameMs' | 'shoves' | 'falls' | 'claims' | 'guessed' | 'gaveUp'
+  | 'ghosts' | 'chats' | 'bossesSpawned' | 'bossesDown' | 'floodKicks' | 'limited' | 'groqRequests' | 'groqTokens' | 'groq429' | 'groqTimeouts'
+  | 'groqErrors' | 'botLines' | 'botLinesDropped', number>>;
+export interface UsageDay { day: string; counts: UsageCounts; visitors: number; peakOnline: number }
+export interface GroqWindow { requests: number; tokens: number }
+/** O que `GET /api/admin/usage` devolve: o agora, os últimos 30 dias e o orçamento do Groq (null sem `GROQ_API_KEY`). */
+export interface UsageReport {
+  live: { rooms: number; lobby: number; playing: number; ended: number; players: number; visitors: number; bots: number; online: number; startedAt: number; now: number; uptimeMs: number; memory: { rss: number; heapUsed: number } };
+  usage: { days: UsageDay[]; totals: UsageCounts; topCharacters: { character: number; picks: number }[]; since: string | null; today: string };
+  groq: { model: string | null; budget: { limits: { rpm: number; rpd: number; tpm: number; tpd: number }; minute: GroqWindow; day: GroqWindow; blockedUntil: number } } | null;
+}
+
 /** Um erro da API: `status` 401 é senha errada; `message` é o texto que o servidor mandou (em português). */
 export class ApiError extends Error {
   constructor(public status: number, message: string) { super(message); }
@@ -29,6 +43,8 @@ export function systemApi(pass: string, fetchFn: Fetch = (u, i) => fetch(u, i)) 
   return {
     /** a lista e o estado do servidor; 401 se a senha está errada */
     list: async (): Promise<AssetList> => (await call('assets')).json() as Promise<AssetList>,
+    /** as estatísticas de uso */
+    usage: async (): Promise<UsageReport> => (await call('usage')).json() as Promise<UsageReport>,
     /** os bytes do que está valendo, ou do original */
     download: async (path: string, original = false): Promise<Uint8Array<ArrayBuffer>> => new Uint8Array(await (await call(at(path) + (original ? '?original=1' : ''))).arrayBuffer()),
     /** troca o arquivo pelo que o dono escolheu */

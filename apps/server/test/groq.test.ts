@@ -123,6 +123,38 @@ describe('o cliente do Groq', () => {
     expect(calls).toHaveLength(0);
   });
 
+  test('o uso para o sistema: cada pedido, os tokens gastos, o 429, a demora e os outros erros, sem o texto', async () => {
+    const seen: string[] = [];
+    let tokens = 0;
+    const meter = (e: { type: string; n?: number }) => { seen.push(e.type); if (e.type === 'groqTokens') tokens += e.n!; };
+    for (const respond of [
+      () => ok('oi', 250),
+      () => new Response('{}', { status: 429, headers: { 'retry-after': '1' } }),
+      () => new Promise<Response>(() => {}),
+      () => new Response('nope', { status: 500 }),
+      () => { throw new Error('rede caiu'); },
+    ]) {
+      const { fetch } = fake(respond);
+      const t = new GroqTalker({ key: 'k', model: 'm', fetch, budget: new Budget(LIMITS, () => 0), log: silentLog, timeoutMs: 30 });
+      t.meter = meter;
+      await t.ask('reply', messages);
+    }
+    expect(seen.filter((x) => x === 'groqRequest')).toHaveLength(5);
+    expect(tokens).toBe(250);
+    expect(seen.filter((x) => x === 'groq429')).toHaveLength(1);
+    expect(seen.filter((x) => x === 'groqTimeout')).toHaveLength(1);
+    expect(seen.filter((x) => x === 'groqErrors' || x === 'groqError')).toHaveLength(2);
+  });
+
+  test('o orçamento diz quanto já foi usado no minuto e nas 24 h, contra os limites', () => {
+    let now = 0;
+    const b = new Budget(LIMITS, () => now);
+    const t = b.reserve('reply', 100)!; b.commit(t, 400); b.release();
+    now += 120_000;
+    b.reserve('reply', 50); b.release();
+    expect(b.usage()).toMatchObject({ limits: LIMITS, minute: { requests: 1, tokens: 50 }, day: { requests: 2, tokens: 450 }, blockedUntil: 0 });
+  });
+
   test('erro, 429, resposta torta ou demora viram null, nunca exceção', async () => {
     for (const respond of [
       () => new Response('nope', { status: 500 }),
